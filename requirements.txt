@@ -1,0 +1,4 @@
+arcade==3.0.0
+esper==2.4
+blinker==1.8.2
+pytest==8.2.0
