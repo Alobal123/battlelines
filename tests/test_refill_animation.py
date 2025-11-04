@@ -1,6 +1,8 @@
-from ecs.events.bus import EventBus, EVENT_REFILL_COMPLETED, EVENT_TICK
+from ecs.events.bus import EventBus, EVENT_REFILL_COMPLETED, EVENT_TICK, EVENT_ANIMATION_START
 from ecs.systems.board import BoardSystem
 from ecs.systems.render import RenderSystem
+from ecs.systems.animation import AnimationSystem
+from ecs.components.animation_refill import RefillAnimation
 from ecs.world import create_world
 from ecs.components.tile import TileColor
 
@@ -18,16 +20,21 @@ def test_refill_animation_progresses():
     world = create_world(bus)
     window = DummyWindow()
     board = BoardSystem(world, bus, 4, 4)
+    AnimationSystem(world, bus)
     render = RenderSystem(world, bus, window)
     # Simulate a refill event with two new tiles positions without any fade list
     new_positions = [(3,0), (3,1)]  # top row indexes (row 3 if 0 bottom)
+    # Emit logical refill completion then start refill animation explicitly (mirrors MatchResolutionSystem behavior)
     bus.emit(EVENT_REFILL_COMPLETED, new_tiles=new_positions)
+    bus.emit(EVENT_ANIMATION_START, kind='refill', items=new_positions)
     # Ensure spawn list populated
-    assert render.refill_spawn, 'Refill spawn not initialized'
+    refills = list(world.get_component(RefillAnimation))
+    assert refills, 'Refill spawn not initialized'
     # Drive half duration
     drive(bus, 5)  # 5*0.02 =0.1s
-    mid_progress = [r['linear'] for r in render.refill_spawn]
+    mid_progress = [r[1].linear for r in refills]
     assert all(p > 0 for p in mid_progress), 'Progress did not advance'
     # Drive until completion
     drive(bus, 20)
-    assert not render.refill_spawn, 'Refill spawn should be empty after completion'
+    refills = list(world.get_component(RefillAnimation))
+    assert not refills, 'Refill components should be removed after completion'

@@ -1,6 +1,7 @@
 from typing import Tuple, List, Set
 from ecs.events.bus import EventBus, EVENT_TILE_SWAP_REQUEST, EVENT_TILE_SWAP_VALID, EVENT_TILE_SWAP_INVALID
-from ecs.components.tile import BoardCell, TileColor
+from ecs.components.tile import TileColor
+from ecs.components.board_position import BoardPosition
 from esper import World
 
 class MatchSystem:
@@ -24,9 +25,9 @@ class MatchSystem:
     def creates_match(self, a: Tuple[int,int], b: Tuple[int,int]) -> bool:
         # Build map row,col -> color
         grid = {}
-        for ent, cell in self.world.get_component(BoardCell):
+        for ent, pos in self.world.get_component(BoardPosition):
             color_comp = self.world.component_for_entity(ent, TileColor)
-            grid[(cell.row, cell.col)] = color_comp.color
+            grid[(pos.row, pos.col)] = color_comp.color
         # Virtually swap
         grid[a], grid[b] = grid[b], grid[a]
         # Check lines containing a or b for any run >=3

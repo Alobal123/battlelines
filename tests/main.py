@@ -6,6 +6,7 @@ from arcade import Window, run, set_background_color, color
 from ecs.world import create_world
 from ecs.events.bus import EventBus, EVENT_MOUSE_PRESS
 from ecs.systems.render import RenderSystem
+from ecs.systems.animation import AnimationSystem
 from ecs.systems.board import BoardSystem
 from ecs.systems.input import InputSystem
 from ecs.systems.match import MatchSystem
@@ -20,6 +21,7 @@ class BattlelinesWindow(Window):
         self.world = create_world(self.event_bus)
         self.board_system = BoardSystem(self.world, self.event_bus)
         self.match_system = MatchSystem(self.world, self.event_bus)
+        self.animation_system = AnimationSystem(self.world, self.event_bus)
         self.render_system = RenderSystem(self.world, self.event_bus, self)
         self.match_resolution_system = MatchResolutionSystem(self.world, self.event_bus)
         # InputSystem expects (event_bus, window)

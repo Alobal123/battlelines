@@ -1,15 +1,16 @@
 from ecs.events.bus import EventBus
 from ecs.world import create_world
 from ecs.systems.board import BoardSystem
-from ecs.components.tile import BoardCell, TileColor
+from ecs.components.tile import TileColor
+from ecs.components.board_position import BoardPosition
 
 def has_match(world, rows, cols):
     # scan horizontal & vertical
     # build map
     colors = {}
-    for ent, cell in world.get_component(BoardCell):
+    for ent, pos in world.get_component(BoardPosition):
         color_comp = world.component_for_entity(ent, TileColor)
-        colors[(cell.row, cell.col)] = color_comp.color
+        colors[(pos.row, pos.col)] = color_comp.color
     # horizontal
     for r in range(rows):
         run=[]; last=None

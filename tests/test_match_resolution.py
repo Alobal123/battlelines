@@ -2,6 +2,7 @@ from ecs.events.bus import (EventBus, EVENT_TILE_SWAP_REQUEST, EVENT_TICK,
                             EVENT_MATCH_FOUND, EVENT_MATCH_CLEARED, EVENT_GRAVITY_APPLIED, EVENT_REFILL_COMPLETED)
 from ecs.systems.board import BoardSystem
 from ecs.systems.render import RenderSystem
+from ecs.systems.animation import AnimationSystem
 from ecs.systems.match import MatchSystem
 from ecs.systems.match_resolution import MatchResolutionSystem
 from ecs.world import create_world
@@ -22,13 +23,15 @@ def test_horizontal_match_clears_and_refills():
     window = DummyWindow()
     board = BoardSystem(world, bus, 5, 5)
     MatchSystem(world, bus)
+    AnimationSystem(world, bus)
     RenderSystem(world, bus, window)
-    MatchResolutionSystem(world, bus, rows=5, cols=5)
+    MatchResolutionSystem(world, bus)
     # Force a horizontal triple at row 2 columns 0-2 after swap between (2,2) and (2,3)
     e20 = board._get_entity_at(2,0)
     e21 = board._get_entity_at(2,1)
     e22 = board._get_entity_at(2,2)
     e23 = board._get_entity_at(2,3)
+    assert e20 and e21 and e22 and e23
     # Set colors so that swapping e22,e23 makes columns 0-2 same color
     world.component_for_entity(e20, TileColor).color = (10,10,10)
     world.component_for_entity(e21, TileColor).color = (10,10,10)
@@ -57,7 +60,9 @@ def test_horizontal_match_clears_and_refills():
     assert 'cascades' in gravity
     assert refill.get('new_tiles'), 'No refill occurred'
     # Ensure cleared positions now have non-None colors again
-    for (r,c) in found.get('positions'):
+    found_positions = found.get('positions') or []
+    for (r,c) in found_positions:
         ent = board._get_entity_at(r,c)
+        assert ent is not None
         color = world.component_for_entity(ent, TileColor).color
         assert color is not None

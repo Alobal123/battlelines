@@ -5,8 +5,3 @@ from typing import Optional, Tuple
 class TileColor:
     # Use Optional so None can represent an empty cell awaiting refill
     color: Optional[Tuple[int, int, int]]  # (r,g,b) or None when cleared
-
-@dataclass
-class BoardCell:
-    row: int
-    col: int

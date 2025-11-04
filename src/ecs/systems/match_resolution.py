@@ -3,21 +3,18 @@ from typing import List, Tuple, Dict, Set
 from esper import World
 from ecs.events.bus import (EventBus, EVENT_TILE_SWAP_FINALIZE, EVENT_MATCH_FOUND,
                             EVENT_MATCH_CLEARED, EVENT_GRAVITY_APPLIED, EVENT_REFILL_COMPLETED,
-                            EVENT_GRAVITY_MOVES, EVENT_GRAVITY_SETTLED, EVENT_MATCH_CLEAR_BEGIN, EVENT_MATCH_FADE_COMPLETE,
-                            EVENT_REFILL_ANIM_DONE, EVENT_CASCADE_STEP, EVENT_CASCADE_COMPLETE)
-from ecs.components.tile import BoardCell, TileColor
+                            EVENT_CASCADE_STEP, EVENT_CASCADE_COMPLETE, EVENT_ANIMATION_START, EVENT_ANIMATION_COMPLETE)
+from ecs.components.tile import TileColor
+from ecs.components.board_position import BoardPosition
 from ecs.systems.board import PALETTE
+from ecs.components.board import Board
 
 class MatchResolutionSystem:
-    def __init__(self, world: World, event_bus: EventBus, rows: int = 8, cols: int = 8):
+    def __init__(self, world: World, event_bus: EventBus):
         self.world = world
         self.event_bus = event_bus
-        self.rows = rows
-        self.cols = cols
-        event_bus.subscribe(EVENT_TILE_SWAP_FINALIZE, self.on_swap_finalize)
-        event_bus.subscribe(EVENT_MATCH_FADE_COMPLETE, self.on_fade_complete)
-        event_bus.subscribe(EVENT_GRAVITY_SETTLED, self.on_gravity_settled)
-        event_bus.subscribe(EVENT_REFILL_ANIM_DONE, self.on_refill_anim_done)
+        self.event_bus.subscribe(EVENT_TILE_SWAP_FINALIZE, self.on_swap_finalize)
+        self.event_bus.subscribe(EVENT_ANIMATION_COMPLETE, self.on_animation_complete)
         self.pending_match_positions: List[Tuple[int,int]] = []
         self.cascade_depth = 0
         self.cascade_active = False
@@ -34,15 +31,26 @@ class MatchResolutionSystem:
         self.pending_match_positions = flat_positions
         self.event_bus.emit(EVENT_MATCH_FOUND, positions=flat_positions, size=len(flat_positions))
         # Begin clear phase visually (fade) without mutating data yet
-        self.event_bus.emit(EVENT_MATCH_CLEAR_BEGIN, positions=flat_positions)
+        # Trigger fade animation start
+        self.event_bus.emit(EVENT_ANIMATION_START, kind='fade', items=flat_positions)
         # Start cascade tracking
         self.cascade_depth = 1
         self.cascade_active = True
         # Emit first cascade step (depth 1)
         self.event_bus.emit(EVENT_CASCADE_STEP, depth=self.cascade_depth, positions=flat_positions)
 
-    def on_fade_complete(self, sender, **kwargs):
-        positions = kwargs.get('positions') or self.pending_match_positions
+    def on_animation_complete(self, sender, **kwargs):
+        kind = kwargs.get('kind')
+        items = kwargs.get('items', [])
+        if kind == 'fade':
+            positions = items or self.pending_match_positions
+            self._after_fade(positions)
+        elif kind == 'fall':
+            self._after_fall(items)
+        elif kind == 'refill':
+            self._after_refill()
+
+    def _after_fade(self, positions):
         if not positions:
             return
         # Now clear logically
@@ -51,27 +59,23 @@ class MatchResolutionSystem:
         # Gravity
         moves, cascades = self.compute_gravity_moves()
         if moves:
-            self.event_bus.emit(EVENT_GRAVITY_MOVES, moves=moves)
             self.apply_gravity_moves(moves)
             self.event_bus.emit(EVENT_GRAVITY_APPLIED, cascades=cascades)
+            self.event_bus.emit(EVENT_ANIMATION_START, kind='fall', items=moves)
         else:
             self.event_bus.emit(EVENT_GRAVITY_APPLIED, cascades=0)
-        if not moves:
-            # No falling, perform immediate refill
             new_tiles = self.refill()
             if new_tiles:
                 self.event_bus.emit(EVENT_REFILL_COMPLETED, new_tiles=new_tiles)
-            self.event_bus.emit(EVENT_GRAVITY_SETTLED, moves=moves)
+                self.event_bus.emit(EVENT_ANIMATION_START, kind='refill', items=new_tiles)
 
-    def on_gravity_settled(self, sender, **kwargs):
-        moves = kwargs.get('moves', [])
-        # If moves existed, perform refill now
-        if moves:
-            new_tiles = self.refill()
-            if new_tiles:
-                self.event_bus.emit(EVENT_REFILL_COMPLETED, new_tiles=new_tiles)
+    def _after_fall(self, items):
+        new_tiles = self.refill()
+        if new_tiles:
+            self.event_bus.emit(EVENT_REFILL_COMPLETED, new_tiles=new_tiles)
+            self.event_bus.emit(EVENT_ANIMATION_START, kind='refill', items=new_tiles)
 
-    def on_refill_anim_done(self, sender, **kwargs):
+    def _after_refill(self):
         # After refill animation completes, check for next cascade step
         if not self.cascade_active:
             return
@@ -87,23 +91,24 @@ class MatchResolutionSystem:
         self.cascade_depth += 1
         self.event_bus.emit(EVENT_CASCADE_STEP, depth=self.cascade_depth, positions=flat_positions)
         self.event_bus.emit(EVENT_MATCH_FOUND, positions=flat_positions, size=len(flat_positions))
-        self.event_bus.emit(EVENT_MATCH_CLEAR_BEGIN, positions=flat_positions)
+        self.event_bus.emit(EVENT_ANIMATION_START, kind='fade', items=flat_positions)
 
     def board_map(self) -> Dict[Tuple[int,int], Tuple[int,int,int]]:
         mapping = {}
-        for ent, cell in self.world.get_component(BoardCell):
+        for ent, pos in self.world.get_component(BoardPosition):
             color_comp = self.world.component_for_entity(ent, TileColor)
-            mapping[(cell.row, cell.col)] = color_comp.color
+            mapping[(pos.row, pos.col)] = color_comp.color
         return mapping
 
     def find_all_matches(self) -> List[List[Tuple[int,int]]]:
         colors = self.board_map()
         matches: List[List[Tuple[int,int]]] = []
         # Horizontal scans
-        for r in range(self.rows):
+        board_comp = self._board()
+        for r in range(board_comp.rows):
             run: List[Tuple[int,int]] = []
             last_color = None
-            for c in range(self.cols):
+            for c in range(board_comp.cols):
                 colr = colors.get((r,c))
                 if colr is not None and colr == last_color:
                     run.append((r,c))
@@ -115,10 +120,10 @@ class MatchResolutionSystem:
             if len(run) >= 3:
                 matches.append(run.copy())
         # Vertical scans
-        for c in range(self.cols):
+        for c in range(board_comp.cols):
             run = []
             last_color = None
-            for r in range(self.rows):
+            for r in range(board_comp.rows):
                 colr = colors.get((r,c))
                 if colr is not None and colr == last_color:
                     run.append((r,c))
@@ -159,12 +164,13 @@ class MatchResolutionSystem:
             color_comp.color = None
 
     def compute_gravity_moves(self) -> Tuple[List[Dict], int]:
+        board_comp = self._board()
         moves: List[Dict] = []
         cascades = 0
-        for c in range(self.cols):
+        for c in range(board_comp.cols):
             # Gather non-empty rows bottom-up
             filled_rows: List[int] = []
-            for r in range(self.rows):  # r=0 bottom
+            for r in range(board_comp.rows):  # r=0 bottom
                 ent = self._get_entity_at(r, c)
                 if ent is None:
                     continue
@@ -199,15 +205,22 @@ class MatchResolutionSystem:
 
     def refill(self) -> List[Tuple[int,int]]:
         spawned = []
-        for ent, cell in self.world.get_component(BoardCell):
+        board_comp = self._board()
+        for ent, pos in self.world.get_component(BoardPosition):
             color_comp: TileColor = self.world.component_for_entity(ent, TileColor)
             if color_comp.color is None:
                 color_comp.color = random.choice(PALETTE)
-                spawned.append((cell.row, cell.col))
+                spawned.append((pos.row, pos.col))
         return spawned
 
     def _get_entity_at(self, row: int, col: int):
-        for ent, cell in self.world.get_component(BoardCell):
-            if cell.row == row and cell.col == col:
+        for ent, pos in self.world.get_component(BoardPosition):
+            if pos.row == row and pos.col == col:
                 return ent
         return None
+
+    def _board(self) -> Board:
+        # Assume single Board component
+        for ent, board in self.world.get_component(Board):
+            return board
+        raise RuntimeError('Board component not found')

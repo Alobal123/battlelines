@@ -2,7 +2,8 @@ import random
 from typing import List, Optional, Tuple
 from esper import World
 from ecs.events.bus import EventBus, EVENT_TILE_CLICK, EVENT_TILE_SELECTED, EVENT_TILE_SWAP_REQUEST, EVENT_TILE_SWAP_FINALIZE, EVENT_TILE_SWAP_DO
-from ecs.components.tile import TileColor, BoardCell
+from ecs.components.tile import TileColor
+from ecs.components.board_position import BoardPosition
 
 # Seven distinct colors
 PALETTE: List[Tuple[int,int,int]] = [
@@ -15,22 +16,26 @@ PALETTE: List[Tuple[int,int,int]] = [
     (200, 130, 60),  # muted orange
 ]
 
+from ecs.components.board import Board
+
 class BoardSystem:
     def __init__(self, world: World, event_bus: EventBus, rows: int = 8, cols: int = 8):
         self.world = world
         self.event_bus = event_bus
-        self.rows = rows
-        self.cols = cols
+        # Create a single board entity with Board component
+        self.board_entity = self.world.create_entity()
+        self.world.add_component(self.board_entity, Board(rows=rows, cols=cols))
         self.selected: Optional[Tuple[int,int]] = None
         self.event_bus.subscribe(EVENT_TILE_CLICK, self.on_tile_click)
         self.event_bus.subscribe(EVENT_TILE_SWAP_DO, self.on_swap_do)
         self._init_board()
 
     def _init_board(self):
-        for r in range(self.rows):
-            for c in range(self.cols):
+        board: Board = self.world.component_for_entity(self.board_entity, Board)
+        for r in range(board.rows):
+            for c in range(board.cols):
                 ent = self.world.create_entity()
-                self.world.add_component(ent, BoardCell(r, c))
+                self.world.add_component(ent, BoardPosition(row=r, col=c))
                 # Choose a color that does not create an immediate horizontal or vertical triple.
                 available = PALETTE.copy()
                 # Prevent horizontal triple: if last two cells same color, exclude that color.
@@ -93,8 +98,8 @@ class BoardSystem:
         self.event_bus.emit(EVENT_TILE_SWAP_FINALIZE, src=src, dst=dst)
 
     def _get_entity_at(self, row: int, col: int):
-        for ent, cell in self.world.get_component(BoardCell):
-            if cell.row == row and cell.col == col:
+        for ent, pos in self.world.get_component(BoardPosition):
+            if pos.row == row and pos.col == col:
                 return ent
         return None
 
