@@ -6,7 +6,7 @@ from ecs.systems.animation import AnimationSystem
 from ecs.systems.match import MatchSystem
 from ecs.systems.match_resolution import MatchResolutionSystem
 from ecs.world import create_world
-from ecs.components.tile import TileColor
+from ecs.components.tile import TileType
 
 class DummyWindow:
     def __init__(self, width=800, height=600):
@@ -33,10 +33,10 @@ def test_horizontal_match_clears_and_refills():
     e23 = board._get_entity_at(2,3)
     assert e20 and e21 and e22 and e23
     # Set colors so that swapping e22,e23 makes columns 0-2 same color
-    world.component_for_entity(e20, TileColor).color = (10,10,10)
-    world.component_for_entity(e21, TileColor).color = (10,10,10)
-    world.component_for_entity(e22, TileColor).color = (20,20,20)
-    world.component_for_entity(e23, TileColor).color = (10,10,10)
+    world.component_for_entity(e20, TileType).color = (10,10,10)
+    world.component_for_entity(e21, TileType).color = (10,10,10)
+    world.component_for_entity(e22, TileType).color = (20,20,20)
+    world.component_for_entity(e23, TileType).color = (10,10,10)
 
     found = {}
     cleared = {}
@@ -64,5 +64,5 @@ def test_horizontal_match_clears_and_refills():
     for (r,c) in found_positions:
         ent = board._get_entity_at(r,c)
         assert ent is not None
-        color = world.component_for_entity(ent, TileColor).color
+        color = world.component_for_entity(ent, TileType).color
         assert color is not None

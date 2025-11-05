@@ -3,8 +3,9 @@ from typing import List, Tuple, Dict, Set
 from esper import World
 from ecs.events.bus import (EventBus, EVENT_TILE_SWAP_FINALIZE, EVENT_MATCH_FOUND,
                             EVENT_MATCH_CLEARED, EVENT_GRAVITY_APPLIED, EVENT_REFILL_COMPLETED,
-                            EVENT_CASCADE_STEP, EVENT_CASCADE_COMPLETE, EVENT_ANIMATION_START, EVENT_ANIMATION_COMPLETE)
-from ecs.components.tile import TileColor
+                            EVENT_CASCADE_STEP, EVENT_CASCADE_COMPLETE, EVENT_ANIMATION_START, EVENT_ANIMATION_COMPLETE,
+                            EVENT_BOARD_CHANGED)
+from ecs.components.tile import TileType
 from ecs.components.board_position import BoardPosition
 from ecs.systems.board import PALETTE
 from ecs.components.board import Board
@@ -14,30 +15,37 @@ class MatchResolutionSystem:
         self.world = world
         self.event_bus = event_bus
         self.event_bus.subscribe(EVENT_TILE_SWAP_FINALIZE, self.on_swap_finalize)
+        self.event_bus.subscribe(EVENT_BOARD_CHANGED, self.on_board_changed)
         self.event_bus.subscribe(EVENT_ANIMATION_COMPLETE, self.on_animation_complete)
         self.pending_match_positions: List[Tuple[int,int]] = []
         self.cascade_depth = 0
         self.cascade_active = False
 
     def on_swap_finalize(self, sender, **kwargs):
-        # After a logical swap, scan for matches; if found, resolve cascade
+        # After a logical swap, initiate resolution sequence
+        self._initiate_resolution_if_matches(reason="swap")
+
+    def on_board_changed(self, sender, **kwargs):
+        # Triggered after ability effects (or other board-altering events). Run same pipeline.
+        reason = kwargs.get("reason", "board_changed")
+        # Avoid double-start if a cascade already active; allow ability to start fresh when idle.
+        if self.cascade_active:
+            return
+        self._initiate_resolution_if_matches(reason=reason)
+
+    def _initiate_resolution_if_matches(self, reason: str):
         matches = self.find_all_matches()
         if not matches:
-            # If no initial match, emit cascade complete depth 0 (no chain)
             if self.cascade_active:
                 self.event_bus.emit(EVENT_CASCADE_COMPLETE, depth=self.cascade_depth)
             return
         flat_positions = sorted({pos for group in matches for pos in group})
         self.pending_match_positions = flat_positions
-        self.event_bus.emit(EVENT_MATCH_FOUND, positions=flat_positions, size=len(flat_positions))
-        # Begin clear phase visually (fade) without mutating data yet
-        # Trigger fade animation start
+        self.event_bus.emit(EVENT_MATCH_FOUND, positions=flat_positions, size=len(flat_positions), reason=reason)
         self.event_bus.emit(EVENT_ANIMATION_START, kind='fade', items=flat_positions)
-        # Start cascade tracking
         self.cascade_depth = 1
         self.cascade_active = True
-        # Emit first cascade step (depth 1)
-        self.event_bus.emit(EVENT_CASCADE_STEP, depth=self.cascade_depth, positions=flat_positions)
+        self.event_bus.emit(EVENT_CASCADE_STEP, depth=self.cascade_depth, positions=flat_positions, reason=reason)
 
     def on_animation_complete(self, sender, **kwargs):
         kind = kwargs.get('kind')
@@ -53,9 +61,23 @@ class MatchResolutionSystem:
     def _after_fade(self, positions):
         if not positions:
             return
+        # Deterministic ordering for events/tests
+        positions = sorted(positions)
+        # Capture colors prior to clearing
+        colored = []  # list of (r,c,color)
+        for (r,c) in positions:
+            ent = self._get_entity_at(r,c)
+            if ent is None:
+                continue
+            try:
+                color_comp: TileType = self.world.component_for_entity(ent, TileType)
+                if color_comp.color is not None:
+                    colored.append((r,c,color_comp.color))
+            except Exception:
+                pass
         # Now clear logically
         self.clear_positions(positions)
-        self.event_bus.emit(EVENT_MATCH_CLEARED, positions=positions)
+        self.event_bus.emit(EVENT_MATCH_CLEARED, positions=positions, colors=colored)
         # Gravity
         moves, cascades = self.compute_gravity_moves()
         if moves:
@@ -96,7 +118,7 @@ class MatchResolutionSystem:
     def board_map(self) -> Dict[Tuple[int,int], Tuple[int,int,int]]:
         mapping = {}
         for ent, pos in self.world.get_component(BoardPosition):
-            color_comp = self.world.component_for_entity(ent, TileColor)
+            color_comp = self.world.component_for_entity(ent, TileType)
             mapping[(pos.row, pos.col)] = color_comp.color
         return mapping
 
@@ -154,13 +176,13 @@ class MatchResolutionSystem:
         return [sorted(list(g)) for g in merged]
 
     def clear_positions(self, positions: List[Tuple[int,int]]):
-        # Remove TileColor component to mark empty (could also remove entity; keep entity for fixed grid indexing)
+    # Clear tile color (TileType.color = None) to mark empty (could also remove entity; keep entity for fixed grid indexing)
         for pos in positions:
             ent = self._get_entity_at(*pos)
             if ent is None:
                 continue
             # Replace color with None sentinel
-            color_comp: TileColor = self.world.component_for_entity(ent, TileColor)
+            color_comp: TileType = self.world.component_for_entity(ent, TileType)
             color_comp.color = None
 
     def compute_gravity_moves(self) -> Tuple[List[Dict], int]:
@@ -174,7 +196,7 @@ class MatchResolutionSystem:
                 ent = self._get_entity_at(r, c)
                 if ent is None:
                     continue
-                color_comp: TileColor = self.world.component_for_entity(ent, TileColor)
+                color_comp: TileType = self.world.component_for_entity(ent, TileType)
                 if color_comp.color is not None:
                     filled_rows.append(r)
             # Target rows will be 0..len(filled_rows)-1
@@ -183,7 +205,7 @@ class MatchResolutionSystem:
                     ent = self._get_entity_at(original_row, c)
                     if ent is None:
                         continue
-                    color_comp: TileColor = self.world.component_for_entity(ent, TileColor)
+                    color_comp: TileType = self.world.component_for_entity(ent, TileType)
                     moves.append({'from': (original_row, c), 'to': (target_index, c), 'color': color_comp.color})
             if any(m['from'][1] == c for m in moves):
                 cascades += 1
@@ -198,8 +220,8 @@ class MatchResolutionSystem:
             dst_ent = self._get_entity_at(dst_r, dst_c)
             if src_ent is None or dst_ent is None:
                 continue
-            src_color: TileColor = self.world.component_for_entity(src_ent, TileColor)
-            dst_color: TileColor = self.world.component_for_entity(dst_ent, TileColor)
+            src_color: TileType = self.world.component_for_entity(src_ent, TileType)
+            dst_color: TileType = self.world.component_for_entity(dst_ent, TileType)
             dst_color.color = src_color.color
             src_color.color = None
 
@@ -207,7 +229,7 @@ class MatchResolutionSystem:
         spawned = []
         board_comp = self._board()
         for ent, pos in self.world.get_component(BoardPosition):
-            color_comp: TileColor = self.world.component_for_entity(ent, TileColor)
+            color_comp: TileType = self.world.component_for_entity(ent, TileType)
             if color_comp.color is None:
                 color_comp.color = random.choice(PALETTE)
                 spawned.append((pos.row, pos.col))

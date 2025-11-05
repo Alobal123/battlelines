@@ -4,7 +4,7 @@ from ecs.systems.render import RenderSystem
 from ecs.systems.animation import AnimationSystem
 from ecs.components.animation_refill import RefillAnimation
 from ecs.world import create_world
-from ecs.components.tile import TileColor
+from ecs.components.tile import TileType
 
 class DummyWindow:
     def __init__(self, width=800, height=600):

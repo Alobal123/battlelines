@@ -6,7 +6,7 @@ from ecs.systems.render import RenderSystem
 from ecs.systems.animation import AnimationSystem
 from ecs.systems.match import MatchSystem
 from ecs.systems.match_resolution import MatchResolutionSystem
-from ecs.components.tile import TileColor
+from ecs.components.tile import TileType
 
 class DummyWindow:
     def __init__(self, width=800, height=600):
@@ -28,16 +28,16 @@ def test_two_step_cascade():
     # First cascade target: row2 cols0-2 after swapping (2,2),(2,3)
     e20=board._get_entity_at(2,0); e21=board._get_entity_at(2,1); e22=board._get_entity_at(2,2); e23=board._get_entity_at(2,3)
     assert e20 and e21 and e22 and e23, 'Entities missing for initial pattern'
-    world.component_for_entity(e20, TileColor).color=(50,50,50)
-    world.component_for_entity(e21, TileColor).color=(50,50,50)
-    world.component_for_entity(e22, TileColor).color=(60,60,60)
-    world.component_for_entity(e23, TileColor).color=(50,50,50)
+    world.component_for_entity(e20, TileType).color=(50,50,50)
+    world.component_for_entity(e21, TileType).color=(50,50,50)
+    world.component_for_entity(e22, TileType).color=(60,60,60)
+    world.component_for_entity(e23, TileType).color=(50,50,50)
     # Clear a vertical slice to force refill-controlled cascade: empty cells at top of columns 1-3
     e00=board._get_entity_at(0,1); e01=board._get_entity_at(0,2); e02=board._get_entity_at(0,3)
     assert e00 and e01 and e02, 'Entities missing for cleared slice'
-    world.component_for_entity(e00, TileColor).color=None
-    world.component_for_entity(e01, TileColor).color=None
-    world.component_for_entity(e02, TileColor).color=None
+    world.component_for_entity(e00, TileType).color=None
+    world.component_for_entity(e01, TileType).color=None
+    world.component_for_entity(e02, TileType).color=None
     # Deterministic second cascade: after first refill completes, force a new horizontal triple on bottom row.
     # Subscribe to cascade events
     steps=[]; complete={}
@@ -57,7 +57,7 @@ def test_two_step_cascade():
         e0=board._get_entity_at(0,0); e1=board._get_entity_at(0,1); e2=board._get_entity_at(0,2)
         for e in (e0,e1,e2):
             assert e is not None
-            tc = world.component_for_entity(e, TileColor)
+            tc = world.component_for_entity(e, TileType)
             tc.color = (90,90,90)
         forced_second['done'] = True
     bus.subscribe(EVENT_REFILL_COMPLETED, on_refill)

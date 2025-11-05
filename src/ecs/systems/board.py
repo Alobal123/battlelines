@@ -1,20 +1,23 @@
 import random
 from typing import List, Optional, Tuple
 from esper import World
-from ecs.events.bus import EventBus, EVENT_TILE_CLICK, EVENT_TILE_SELECTED, EVENT_TILE_SWAP_REQUEST, EVENT_TILE_SWAP_FINALIZE, EVENT_TILE_SWAP_DO
-from ecs.components.tile import TileColor
+from ecs.events.bus import EventBus, EVENT_TILE_CLICK, EVENT_TILE_SELECTED, EVENT_TILE_DESELECTED, EVENT_TILE_SWAP_REQUEST, EVENT_TILE_SWAP_FINALIZE, EVENT_TILE_SWAP_DO, EVENT_MOUSE_PRESS
+from ecs.components.tile import TileType
 from ecs.components.board_position import BoardPosition
+from ecs.components.targeting_state import TargetingState
 
-# Seven distinct colors
-PALETTE: List[Tuple[int,int,int]] = [
-    (180, 60, 60),   # muted red
-    (80, 170, 80),   # muted green
-    (70, 90, 180),   # muted blue
-    (200, 190, 80),  # muted yellow
-    (170, 80, 160),  # muted magenta
-    (70, 170, 170),  # muted cyan
-    (200, 130, 60),  # muted orange
-]
+# Seven distinct colors -> initial type names (will evolve into domain types later)
+COLOR_NAME_MAP = {
+    (180, 60, 60): 'red',
+    (80, 170, 80): 'green',
+    (70, 90, 180): 'blue',
+    (200, 190, 80): 'yellow',
+    (170, 80, 160): 'magenta',
+    (70, 170, 170): 'cyan',
+    (200, 130, 60): 'orange',
+}
+NAME_TO_COLOR = {v:k for k,v in COLOR_NAME_MAP.items()}
+PALETTE: List[Tuple[int,int,int]] = list(COLOR_NAME_MAP.keys())
 
 from ecs.components.board import Board
 
@@ -28,6 +31,7 @@ class BoardSystem:
         self.selected: Optional[Tuple[int,int]] = None
         self.event_bus.subscribe(EVENT_TILE_CLICK, self.on_tile_click)
         self.event_bus.subscribe(EVENT_TILE_SWAP_DO, self.on_swap_do)
+        self.event_bus.subscribe(EVENT_MOUSE_PRESS, self.on_mouse_press)
         self._init_board()
 
     def _init_board(self):
@@ -51,12 +55,18 @@ class BoardSystem:
                     if down1 == down2 and down1 in available:
                         available = [clr for clr in available if clr != down1]
                 color = random.choice(available) if available else random.choice(PALETTE)
-                self.world.add_component(ent, TileColor(color))
+                type_name = COLOR_NAME_MAP.get(color, 'unknown')
+                # Provide raw_color for legacy color-based logic/tests while attaching semantic type
+                self.world.add_component(ent, TileType(type_name=type_name, color_name=type_name, raw_color=color))
 
     def on_tile_click(self, sender, **kwargs):
         row = kwargs.get('row')
         col = kwargs.get('col')
         if row is None or col is None:
+            return
+        # Ignore normal selection/swaps while in targeting mode
+        targeting = list(self.world.get_component(TargetingState))
+        if targeting:
             return
         if self.selected is None:
             self.selected = (row, col)
@@ -80,14 +90,28 @@ class BoardSystem:
         return (abs(ar - br) == 1 and ac == bc) or (abs(ac - bc) == 1 and ar == br)
 
     def swap_tiles(self, a: Tuple[int,int], b: Tuple[int,int]):
-        # Swap TileColor data between entities at positions a and b
+        # Swap TileType data between entities at positions a and b (type & color_name together)
         ent_a = self._get_entity_at(*a)
         ent_b = self._get_entity_at(*b)
         if ent_a is None or ent_b is None:
             return
-        color_a: TileColor = self.world.component_for_entity(ent_a, TileColor)
-        color_b: TileColor = self.world.component_for_entity(ent_b, TileColor)
-        color_a.color, color_b.color = color_b.color, color_a.color
+        type_a: TileType = self.world.component_for_entity(ent_a, TileType)
+        type_b: TileType = self.world.component_for_entity(ent_b, TileType)
+        # Swap all relevant fields so both legacy color logic and new type semantics remain consistent
+        type_a.type_name, type_b.type_name = type_b.type_name, type_a.type_name
+        type_a.color_name, type_b.color_name = type_b.color_name, type_a.color_name
+        type_a.raw_color, type_b.raw_color = type_b.raw_color, type_a.raw_color
+
+    def on_mouse_press(self, sender, **kwargs):
+        # Right-click always clears current selection (independent of targeting state)
+        # Arcade uses 4 for right mouse button (arcade.MOUSE_BUTTON_RIGHT)
+        button = kwargs.get('button')
+        if button != 4:
+            return
+        prev = self.selected
+        if prev is not None:
+            self.selected = None
+            self.event_bus.emit(EVENT_TILE_DESELECTED, reason='right_click', prev_row=prev[0], prev_col=prev[1])
 
     def on_swap_do(self, sender, **kwargs):
         src = kwargs.get('src')
@@ -107,5 +131,5 @@ class BoardSystem:
         ent = self._get_entity_at(row, col)
         if ent is None:
             return None
-        color_comp: TileColor = self.world.component_for_entity(ent, TileColor)
-        return color_comp.color
+        type_comp: TileType = self.world.component_for_entity(ent, TileType)
+        return type_comp.raw_color

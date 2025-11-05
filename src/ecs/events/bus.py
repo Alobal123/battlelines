@@ -18,10 +18,9 @@ class EventBus:
 
 # Common event names (extend as needed)
 EVENT_TICK = "tick"
-EVENT_SPAWN = "spawn"
 EVENT_TILE_CLICK = "tile_click"       # payload: row, col
 EVENT_TILE_SELECTED = "tile_selected" # payload: row, col
-EVENT_TILE_SWAP = "tile_swap"         # payload: src=(r,c), dst=(r,c)
+EVENT_TILE_DESELECTED = "tile_deselected" # payload: reason=str
 EVENT_MOUSE_PRESS = "mouse_press"     # payload: x, y, button
 EVENT_TILE_SWAP_REQUEST = "tile_swap_request"  # payload: src=(r,c), dst=(r,c)
 EVENT_TILE_SWAP_FINALIZE = "tile_swap_finalize" # payload: src=(r,c), dst=(r,c)
@@ -32,12 +31,17 @@ EVENT_MATCH_FOUND = "match_found"               # payload: positions=[(r,c),...]
 EVENT_MATCH_CLEARED = "match_cleared"           # payload: positions=[(r,c),...]
 EVENT_GRAVITY_APPLIED = "gravity_applied"       # payload: cascades=int
 EVENT_REFILL_COMPLETED = "refill_completed"     # payload: new_tiles=[(r,c),...]
-EVENT_GRAVITY_MOVES = "gravity_moves"           # payload: moves=[{from:(r,c), to:(r,c), color:(r,g,b)}]
-EVENT_GRAVITY_SETTLED = "gravity_settled"       # payload: moves=[{from:(r,c), to:(r,c)}]
-EVENT_MATCH_CLEAR_BEGIN = "match_clear_begin"    # payload: positions=[(r,c),...]
-EVENT_MATCH_FADE_COMPLETE = "match_fade_complete" # payload: positions=[(r,c),...]
-EVENT_REFILL_ANIM_DONE = "refill_anim_done"       # payload: none
 EVENT_CASCADE_STEP = "cascade_step"               # payload: depth=int, positions=[(r,c),...]
 EVENT_CASCADE_COMPLETE = "cascade_complete"       # payload: depth=int
 EVENT_ANIMATION_START = "animation_start"         # payload: kind=str, items=list/positions, meta=...
 EVENT_ANIMATION_COMPLETE = "animation_complete"   # payload: kind=str, items=list/positions, meta=...
+EVENT_TILE_BANK_CHANGED = "tile_bank_changed"     # payload: entity=int, counts=dict
+EVENT_TILE_BANK_SPEND_REQUEST = "tile_bank_spend_request"  # payload: entity=int, cost=dict[str,int]
+EVENT_TILE_BANK_SPENT = "tile_bank_spent"         # payload: entity=int, cost=dict[str,int]
+EVENT_TILE_BANK_INSUFFICIENT = "tile_bank_insufficient"  # payload: entity=int, cost=dict[str,int], missing=dict[str,int]
+EVENT_ABILITY_ACTIVATE_REQUEST = "ability_activate_request"  # payload: ability_entity=int, owner_entity=int
+EVENT_ABILITY_TARGET_MODE = "ability_target_mode"  # payload: ability_entity=int, owner_entity=int
+EVENT_ABILITY_TARGET_SELECTED = "ability_target_selected"  # payload: ability_entity=int, target=(r,c)
+EVENT_ABILITY_EFFECT_APPLIED = "ability_effect_applied"  # payload: ability_entity=int, affected=list[(r,c)]
+EVENT_ABILITY_TARGET_CANCELLED = "ability_target_cancelled"  # payload: ability_entity=int, owner_entity=int, reason=str
+EVENT_BOARD_CHANGED = "board_changed"  # payload: reason=str, positions=list[(r,c)]

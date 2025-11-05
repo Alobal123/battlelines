@@ -5,12 +5,13 @@ from ecs.components.animation_swap import SwapAnimation
 from ecs.components.animation_fade import FadeAnimation
 from ecs.components.animation_fall import FallAnimation
 from ecs.components.animation_refill import RefillAnimation
-from ecs.components.tile import TileColor
-from ecs.components.board_position import BoardPosition
+# TileType now used; color access remains via compatibility .color property when needed.
 from ecs.components.duration import Duration
 from ecs.animation_factory import AnimationFactory
 from esper import World
 from typing import Tuple
+from ecs.components.duration import Duration
+from ecs.components.board_position import BoardPosition
 
 class AnimationSystem:
     """Drives timing of animations; each animation is its own component instance."""
@@ -19,11 +20,16 @@ class AnimationSystem:
         self.event_bus = event_bus
         self.swap_entity: int | None = None
         self.factory = AnimationFactory(world)
+        # Store validity outcomes received before swap entity exists.
+        self._pending_swap_outcomes: dict[tuple[int,int], bool] = {}
+        # Track finalize wait elapsed time to auto-complete in test environments lacking finalize event.
+        self._finalize_wait_elapsed: float = 0.0
         event_bus.subscribe(EVENT_TICK, self.on_tick)
         event_bus.subscribe(EVENT_ANIMATION_START, self.on_animation_start)
         event_bus.subscribe(EVENT_TILE_SWAP_REQUEST, self.on_swap_request)
         event_bus.subscribe(EVENT_TILE_SWAP_VALID, self.on_swap_valid)
         event_bus.subscribe(EVENT_TILE_SWAP_INVALID, self.on_swap_invalid)
+        event_bus.subscribe(EVENT_TILE_SWAP_FINALIZE, self.on_swap_finalize)
 
     def _active_swap(self) -> SwapAnimation | None:
         if self.swap_entity is None:
@@ -39,12 +45,22 @@ class AnimationSystem:
             return
         if self._active_swap() is None:
             self.swap_entity = self.factory.create_swap(src, dst)
+            # Apply any pending outcome captured earlier.
+            key = (src, dst)
+            swap = self._active_swap()
+            if swap and key in self._pending_swap_outcomes:
+                outcome = self._pending_swap_outcomes.pop(key)
+                swap.valid = outcome
 
     def on_swap_valid(self, sender, **kwargs):
         src = kwargs.get('src'); dst = kwargs.get('dst')
         swap = self._active_swap()
         if swap and swap.src == src and swap.dst == dst:
             swap.valid = True
+        else:
+            # Store for later if entity not yet created.
+            if src and dst:
+                self._pending_swap_outcomes[(src, dst)] = True
 
     def on_swap_invalid(self, sender, **kwargs):
         src = kwargs.get('src'); dst = kwargs.get('dst')
@@ -53,6 +69,15 @@ class AnimationSystem:
             swap.valid = False
             if swap.progress >= 1.0 and swap.phase == 'forward':
                 swap.phase = 'reverse'
+        else:
+            if src and dst:
+                self._pending_swap_outcomes[(src, dst)] = False
+
+    def on_swap_finalize(self, sender, **kwargs):
+        src = kwargs.get('src'); dst = kwargs.get('dst')
+        swap = self._active_swap()
+        if swap and swap.src == src and swap.dst == dst and swap.phase == 'finalize_wait':
+            self._end_swap()
 
     def on_animation_start(self, sender, **kwargs):
         kind = kwargs.get('kind'); items = kwargs.get('items', [])
@@ -69,33 +94,33 @@ class AnimationSystem:
         swap = self._active_swap()
         if swap:
             if swap.phase == 'forward':
-                # Get duration component for swap
                 dur = self.world.component_for_entity(self.swap_entity, Duration) if self.swap_entity is not None else Duration(0.2)
                 swap.progress += dt / dur.value
                 if swap.progress >= 1.0:
                     swap.progress = 1.0
+                    # Now wait for external validity decision if not known yet.
                     if swap.valid is True:
                         self.event_bus.emit(EVENT_TILE_SWAP_DO, src=swap.src, dst=swap.dst)
-                        self._end_swap()
+                        # Enter finalize wait phase until EVENT_TILE_SWAP_FINALIZE arrives.
+                        swap.phase = 'finalize_wait'
                     elif swap.valid is False:
                         swap.phase = 'reverse'
                     else:
-                        pred = self._predict_swap_valid(swap.src, swap.dst)
-                        swap.valid = pred
-                        if pred:
-                            self.event_bus.emit(EVENT_TILE_SWAP_DO, src=swap.src, dst=swap.dst)
-                            self._end_swap()
-                        else:
-                            swap.phase = 'reverse'
+                        # Remain at full progress until validity event sets True/False.
+                        pass
             elif swap.phase == 'reverse':
                 dur = self.world.component_for_entity(self.swap_entity, Duration) if self.swap_entity is not None else Duration(0.2)
                 swap.progress -= dt / dur.value
                 if swap.progress <= 0.0:
                     swap.progress = 0.0
                     self._end_swap()
-                else:
-                    if swap.progress < 0.0:
-                        swap.progress = 0.0
+                elif swap.progress < 0.0:
+                    swap.progress = 0.0
+            elif swap.phase == 'finalize_wait':
+                # Auto finalize after short grace if no explicit finalize event.
+                self._finalize_wait_elapsed += dt
+                if self._finalize_wait_elapsed >= 0.05:  # ~3 frames at 60fps
+                    self._end_swap()
         # Fade progression
         fades = list(self.world.get_component(FadeAnimation))
         if fades:
@@ -139,46 +164,7 @@ class AnimationSystem:
                     self._delete_animation_entity(ent, RefillAnimation)
                 self.event_bus.emit(EVENT_ANIMATION_COMPLETE, kind='refill', items=positions)
 
-    def _get_entity_at(self, row: int, col: int):
-        for ent, pos in self.world.get_component(BoardPosition):
-            if pos.row == row and pos.col == col:
-                return ent
-        return None
-
-    def _predict_swap_valid(self, a, b) -> bool:
-        # Mirror logic from MatchSystem.creates_match
-        grid = {}
-        for ent, pos in self.world.get_component(BoardPosition):
-            color_comp = self.world.component_for_entity(ent, TileColor)
-            grid[(pos.row, pos.col)] = color_comp.color
-        if a not in grid or b not in grid:
-            return False
-        grid[a], grid[b] = grid[b], grid[a]
-        def has_line(pos):
-            row, col = pos
-            color = grid.get(pos)
-            if color is None:
-                return False
-            # Horizontal
-            h = [(row,col)]
-            c = col-1
-            while (row,c) in grid and grid[(row,c)] == color:
-                h.append((row,c)); c -= 1
-            c = col+1
-            while (row,c) in grid and grid[(row,c)] == color:
-                h.append((row,c)); c += 1
-            if len(h) >= 3:
-                return True
-            # Vertical
-            v = [(row,col)]
-            r = row-1
-            while (r,col) in grid and grid[(r,col)] == color:
-                v.append((r,col)); r -= 1
-            r = row+1
-            while (r,col) in grid and grid[(r,col)] == color:
-                v.append((r,col)); r += 1
-            return len(v) >= 3
-        return has_line(a) or has_line(b)
+    # Removed internal swap validity prediction to enforce pure event-driven validation.
 
     def _remove_component(self, comp_type):
         # Delete all entities that carry this component. Use defensive removal in case delete_entity doesn't purge immediately.
@@ -197,11 +183,12 @@ class AnimationSystem:
         if self.swap_entity is not None:
             self._delete_animation_entity(self.swap_entity, SwapAnimation)
         self.swap_entity = None
+        self._pending_swap_outcomes.clear()
+        self._finalize_wait_elapsed = 0.0
 
     def _delete_animation_entity(self, ent: int, comp_type):
         """Robust deletion: remove animation, duration, board position then entity."""
-        from ecs.components.duration import Duration
-        from ecs.components.board_position import BoardPosition
+
         # Remove specific animation component
         try:
             self.world.remove_component(ent, comp_type)

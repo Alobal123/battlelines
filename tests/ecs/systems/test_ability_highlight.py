@@ -1,0 +1,36 @@
+import pytest
+from ecs.events.bus import EventBus, EVENT_ABILITY_ACTIVATE_REQUEST
+from ecs.world import create_world
+from ecs.systems.render import RenderSystem
+from ecs.systems.ability_system import AbilitySystem
+from ecs.components.ability_list_owner import AbilityListOwner
+
+class DummyWindow:
+    width = 800
+    height = 600
+
+@pytest.fixture
+def setup_world():
+    bus = EventBus()
+    world = create_world(bus)
+    window = DummyWindow()
+    render = RenderSystem(world, bus, window)
+    ability = AbilitySystem(world, bus)
+    return bus, world, render, ability
+
+
+def test_ability_highlight_flag(setup_world):
+    bus, world, render, ability_system = setup_world
+    owners = list(world.get_component(AbilityListOwner))
+    assert owners, 'No ability owner found'
+    owner_ent, owner_comp = owners[0]
+    ability_entity = owner_comp.ability_entities[0]
+    # Activate ability (enter targeting)
+    bus.emit(EVENT_ABILITY_ACTIVATE_REQUEST, ability_entity=ability_entity, owner_entity=owner_ent)
+    # Run a render pass to populate layout cache
+    render.process()
+    # Find layout entry
+    cache = getattr(render, '_ability_layout_cache', [])
+    entry = next((e for e in cache if e['entity'] == ability_entity), None)
+    assert entry is not None, 'Ability layout entry not found'
+    assert entry.get('is_targeting') is True, 'Activated ability should have is_targeting True'

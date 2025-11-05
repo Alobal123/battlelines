@@ -27,12 +27,12 @@ def test_swap_flow_finalizes():
     bus.subscribe(EVENT_TILE_SWAP_FINALIZE, finalize_handler)
     # choose two adjacent cells (0,0) and (0,1)
     # Force colors so swap is valid (create triple potential by duplicating row colors)
-    from ecs.components.tile import TileColor
+    from ecs.components.tile import TileType
     e00 = board._get_entity_at(0,0)
     e01 = board._get_entity_at(0,1)
     assert e00 is not None and e01 is not None
-    world.component_for_entity(e00, TileColor).color = (200,200,200)
-    world.component_for_entity(e01, TileColor).color = (200,200,200)
+    world.component_for_entity(e00, TileType).color = (200,200,200)
+    world.component_for_entity(e01, TileType).color = (200,200,200)
     bus.emit(EVENT_TILE_SWAP_REQUEST, src=(0,0), dst=(0,1))
     # Drive ticks until animation triggers DO
     for _ in range(15):

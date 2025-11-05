@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Tuple
 
-@dataclass
+@dataclass(slots=True)
 class FallAnimation:
     src: Tuple[int,int]
     dst: Tuple[int,int]

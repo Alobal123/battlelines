@@ -55,22 +55,17 @@ No hidden globals; pass EventBus explicitly.
 ## Next Recommended Steps (for agents)
 Implement tick loop (Arcade on_update) emitting EVENT_TICK.
 Add Movement component + MovementSystem reacting to EVENT_TICK and input events.
-Render basic shapes for Position in RenderSystem.
+Render basic shapes for Position in RenderSystem; abilities are displayed as stacked rectangles on the left with affordability coloring.
 Introduce factories module for entity creation.
 
-## Match-Three Prototype Notes
-BoardSystem initializes 8x8 grid (BoardCell + TileColor) with 7-color palette.
-RenderSystem draws grid bottom-center; selection highlighted with white outline.
-Mouse clicks -> EVENT_TILE_CLICK -> BoardSystem handles selection or swap (adjacent only).
-Events emitted: EVENT_TILE_SELECTED, EVENT_TILE_SWAP_REQUEST, EVENT_TILE_SWAP_VALID/INVALID (MatchSystem), EVENT_TILE_SWAP_DO (logical swap), EVENT_TILE_SWAP_FINALIZE.
-MatchSystem predicts swap validity (virtual swap + line scan) before animation begins. RenderSystem only animates after VALID/INVALID; invalid swaps animate forward then reverse without logical swap.
-Phased animation flow:
-1. Swap finalize -> MatchResolutionSystem detects matches and emits EVENT_MATCH_FOUND and EVENT_MATCH_CLEAR_BEGIN (no logical clear yet).
-2. RenderSystem fades matched tiles; when fade completes it emits EVENT_MATCH_FADE_COMPLETE.
-3. MatchResolutionSystem performs logical clear, computes gravity moves, emits EVENT_MATCH_CLEARED, EVENT_GRAVITY_MOVES and EVENT_GRAVITY_APPLIED.
-4. RenderSystem animates falling; on completion emits EVENT_GRAVITY_SETTLED.
-5. MatchResolutionSystem refills and emits EVENT_REFILL_COMPLETED; RenderSystem animates new tiles dropping from above.
-Multiple cascades not yet implemented (single pass). Next: implement multi-cascade loop (repeat detection until stable), add scoring system (EVENT_SCORE_GAINED), visual polish (particle effects, combo indicators).
+## Ability System Notes
+Single-ability ownership has been upgraded to multi-ability via `AbilityListOwner(ability_entities=[...])`. Each ability is its own entity with `Ability` + `AbilityTarget`. Activation uses precise hitboxes derived from `RenderSystem` layout cache and checks affordability through the TileBank spend request event before entering targeting mode.
+Current sample abilities:
+	tactical_shift: after selecting a target tile, all tiles of that tile's original color convert to red, then matches are processed.
+	crimson_pulse: clears (sets empty) a 3x3 area centered on the target tile, triggering gravity/refill cascade.
+
+## Removed Components
+The StatsSystem has been removed, and the TileClearStats component is no longer referenced in the documentation.
 
 ## Ask Before
 Changing stack, adding networking, persisting data, or introducing heavy frameworks beyond current lightweight ECS/event setup.

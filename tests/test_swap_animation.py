@@ -33,12 +33,12 @@ def test_swap_animation_tick_progress():
     bus.subscribe(EVENT_TILE_SWAP_FINALIZE, finalize_handler)
     bus.subscribe(EVENT_TILE_SWAP_DO, do_handler)
     # Force colors to ensure validity: make both same color
-    from ecs.components.tile import TileColor
+    from ecs.components.tile import TileType
     e00 = board._get_entity_at(0,0)
     e01 = board._get_entity_at(0,1)
     assert e00 is not None and e01 is not None
-    world.component_for_entity(e00, TileColor).color = (120,120,120)
-    world.component_for_entity(e01, TileColor).color = (120,120,120)
+    world.component_for_entity(e00, TileType).color = (120,120,120)
+    world.component_for_entity(e01, TileType).color = (120,120,120)
     bus.emit(EVENT_TILE_SWAP_REQUEST, src=(0,0), dst=(0,1))
     # Simulate ticks until animation completes (swap_duration=0.2)
     progressed = False

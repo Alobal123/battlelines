@@ -6,7 +6,7 @@ from ecs.systems.animation import AnimationSystem
 from ecs.systems.match import MatchSystem
 from ecs.systems.match_resolution import MatchResolutionSystem
 from ecs.world import create_world
-from ecs.components.tile import TileColor
+from ecs.components.tile import TileType
 
 class DummyWindow:
     def __init__(self, width=800, height=600):
@@ -37,11 +37,11 @@ def test_gravity_moves_emitted():
     assert e20 is not None
     assert e30 is not None
     assert e40 is not None
-    world.component_for_entity(e00, TileColor).color = (9,9,9)
-    world.component_for_entity(e10, TileColor).color = (9,9,9)
-    world.component_for_entity(e20, TileColor).color = (9,9,9)
-    world.component_for_entity(e30, TileColor).color = (15,15,15)
-    world.component_for_entity(e40, TileColor).color = (9,9,9)
+    world.component_for_entity(e00, TileType).color = (9,9,9)
+    world.component_for_entity(e10, TileType).color = (9,9,9)
+    world.component_for_entity(e20, TileType).color = (9,9,9)
+    world.component_for_entity(e30, TileType).color = (15,15,15)
+    world.component_for_entity(e40, TileType).color = (9,9,9)
 
     match_found = {}
     fall_start = {}

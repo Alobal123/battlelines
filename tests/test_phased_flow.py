@@ -6,7 +6,7 @@ from ecs.systems.animation import AnimationSystem
 from ecs.systems.match import MatchSystem
 from ecs.systems.match_resolution import MatchResolutionSystem
 from ecs.world import create_world
-from ecs.components.tile import TileColor
+from ecs.components.tile import TileType
 
 class DummyWindow:
     def __init__(self, width=800, height=600):
@@ -36,10 +36,10 @@ def test_phased_clear_gravity_refill_sequence():
     assert e22 is not None
     assert e23 is not None
     from_color = (40,40,40)
-    world.component_for_entity(e20, TileColor).color = from_color
-    world.component_for_entity(e21, TileColor).color = from_color
-    world.component_for_entity(e22, TileColor).color = (60,60,60)
-    world.component_for_entity(e23, TileColor).color = from_color
+    world.component_for_entity(e20, TileType).color = from_color
+    world.component_for_entity(e21, TileType).color = from_color
+    world.component_for_entity(e22, TileType).color = (60,60,60)
+    world.component_for_entity(e23, TileType).color = from_color
 
     events_order = []
     def on_anim_start(sender, **k):

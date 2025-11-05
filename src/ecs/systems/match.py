@@ -1,6 +1,6 @@
 from typing import Tuple, List, Set
 from ecs.events.bus import EventBus, EVENT_TILE_SWAP_REQUEST, EVENT_TILE_SWAP_VALID, EVENT_TILE_SWAP_INVALID
-from ecs.components.tile import TileColor
+from ecs.components.tile import TileType
 from ecs.components.board_position import BoardPosition
 from esper import World
 
@@ -26,7 +26,7 @@ class MatchSystem:
         # Build map row,col -> color
         grid = {}
         for ent, pos in self.world.get_component(BoardPosition):
-            color_comp = self.world.component_for_entity(ent, TileColor)
+            color_comp = self.world.component_for_entity(ent, TileType)
             grid[(pos.row, pos.col)] = color_comp.color
         # Virtually swap
         grid[a], grid[b] = grid[b], grid[a]

@@ -1,14 +1,16 @@
-from ecs.events.bus import (EVENT_TICK, EventBus, EVENT_TILE_SELECTED,
-                            EVENT_MATCH_FOUND, EVENT_MATCH_CLEARED)
-from ecs.components.tile import TileColor
+from ecs.events.bus import (EVENT_TICK, EventBus, EVENT_TILE_SELECTED, EVENT_TILE_DESELECTED,
+                            EVENT_MATCH_FOUND, EVENT_MATCH_CLEARED,
+                            EVENT_TILE_SWAP_REQUEST, EVENT_TILE_SWAP_FINALIZE)
+from ecs.components.tile import TileType
 from ecs.components.board_position import BoardPosition
 from ecs.components.animation_swap import SwapAnimation
 from ecs.components.animation_fall import FallAnimation
 from ecs.components.animation_refill import RefillAnimation
 from ecs.components.animation_fade import FadeAnimation
+from ecs.components.tile_bank import TileBank
+from ecs.systems.board import NAME_TO_COLOR
 from ecs.constants import GRID_ROWS, GRID_COLS, TILE_SIZE, BOTTOM_MARGIN
 from esper import World
-import arcade
 
 PADDING = 4
 
@@ -19,32 +21,40 @@ class RenderSystem:
         self.window = window
         self.event_bus.subscribe(EVENT_TICK, self.on_tick)
         self.event_bus.subscribe(EVENT_TILE_SELECTED, self.on_tile_selected)
+        self.event_bus.subscribe(EVENT_TILE_DESELECTED, self.on_tile_deselected)
         self.event_bus.subscribe(EVENT_MATCH_FOUND, self.on_match_found)
         self.event_bus.subscribe(EVENT_MATCH_CLEARED, self.on_match_cleared)
+        self.event_bus.subscribe(EVENT_TILE_SWAP_REQUEST, self.on_swap_request)
+        self.event_bus.subscribe(EVENT_TILE_SWAP_FINALIZE, self.on_swap_finalize)
         self.selected = None
         self.use_easing = True
 
     def on_tick(self, sender, **kwargs):
-        pass
+        # Rendering currently happens only in window.on_draw calling process()
+        # Could move incremental animation easing prep here later.
+        return
 
     def on_tile_selected(self, sender, **kwargs):
         self.selected = (kwargs.get('row'), kwargs.get('col'))
 
-    def on_swap_request(self, sender, **kwargs):
-        pass
+    def on_tile_deselected(self, sender, **kwargs):
+        # Optionally keep previous position for future fade-out; currently just clear.
+        self.selected = None
+        self.last_deselected = (kwargs.get('prev_row'), kwargs.get('prev_col')) if 'prev_row' in kwargs else None
 
-    def on_swap_valid(self, sender, **kwargs):
-        pass
-
-    def on_swap_invalid(self, sender, **kwargs):
-        pass
-
-    def on_swap_finalize(self, sender, **kwargs):
-        pass
+    # Swap lifecycle visuals handled implicitly via SwapAnimation component; no direct handlers needed.
 
     def process(self):
-        # Background already cleared in window.on_draw
-        # Compute grid origin (bottom-center) using left/bottom corner
+        # Background already cleared in window.on_draw.
+        # Compute grid origin (bottom-center) using left/bottom corner.
+        # Local import to reduce side-effects (pyglet threads) during test collection.
+        import arcade
+        # Headless safeguard: if no active Arcade window (unit tests), skip actual draw calls but still build layout cache.
+        headless = False
+        try:
+            arcade.get_window()
+        except Exception:
+            headless = True
         total_width = GRID_COLS * TILE_SIZE
         start_x = (self.window.width - total_width) / 2
         start_y = BOTTOM_MARGIN
@@ -57,14 +67,14 @@ class RenderSystem:
 
         # Draw tiles (with animation if active swap)
         for (row, col), (ent, base_x, base_y) in positions.items():
-            color_comp = self.world.component_for_entity(ent, TileColor)
+            color_comp = self.world.component_for_entity(ent, TileType)
             color = color_comp.color
             alpha_override = None
             # If cleared, we may find a fading copy from Animations component later
             if color is None:
                 pass
             draw_x, draw_y = base_x, base_y
-            # Animation data now lives in Animations component; we derive positions via component.
+            # Derive positions via animation components; each animation entity is independent.
             # Swap interpolation
             for _, swap in self.world.get_component(SwapAnimation):
                 if (row, col) == swap.src or (row, col) == swap.dst:
@@ -108,8 +118,7 @@ class RenderSystem:
             if color is None:
                 for _, fade in self.world.get_component(FadeAnimation):
                     if fade.pos == (row, col):
-                        # Use previous color snapshot? We rely on TileColor color before it became None; could store separately.
-                        # For now skip if no color.
+                        # TODO: store previous color snapshot component for richer fade.
                         color = (80,80,80)  # fallback tint
                         alpha_override = fade.alpha
                         break
@@ -118,6 +127,8 @@ class RenderSystem:
             if color is None:
                 continue
             radius = (TILE_SIZE - PADDING) / 2
+            if headless:
+                continue  # skip drawing in headless mode
             if alpha_override is not None and hasattr(arcade, 'draw_circle_filled'):  # alpha blend
                 r,g,b = color
                 arcade.draw_circle_filled(draw_x, draw_y, radius, (r, g, b, int(255*alpha_override)))
@@ -125,16 +136,139 @@ class RenderSystem:
                 arcade.draw_circle_filled(draw_x, draw_y, radius, color)
             if self.selected and (row, col) == self.selected:
                 arcade.draw_circle_outline(draw_x, draw_y, radius, (255,255,255), 3)
+        # Tile bank overlay (top-left corner)
+        bank_list = list(self.world.get_component(TileBank))
+        if bank_list and not headless:
+            _, bank = bank_list[0]
+            # Sort counts by descending amount then by type name
+            items = sorted(bank.counts.items(), key=lambda kv: (-kv[1], kv[0]))
+            overlay_x = 16
+            overlay_y = self.window.height - 30
+            line_h = 16
+            arcade.draw_text("Tile Bank", overlay_x, overlay_y, arcade.color.WHITE, 12)
+            for i, (type_name, count) in enumerate(items):
+                # Use palette color if semantic name maps; else try rgb encoded fallback
+                color_tuple = NAME_TO_COLOR.get(type_name)
+                if color_tuple is None:
+                    parts = type_name.split('_')
+                    if len(parts) == 3 and all(p.isdigit() for p in parts):
+                        r, g, b = map(int, parts)
+                        color_tuple = (r, g, b)
+                swatch_x = overlay_x
+                swatch_y = overlay_y - (i+1)*line_h - 4
+                swatch_cx = swatch_x + 16
+                swatch_cy = swatch_y + 8
+                if color_tuple:
+                    arcade.draw_circle_filled(swatch_cx, swatch_cy, 7, color_tuple)
+                else:
+                    arcade.draw_circle_outline(swatch_cx, swatch_cy, 7, arcade.color.WHITE, 1)
+                arcade.draw_text(f"{type_name}: {count}", swatch_x + 28, swatch_y + 2, arcade.color.WHITE, 12)
+
+        # Ability column (left side stacked rectangles)
+        self._render_abilities(arcade, headless=headless)
+
+    def _render_abilities(self, arcade, headless: bool = False):
+        """Render abilities as stacked rectangles left of board.
+
+        Layout:
+          - Fixed width panel near left edge (or left margin) separate from bank.
+          - Each ability: rectangle with name and cost line(s).
+          - Background color indicates affordability: green if bank covers all costs, red if not.
+        """
+        # Imports placed here to avoid issues during test collection if Arcade context not initialized.
+        from ecs.components.ability import Ability
+        ability_comps = list(self.world.get_component(Ability))
+        if not ability_comps:
+            return
+        # Resolve tile bank for affordability
+        banks = list(self.world.get_component(TileBank))
+        bank_counts = {}
+        if banks:
+            bank_counts = banks[0][1].counts
+        panel_x = 12
+        # Move panel further down to avoid overlapping the Tile Bank overlay. Previously window.height - 140.
+        panel_top = self.window.height - 240  # increased vertical offset
+        rect_w = 160
+        rect_h = 52
+        spacing = 8
+        from ecs.ui.ability_layout import compute_ability_layout
+        self._ability_layout_cache = compute_ability_layout(
+            ability_comps,
+            bank_counts,
+            start_x=panel_x,
+            start_top=panel_top,
+            rect_w=rect_w,
+            rect_h=rect_h,
+            spacing=spacing,
+        )
+        import arcade
+        # Determine currently targeting ability (if any)
+        targeting_ability_entity = None
+        try:
+            from ecs.components.targeting_state import TargetingState
+            targeting_states = list(self.world.get_component(TargetingState))
+            if targeting_states:
+                targeting_ability_entity = targeting_states[0][1].ability_entity
+        except Exception:
+            targeting_ability_entity = None
+        # Mark targeting flag in layout cache
+        for entry in self._ability_layout_cache:
+            entry['is_targeting'] = (targeting_ability_entity is not None and entry['entity'] == targeting_ability_entity)
+        for entry in self._ability_layout_cache:
+            x = entry['x']; y = entry['y']; w = entry['width']; h = entry['height']
+            affordable = entry['affordable']
+            bg_color = (40, 100, 40) if affordable else (120, 40, 40)
+            border_color = (200, 200, 200)
+            points = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
+            if headless:
+                # Skip drawing; flags still updated.
+                continue
+            if hasattr(arcade, 'draw_polygon_filled'):
+                # If targeting, tint background lighter and outline blue
+                if entry['is_targeting']:
+                    arcade.draw_polygon_filled(points, (70, 130, 180))  # steel-ish base
+                else:
+                    arcade.draw_polygon_filled(points, bg_color)
+                if hasattr(arcade, 'draw_polygon_outline'):
+                    if entry['is_targeting']:
+                        arcade.draw_polygon_outline(points, arcade.color.LIGHT_BLUE, 3)
+                    else:
+                        arcade.draw_polygon_outline(points, border_color, 2)
+            else:
+                arcade.draw_circle_filled(x + w/2, y + h/2, w/2, bg_color)
+                arcade.draw_circle_outline(x + w/2, y + h/2, w/2, border_color, 2)
+            name_y = y + h - 16
+            arcade.draw_text(entry['name'], x + 8, name_y, arcade.color.WHITE, 14)
+            # Show only required costs (omit available amount)
+            cost_line = " ".join(f"{ctype}:{cval}" for ctype, cval in entry['cost'].items())
+            arcade.draw_text(cost_line, x + 8, y + 8, arcade.color.WHITE, 12)
+
+    def get_ability_at_point(self, x: float, y: float):
+        """Return ability layout entry if point inside its rectangle."""
+        if not hasattr(self, '_ability_layout_cache'):
+            return None
+        for entry in self._ability_layout_cache:
+            ex, ey, w, h = entry['x'], entry['y'], entry['width'], entry['height']
+            if ex <= x <= ex + w and ey <= y <= ey + h:
+                return entry
+        return None
     def on_match_found(self, sender, **kwargs):
-        # Pure notification; setup occurs on CLEAR_BEGIN
-        pass
+        # Notification only; no immediate action required.
+        return
 
     def on_animation_start(self, sender, **kwargs):
-        pass
+        return
 
     def on_match_cleared(self, sender, **kwargs):
-        # Nothing extra; fading list already set
-        pass
+        return
+
+    def on_swap_request(self, sender, **kwargs):
+        # Clear selection immediately when a swap begins
+        self.selected = None
+
+    def on_swap_finalize(self, sender, **kwargs):
+        # Ensure selection cleared after swap completes
+        self.selected = None
 
     # Removed specific gravity animation handlers; handled by generic on_animation_start
     def _get_entity_at(self, row: int, col: int):
@@ -144,5 +278,5 @@ class RenderSystem:
         return None
 
     def on_refill_completed(self, sender, **kwargs):
-        pass
+        return
 

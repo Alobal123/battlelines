@@ -5,7 +5,7 @@ from ecs.systems.match import MatchSystem
 from ecs.systems.animation import AnimationSystem
 from ecs.components.animation_swap import SwapAnimation
 from ecs.world import create_world
-from ecs.components.tile import TileColor
+from ecs.components.tile import TileType
 
 class DummyWindow:
     def __init__(self, width=800, height=600):
@@ -28,9 +28,9 @@ def test_invalid_swap_reverts():
     e01 = board._get_entity_at(0,1)
     e02 = board._get_entity_at(0,2)
     assert e00 is not None and e01 is not None and e02 is not None
-    world.component_for_entity(e00, TileColor).color = (10,10,10)
-    world.component_for_entity(e01, TileColor).color = (20,20,20)
-    world.component_for_entity(e02, TileColor).color = (30,30,30)
+    world.component_for_entity(e00, TileType).color = (10,10,10)
+    world.component_for_entity(e01, TileType).color = (20,20,20)
+    world.component_for_entity(e02, TileType).color = (30,30,30)
     bus.emit(EVENT_TILE_SWAP_REQUEST, src=(0,0), dst=(0,1))
     # animate forward+reverse
     # Initial forward phase (0.2s) then reverse (0.2s). Provide enough ticks for both (~20 total).
@@ -39,8 +39,8 @@ def test_invalid_swap_reverts():
     swaps = list(world.get_component(SwapAnimation))
     assert not swaps, f'Swap animation did not finish; remaining components={len(swaps)}'
     # Colors unchanged (no DO event fired)
-    assert world.component_for_entity(e00, TileColor).color == (10,10,10)
-    assert world.component_for_entity(e01, TileColor).color == (20,20,20)
+    assert world.component_for_entity(e00, TileType).color == (10,10,10)
+    assert world.component_for_entity(e01, TileType).color == (20,20,20)
 
 def test_valid_swap_applies():
     bus = EventBus()
@@ -55,9 +55,9 @@ def test_valid_swap_applies():
     e01 = board._get_entity_at(0,1)
     e02 = board._get_entity_at(0,2)
     assert e00 is not None and e01 is not None and e02 is not None
-    world.component_for_entity(e00, TileColor).color = (50,50,50)
-    world.component_for_entity(e01, TileColor).color = (50,50,50)
-    world.component_for_entity(e02, TileColor).color = (50,50,50)
+    world.component_for_entity(e00, TileType).color = (50,50,50)
+    world.component_for_entity(e01, TileType).color = (50,50,50)
+    world.component_for_entity(e02, TileType).color = (50,50,50)
     bus.emit(EVENT_TILE_SWAP_REQUEST, src=(0,0), dst=(0,1))
     drive_ticks(bus, 15)
     # Valid swap should finish forward animation and clear active_swap
