@@ -136,33 +136,41 @@ class RenderSystem:
                 arcade.draw_circle_filled(draw_x, draw_y, radius, color)
             if self.selected and (row, col) == self.selected:
                 arcade.draw_circle_outline(draw_x, draw_y, radius, (255,255,255), 3)
-        # Tile bank overlay (top-left corner)
-        bank_list = list(self.world.get_component(TileBank))
-        if bank_list and not headless:
-            _, bank = bank_list[0]
-            # Sort counts by descending amount then by type name
-            items = sorted(bank.counts.items(), key=lambda kv: (-kv[1], kv[0]))
-            overlay_x = 16
+        # Tile bank overlays for all owners (left for first, right for second)
+        if not headless:
+            banks = list(self.world.get_component(TileBank))
+            # Sort banks by owner_entity for deterministic ordering
+            banks_sorted = sorted(banks, key=lambda pair: pair[1].owner_entity)
             overlay_y = self.window.height - 30
             line_h = 16
-            arcade.draw_text("Tile Bank", overlay_x, overlay_y, arcade.color.WHITE, 12)
-            for i, (type_name, count) in enumerate(items):
-                # Use palette color if semantic name maps; else try rgb encoded fallback
-                color_tuple = NAME_TO_COLOR.get(type_name)
-                if color_tuple is None:
-                    parts = type_name.split('_')
-                    if len(parts) == 3 and all(p.isdigit() for p in parts):
-                        r, g, b = map(int, parts)
-                        color_tuple = (r, g, b)
-                swatch_x = overlay_x
-                swatch_y = overlay_y - (i+1)*line_h - 4
-                swatch_cx = swatch_x + 16
-                swatch_cy = swatch_y + 8
-                if color_tuple:
-                    arcade.draw_circle_filled(swatch_cx, swatch_cy, 7, color_tuple)
+            total_width = GRID_COLS * TILE_SIZE
+            board_left = (self.window.width - total_width) / 2
+            board_right = board_left + total_width
+            for idx, (bank_ent, bank) in enumerate(banks_sorted):
+                items = sorted(bank.counts.items(), key=lambda kv: (-kv[1], kv[0]))
+                if idx == 0:
+                    overlay_x = 16
+                    title = "P1 Bank"
                 else:
-                    arcade.draw_circle_outline(swatch_cx, swatch_cy, 7, arcade.color.WHITE, 1)
-                arcade.draw_text(f"{type_name}: {count}", swatch_x + 28, swatch_y + 2, arcade.color.WHITE, 12)
+                    overlay_x = board_right + 40  # right side offset
+                    title = f"P{idx+1} Bank"
+                arcade.draw_text(title, overlay_x, overlay_y, arcade.color.WHITE, 12)
+                for i, (type_name, count) in enumerate(items):
+                    color_tuple = NAME_TO_COLOR.get(type_name)
+                    if color_tuple is None:
+                        parts = type_name.split('_')
+                        if len(parts) == 3 and all(p.isdigit() for p in parts):
+                            r, g, b = map(int, parts)
+                            color_tuple = (r, g, b)
+                    swatch_x = overlay_x
+                    swatch_y = overlay_y - (i+1)*line_h - 4
+                    swatch_cx = swatch_x + 16
+                    swatch_cy = swatch_y + 8
+                    if color_tuple:
+                        arcade.draw_circle_filled(swatch_cx, swatch_cy, 7, color_tuple)
+                    else:
+                        arcade.draw_circle_outline(swatch_cx, swatch_cy, 7, arcade.color.WHITE, 1)
+                    arcade.draw_text(f"{type_name}: {count}", swatch_x + 28, swatch_y + 2, arcade.color.WHITE, 12)
 
         # Ability column (left side stacked rectangles)
         self._render_abilities(arcade, headless=headless)
@@ -181,43 +189,68 @@ class RenderSystem:
         if not ability_comps:
             return
         # Resolve tile bank for affordability
-        banks = list(self.world.get_component(TileBank))
-        bank_counts = {}
-        if banks:
-            bank_counts = banks[0][1].counts
-        panel_x = 12
-        # Move panel further down to avoid overlapping the Tile Bank overlay. Previously window.height - 140.
-        panel_top = self.window.height - 240  # increased vertical offset
+        # Group abilities by owner (multi-player support)
+        from ecs.components.ability_list_owner import AbilityListOwner
+        owners = list(self.world.get_component(AbilityListOwner))
+        # Build cache list per owner
+        self._ability_layout_cache = []
+        from ecs.ui.ability_layout import compute_ability_layout
         rect_w = 160
         rect_h = 52
         spacing = 8
-        from ecs.ui.ability_layout import compute_ability_layout
-        self._ability_layout_cache = compute_ability_layout(
-            ability_comps,
-            bank_counts,
-            start_x=panel_x,
-            start_top=panel_top,
-            rect_w=rect_w,
-            rect_h=rect_h,
-            spacing=spacing,
-        )
+        base_top = self.window.height - 240
+        total_width = GRID_COLS * TILE_SIZE
+        board_left = (self.window.width - total_width) / 2
+        board_right = board_left + total_width
+        left_panel_x = board_left - (rect_w + 24)
+        right_panel_x = board_right + 24
+        # Map owner -> bank counts
+        banks = {bank.owner_entity: bank.counts for _, bank in self.world.get_component(TileBank)}
+        for col_index, (owner_ent, owner_comp) in enumerate(owners):
+            owner_abilities = [(ent, ability) for (ent, ability) in ability_comps if ent in owner_comp.ability_entities]
+            counts = banks.get(owner_ent, {})
+            panel_x = left_panel_x if col_index == 0 else right_panel_x
+            layout_entries = compute_ability_layout(
+                owner_abilities,
+                counts,
+                owner_entity=owner_ent,
+                start_x=panel_x,
+                start_top=base_top,
+                rect_w=rect_w,
+                rect_h=rect_h,
+                spacing=spacing,
+            )
+            self._ability_layout_cache.extend(layout_entries)
         import arcade
-        # Determine currently targeting ability (if any)
+        # Determine currently targeting ability (if any) and active owner
         targeting_ability_entity = None
+        active_owner = None
         try:
             from ecs.components.targeting_state import TargetingState
             targeting_states = list(self.world.get_component(TargetingState))
             if targeting_states:
                 targeting_ability_entity = targeting_states[0][1].ability_entity
+            from ecs.components.active_turn import ActiveTurn
+            active_list = list(self.world.get_component(ActiveTurn))
+            if active_list:
+                active_owner = active_list[0][1].owner_entity
         except Exception:
             targeting_ability_entity = None
+            active_owner = None
         # Mark targeting flag in layout cache
         for entry in self._ability_layout_cache:
             entry['is_targeting'] = (targeting_ability_entity is not None and entry['entity'] == targeting_ability_entity)
+            entry['is_active'] = (active_owner is not None and entry['owner_entity'] == active_owner)
         for entry in self._ability_layout_cache:
             x = entry['x']; y = entry['y']; w = entry['width']; h = entry['height']
             affordable = entry['affordable']
-            bg_color = (40, 100, 40) if affordable else (120, 40, 40)
+            # Slightly brighten active owner's background
+            base_color = (40, 100, 40) if affordable else (120, 40, 40)
+            if entry['is_active'] and not entry['is_targeting']:
+                r,g,b = base_color
+                bg_color = (min(255, r+30), min(255, g+30), min(255, b+30))
+            else:
+                bg_color = base_color
             border_color = (200, 200, 200)
             points = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
             if headless:
@@ -232,6 +265,8 @@ class RenderSystem:
                 if hasattr(arcade, 'draw_polygon_outline'):
                     if entry['is_targeting']:
                         arcade.draw_polygon_outline(points, arcade.color.LIGHT_BLUE, 3)
+                    elif entry['is_active']:
+                        arcade.draw_polygon_outline(points, (150, 200, 255), 2)
                     else:
                         arcade.draw_polygon_outline(points, border_color, 2)
             else:

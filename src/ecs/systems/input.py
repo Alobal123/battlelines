@@ -22,17 +22,15 @@ class InputSystem:
         if render_system and hasattr(render_system, 'get_ability_at_point'):
             entry = render_system.get_ability_at_point(x, y)
             if entry and self.world is not None:
-                from ecs.components.ability_list_owner import AbilityListOwner
-                owners = list(self.world.get_component(AbilityListOwner))
-                if owners:
-                    owner_ent, owner_comp = owners[0]
-                    if entry['entity'] in owner_comp.ability_entities:
-                        self.event_bus.emit(
-                            EVENT_ABILITY_ACTIVATE_REQUEST,
-                            ability_entity=entry['entity'],
-                            owner_entity=owner_ent,
-                        )
-                        return  # Do not treat as tile click
+                # owner_entity now embedded in layout entry for multi-owner support
+                owner_entity = entry.get('owner_entity')
+                if owner_entity is not None:
+                    self.event_bus.emit(
+                        EVENT_ABILITY_ACTIVATE_REQUEST,
+                        ability_entity=entry['entity'],
+                        owner_entity=owner_entity,
+                    )
+                    return  # Do not treat as tile click
         # Otherwise treat as board click if within bounds
         total_width = GRID_COLS * TILE_SIZE
         start_x = (self.window.width - total_width) / 2

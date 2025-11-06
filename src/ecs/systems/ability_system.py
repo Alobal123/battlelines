@@ -16,6 +16,8 @@ from ecs.events.bus import (
     EVENT_GRAVITY_APPLIED,
     EVENT_REFILL_COMPLETED,
     EVENT_ANIMATION_START,
+    EVENT_CASCADE_STEP,
+    EVENT_CASCADE_COMPLETE,
 )
 from ecs.components.ability import Ability
 from ecs.components.targeting_state import TargetingState
@@ -36,16 +38,36 @@ class AbilitySystem:
     def __init__(self, world: World, event_bus: EventBus):
         self.world = world
         self.event_bus = event_bus
+        self._cascade_active = False
+        self._cascade_step_observed = False
         event_bus.subscribe(EVENT_ABILITY_ACTIVATE_REQUEST, self.on_activate_request)
         # Spend now delayed; we no longer subscribe to immediate spent for targeting.
         event_bus.subscribe(EVENT_TILE_BANK_INSUFFICIENT, self.on_bank_insufficient)
         event_bus.subscribe(EVENT_TILE_CLICK, self.on_tile_click)
         event_bus.subscribe(EVENT_TILE_BANK_SPENT, self.on_bank_spent)
         event_bus.subscribe(EVENT_MOUSE_PRESS, self.on_mouse_press)
+        event_bus.subscribe(EVENT_CASCADE_STEP, self.on_cascade_step)
+        event_bus.subscribe(EVENT_CASCADE_COMPLETE, self.on_cascade_complete)
 
     def on_activate_request(self, sender, **payload):
+        # Block ability activation while cascade active
+        if self._cascade_active:
+            return
         ability_entity = payload['ability_entity']
         owner_entity = payload['owner_entity']
+        # Validate that owner_entity actually owns this ability and is current active turn
+        from ecs.components.ability_list_owner import AbilityListOwner
+        from ecs.components.active_turn import ActiveTurn
+        owners = {ent: comp for ent, comp in self.world.get_component(AbilityListOwner)}
+        if owner_entity not in owners:
+            return
+        if ability_entity not in owners[owner_entity].ability_entities:
+            # Ability doesn't belong to provided owner; reject activation
+            return
+        active_list = list(self.world.get_component(ActiveTurn))
+        if active_list and active_list[0][1].owner_entity != owner_entity:
+            # Not this owner's turn
+            return
         # Enter targeting mode first; cost will be spent only after effect applied.
         self.world.add_component(owner_entity, TargetingState(ability_entity=ability_entity))
         self.event_bus.emit(EVENT_ABILITY_TARGET_MODE, ability_entity=ability_entity, owner_entity=owner_entity)
@@ -56,6 +78,8 @@ class AbilitySystem:
     def on_tile_click(self, sender, **payload):
         targeting = list(self.world.get_component(TargetingState))
         if not targeting:
+            return
+        if self._cascade_active:
             return
         row = payload['row']; col = payload['col']
         owner_entity, targeting_state = targeting[0]
@@ -84,6 +108,8 @@ class AbilitySystem:
         self.event_bus.emit(EVENT_ABILITY_TARGET_SELECTED, ability_entity=ability_entity, target=(row, col))
 
     def on_bank_spent(self, sender, **payload):
+        # Reset cascade step observation for this ability resolution
+        self._cascade_step_observed = False
         ability_entity = payload.get('ability_entity')
         if ability_entity is None:
             return
@@ -98,12 +124,31 @@ class AbilitySystem:
         if ability.name == 'tactical_shift':
             affected = self._apply_transform_all_color_to_target(row, col, ability)
             self.event_bus.emit(EVENT_ABILITY_EFFECT_APPLIED, ability_entity=ability_entity, affected=affected)
+            # Emit match-like cleared event for resource attribution
+            active_owner = self._get_active_owner()
             self.event_bus.emit(EVENT_BOARD_CHANGED, reason='ability_effect', positions=affected)
+            # Provide colors list for bank increment compatibility
+            colors_payload = []
+            for (r, c) in affected:
+                ent = self._get_entity_at(r, c)
+                if ent is None:
+                    continue
+                tile: TileType = self.world.component_for_entity(ent, TileType)
+                colors_payload.append((r, c, tile.raw_color))
+            self.event_bus.emit(EVENT_MATCH_CLEARED, positions=affected, colors=colors_payload, owner_entity=active_owner)
+            # If no cascade step emitted (no matches created), emit cascade_complete(depth=0) to finalize turn rotation
+            if not self._cascade_step_observed:
+                self.event_bus.emit(EVENT_CASCADE_COMPLETE, depth=0)
         elif ability.name == 'crimson_pulse':
             positions = self._prepare_crimson_pulse_area(row, col)
-            # Clear pipeline will emit board changed etc.
-            self._resolve_external_clear(positions)
+            active_owner = self._get_active_owner()
+            # Resolve clear and subsequent gravity/refill; emits board_changed after completion
+            colors_payload = self._resolve_external_clear(positions)
             self.event_bus.emit(EVENT_ABILITY_EFFECT_APPLIED, ability_entity=ability_entity, affected=positions)
+            # Single attributed match cleared event (after logical clear, before cascade scan)
+            self.event_bus.emit(EVENT_MATCH_CLEARED, positions=positions, colors=colors_payload, owner_entity=active_owner)
+            if not self._cascade_step_observed:
+                self.event_bus.emit(EVENT_CASCADE_COMPLETE, depth=0)
         else:
             self.event_bus.emit(EVENT_ABILITY_EFFECT_APPLIED, ability_entity=ability_entity, affected=[])
         # Remove pending component after applying effect
@@ -160,9 +205,13 @@ class AbilitySystem:
 
     # --- External clear pipeline (crimson pulse) replicating match resolution logic ---
     def _resolve_external_clear(self, positions):
+        """Clear given positions, apply gravity/refill, emit animations, then board_changed.
+
+        Returns list of (r,c,color_before_clear) for resource attribution. Does NOT emit match_cleared itself.
+        """
         if not positions:
-            return
-        # Capture colors prior to clearing
+            self.event_bus.emit(EVENT_BOARD_CHANGED, reason='ability_effect', positions=positions)
+            return []
         colored = []
         for (r, c) in positions:
             ent = self._get_entity_at(r, c)
@@ -171,16 +220,14 @@ class AbilitySystem:
             tile: TileType = self.world.component_for_entity(ent, TileType)
             if tile.color is not None:
                 colored.append((r, c, tile.color))
-        # Clear
+        # Clear tiles
         for (r, c) in positions:
             ent = self._get_entity_at(r, c)
             if ent is None:
                 continue
             tile: TileType = self.world.component_for_entity(ent, TileType)
             tile.color = None
-        # Emit match cleared analog so TileBankSystem increments
-        self.event_bus.emit(EVENT_MATCH_CLEARED, positions=sorted(positions), colors=colored)
-        # Apply gravity & refill like MatchResolutionSystem._after_fade
+        # Gravity / refill
         moves, cascades = self._compute_gravity_moves()
         if moves:
             self._apply_gravity_moves(moves)
@@ -192,8 +239,9 @@ class AbilitySystem:
             if new_tiles:
                 self.event_bus.emit(EVENT_REFILL_COMPLETED, new_tiles=new_tiles)
                 self.event_bus.emit(EVENT_ANIMATION_START, kind='refill', items=new_tiles)
-        # Finally trigger board changed so cascade scan can occur
+        # Board changed triggers cascade scan by MatchResolutionSystem
         self.event_bus.emit(EVENT_BOARD_CHANGED, reason='ability_effect', positions=positions)
+        return colored
 
     def _compute_gravity_moves(self):
         from ecs.components.board import Board
@@ -255,6 +303,13 @@ class AbilitySystem:
                 return ent
         return None
 
+    def _get_active_owner(self) -> int | None:
+        from ecs.components.active_turn import ActiveTurn
+        active = list(self.world.get_component(ActiveTurn))
+        if not active:
+            return None
+        return active[0][1].owner_entity
+
     def on_mouse_press(self, sender, **payload):
         # Right-click (arcade.MOUSE_BUTTON_RIGHT == 4) cancels targeting mode.
         button = payload.get('button')
@@ -267,3 +322,10 @@ class AbilitySystem:
         ability_entity = targeting_state.ability_entity
         self.world.remove_component(owner_entity, TargetingState)
         self.event_bus.emit(EVENT_ABILITY_TARGET_CANCELLED, ability_entity=ability_entity, owner_entity=owner_entity, reason='right_click')
+
+    def on_cascade_step(self, sender, **payload):
+        self._cascade_active = True
+        self._cascade_step_observed = True
+
+    def on_cascade_complete(self, sender, **payload):
+        self._cascade_active = False

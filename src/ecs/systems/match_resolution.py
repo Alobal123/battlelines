@@ -77,7 +77,8 @@ class MatchResolutionSystem:
                 pass
         # Now clear logically
         self.clear_positions(positions)
-        self.event_bus.emit(EVENT_MATCH_CLEARED, positions=positions, colors=colored)
+        owner_entity = self._active_owner()
+        self.event_bus.emit(EVENT_MATCH_CLEARED, positions=positions, colors=colored, owner_entity=owner_entity)
         # Gravity
         moves, cascades = self.compute_gravity_moves()
         if moves:
@@ -240,6 +241,13 @@ class MatchResolutionSystem:
             if pos.row == row and pos.col == col:
                 return ent
         return None
+
+    def _active_owner(self):
+        from ecs.components.active_turn import ActiveTurn
+        active = list(self.world.get_component(ActiveTurn))
+        if not active:
+            return None
+        return active[0][1].owner_entity
 
     def _board(self) -> Board:
         # Assume single Board component

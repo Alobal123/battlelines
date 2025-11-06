@@ -1,7 +1,7 @@
 import random
 from typing import List, Optional, Tuple
 from esper import World
-from ecs.events.bus import EventBus, EVENT_TILE_CLICK, EVENT_TILE_SELECTED, EVENT_TILE_DESELECTED, EVENT_TILE_SWAP_REQUEST, EVENT_TILE_SWAP_FINALIZE, EVENT_TILE_SWAP_DO, EVENT_MOUSE_PRESS
+from ecs.events.bus import EventBus, EVENT_TILE_CLICK, EVENT_TILE_SELECTED, EVENT_TILE_DESELECTED, EVENT_TILE_SWAP_REQUEST, EVENT_TILE_SWAP_FINALIZE, EVENT_TILE_SWAP_DO, EVENT_MOUSE_PRESS, EVENT_CASCADE_STEP, EVENT_CASCADE_COMPLETE, EVENT_ABILITY_TARGET_MODE, EVENT_TURN_ADVANCED
 from ecs.components.tile import TileType
 from ecs.components.board_position import BoardPosition
 from ecs.components.targeting_state import TargetingState
@@ -29,9 +29,14 @@ class BoardSystem:
         self.board_entity = self.world.create_entity()
         self.world.add_component(self.board_entity, Board(rows=rows, cols=cols))
         self.selected: Optional[Tuple[int,int]] = None
+        self._cascade_active: bool = False
         self.event_bus.subscribe(EVENT_TILE_CLICK, self.on_tile_click)
         self.event_bus.subscribe(EVENT_TILE_SWAP_DO, self.on_swap_do)
         self.event_bus.subscribe(EVENT_MOUSE_PRESS, self.on_mouse_press)
+        self.event_bus.subscribe(EVENT_CASCADE_STEP, self.on_cascade_step)
+        self.event_bus.subscribe(EVENT_CASCADE_COMPLETE, self.on_cascade_complete)
+        self.event_bus.subscribe(EVENT_ABILITY_TARGET_MODE, self.on_target_mode)
+        self.event_bus.subscribe(EVENT_TURN_ADVANCED, self.on_turn_advanced)
         self._init_board()
 
     def _init_board(self):
@@ -63,6 +68,9 @@ class BoardSystem:
         row = kwargs.get('row')
         col = kwargs.get('col')
         if row is None or col is None:
+            return
+        # Block interaction while cascades resolving
+        if self._cascade_active:
             return
         # Ignore normal selection/swaps while in targeting mode
         targeting = list(self.world.get_component(TargetingState))
@@ -120,6 +128,26 @@ class BoardSystem:
             return
         self.swap_tiles(src, dst)
         self.event_bus.emit(EVENT_TILE_SWAP_FINALIZE, src=src, dst=dst)
+
+    def on_cascade_step(self, sender, **kwargs):
+        self._cascade_active = True
+
+    def on_cascade_complete(self, sender, **kwargs):
+        self._cascade_active = False
+
+    def _emit_deselect(self, reason: str):
+        if self.selected is not None:
+            prev_row, prev_col = self.selected
+            self.selected = None
+            self.event_bus.emit(EVENT_TILE_DESELECTED, reason=reason, prev_row=prev_row, prev_col=prev_col)
+
+    def on_target_mode(self, sender, **kwargs):
+        # Entering targeting should clear any existing tile selection highlight.
+        self._emit_deselect('target_mode')
+
+    def on_turn_advanced(self, sender, **kwargs):
+        # When active player shifts, clear any lingering selection owned by previous context.
+        self._emit_deselect('turn_advanced')
 
     def _get_entity_at(self, row: int, col: int):
         for ent, pos in self.world.get_component(BoardPosition):

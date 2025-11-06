@@ -39,18 +39,18 @@ class TileBankSystem:
         return bank_ent
 
     from typing import Optional
-    def _find_player_owner(self) -> Optional[int]:
-        owners = list(self.world.get_component(AbilityListOwner))
-        if not owners:
-            return None
-        return owners[0][0]
+    def _list_owners(self) -> list:
+        return [ent for ent, comp in self.world.get_component(AbilityListOwner)]
 
     def on_match_cleared(self, sender, **kwargs):
         positions = kwargs.get('positions', [])
         colors = kwargs.get('colors', [])  # list of (r,c,color_tuple)
-        owner_entity = self._find_player_owner()
+        owner_entity = kwargs.get('owner_entity')
         if owner_entity is None:
-            return
+            owners = self._list_owners()
+            if not owners:
+                return
+            owner_entity = owners[0]
         bank_ent = self._get_or_create_bank(owner_entity)
         bank: TileBank = self.world.component_for_entity(bank_ent, TileBank)
         # Currently we don't have direct type_name in payload; approximate from RGB stringified

@@ -11,7 +11,7 @@ def test_compute_ability_layout_stacking_and_affordability():
         (3, Ability(name="a3", kind="active", cost={}))
     ]
     bank = {"red":2, "blue":1}
-    layout = compute_ability_layout(abilities, bank, start_x=10, start_top=200, rect_w=100, rect_h=40, spacing=5)
+    layout = compute_ability_layout(abilities, bank, owner_entity=999, start_x=10, start_top=200, rect_w=100, rect_h=40, spacing=5)
     assert len(layout) == 3
     # Stacking y positions strictly descending
     assert layout[0]['y'] == 200

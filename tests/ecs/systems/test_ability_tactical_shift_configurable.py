@@ -38,12 +38,11 @@ def world_and_bus():
 
 def test_tactical_shift_configurable_color(world_and_bus):
     world, bus, ability_entity, player_ent, target_color_name = world_and_bus
-    # Simulate activation (spend should succeed immediately since bank populated)
+    # Activate ability (enter targeting)
     bus.emit(EVENT_ABILITY_ACTIVATE_REQUEST, ability_entity=ability_entity, owner_entity=player_ent)
-    # Directly emit bank spent (bypassing TileBankSystem for unit isolation)
-    bus.emit(EVENT_TILE_BANK_SPENT, entity=player_ent, ability_entity=ability_entity, cost={'blue':1})
-    # Click on the source tile (0,0)
+    # Select target tile which triggers spend request; then simulate spend success
     bus.emit(EVENT_TILE_CLICK, row=0, col=0)
+    bus.emit(EVENT_TILE_BANK_SPENT, entity=player_ent, ability_entity=ability_entity, cost={'blue':1})
     # Assert tile at (0,0) now has target color type_name
     for ent, pos in world.get_component(BoardPosition):
         if pos.row == 0 and pos.col == 0:

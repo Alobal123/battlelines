@@ -51,5 +51,17 @@ src/
 3. Add movement system responding to input events.
 4. Introduce entity factory utilities.
 
+## Event Reference (Selected)
+Key gameplay events emitted by systems:
+- `tile_swap_request` / `tile_swap_do` / `tile_swap_finalize`: Swap lifecycle.
+- `match_found` / `match_cleared`: Detection and logical clearing of matches.
+- `gravity_applied` / `refill_completed`: Board settling and new tile spawn.
+- `cascade_step` / `cascade_complete`: Multi-step resolution depth tracking.
+- `ability_activate_request` / `ability_target_mode` / `ability_target_selected` / `ability_effect_applied`: Ability targeting & resolution.
+- `tile_bank_spend_request` / `tile_bank_spent` / `tile_bank_insufficient` / `tile_bank_changed`: Resource economy.
+- `turn_advanced`: Emitted by `TurnSystem` whenever active owner changes (payload: previous_owner, new_owner). Use this for UI updates instead of polling `ActiveTurn`.
+
+See `ecs/events/bus.py` for the full list.
+
 ## License
 TBD
