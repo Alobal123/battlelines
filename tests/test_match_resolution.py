@@ -7,6 +7,7 @@ from ecs.systems.match import MatchSystem
 from ecs.systems.match_resolution import MatchResolutionSystem
 from ecs.world import create_world
 from ecs.components.tile import TileType
+from ecs.components.active_switch import ActiveSwitch
 
 class DummyWindow:
     def __init__(self, width=800, height=600):
@@ -32,11 +33,18 @@ def test_horizontal_match_clears_and_refills():
     e22 = board._get_entity_at(2,2)
     e23 = board._get_entity_at(2,3)
     assert e20 and e21 and e22 and e23
-    # Set colors so that swapping e22,e23 makes columns 0-2 same color
-    world.component_for_entity(e20, TileType).color = (10,10,10)
-    world.component_for_entity(e21, TileType).color = (10,10,10)
-    world.component_for_entity(e22, TileType).color = (20,20,20)
-    world.component_for_entity(e23, TileType).color = (10,10,10)
+    # Set types/colors so that swapping e22,e23 makes columns 0-2 same type
+    t0 = world.component_for_entity(e20, TileType)
+    t1 = world.component_for_entity(e21, TileType)
+    t2 = world.component_for_entity(e22, TileType)
+    t3 = world.component_for_entity(e23, TileType)
+    # Use distinct placeholder palette colors but enforce type consistency for match detection
+    t0.type_name = 'archers'
+    t1.type_name = 'archers'
+    t2.type_name = 'cavalry'
+    t3.type_name = 'archers'
+    for ent in (e20,e21,e22,e23):
+        world.component_for_entity(ent, ActiveSwitch).active = True
 
     found = {}
     cleared = {}
@@ -59,10 +67,10 @@ def test_horizontal_match_clears_and_refills():
     # Gravity should have run (even if no vertical movement it counts cascade if empties existed)
     assert 'cascades' in gravity
     assert refill.get('new_tiles'), 'No refill occurred'
-    # Ensure cleared positions now have non-None colors again
+    # Ensure cleared positions now active again after refill
     found_positions = found.get('positions') or []
     for (r,c) in found_positions:
         ent = board._get_entity_at(r,c)
         assert ent is not None
-        color = world.component_for_entity(ent, TileType).color
-        assert color is not None
+        active_sw = world.component_for_entity(ent, ActiveSwitch)
+        assert active_sw.active

@@ -45,7 +45,7 @@ def test_match_clear_attributed_to_active_owner(setup_world):
     # Simulate a match cleared event with owner_entity=p2
     collector = DummyEventCollector()
     bus.subscribe(EVENT_MATCH_CLEARED, collector.handler)
-    bus.emit(EVENT_MATCH_CLEARED, positions=[(0,0)], colors=[(0,0,(180,60,60))], owner_entity=p2)
+    bus.emit(EVENT_MATCH_CLEARED, positions=[(0,0)], types=[(0,0,'archers')], owner_entity=p2)
     # TileBankSystem should update p2 bank only
     p2_bank_ent = None
     for ent, bank in world.get_component(TileBank):
@@ -55,7 +55,7 @@ def test_match_clear_attributed_to_active_owner(setup_world):
     assert p2_bank_ent is not None
     p2_bank = world.component_for_entity(p2_bank_ent, TileBank)
     # Started prefilled at 100; after event should be 101
-    assert p2_bank.counts.get('red', 0) == 101
+    assert p2_bank.counts.get('archers', 0) == 101
     # Ensure p1 bank unchanged
     p1_bank_ent = None
     for ent, bank in world.get_component(TileBank):
@@ -63,4 +63,4 @@ def test_match_clear_attributed_to_active_owner(setup_world):
             p1_bank_ent = ent
             break
     p1_bank = world.component_for_entity(p1_bank_ent, TileBank)
-    assert p1_bank.counts.get('red', 0) == 100
+    assert p1_bank.counts.get('archers', 0) == 100

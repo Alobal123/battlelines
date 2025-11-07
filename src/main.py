@@ -32,6 +32,18 @@ class BattlelinesWindow(Window):
         # InputSystem expects (event_bus, window)
         self.input_system = InputSystem(self.event_bus, self, self.world)
         set_background_color(color.BLACK)
+        # Toggle fullscreen and allow dynamic scaling; width/height update after fullscreen set.
+        try:
+            self.set_fullscreen(True)
+        except Exception:
+            # Headless test environments may fail; ignore.
+            pass
+
+    def on_resize(self, width: int, height: int):
+        # Propagate resize to render system for recalculating layout
+        if hasattr(self.render_system, 'notify_resize'):
+            self.render_system.notify_resize(width, height)
+        return super().on_resize(width, height)
 
     def on_draw(self):
         self.clear()

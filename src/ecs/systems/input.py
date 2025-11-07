@@ -1,5 +1,6 @@
 from ecs.events.bus import EventBus, EVENT_MOUSE_PRESS, EVENT_TILE_CLICK, EVENT_ABILITY_ACTIVATE_REQUEST
-from ecs.constants import GRID_COLS, GRID_ROWS, TILE_SIZE, BOTTOM_MARGIN
+from ecs.constants import GRID_COLS, GRID_ROWS
+from ecs.ui.layout import compute_board_geometry
 
 class InputSystem:
     def __init__(self, event_bus: EventBus, window, world=None):
@@ -32,14 +33,21 @@ class InputSystem:
                     )
                     return  # Do not treat as tile click
         # Otherwise treat as board click if within bounds
-        total_width = GRID_COLS * TILE_SIZE
-        start_x = (self.window.width - total_width) / 2
-        start_y = BOTTOM_MARGIN
+        if hasattr(self.window, 'render_system'):
+            tile_size, start_x, start_y = compute_board_geometry(self.window.width, self.window.height)
+        else:
+            # Legacy fallback (tests without render system expect static TILE_SIZE centering)
+            from ecs.constants import TILE_SIZE, BOTTOM_MARGIN
+            tile_size = TILE_SIZE
+            total_width = GRID_COLS * tile_size
+            start_x = (self.window.width - total_width) / 2
+            start_y = BOTTOM_MARGIN
+        total_width = GRID_COLS * tile_size
         if x < start_x or x > start_x + total_width:
             return
-        if y < start_y or y > start_y + GRID_ROWS * TILE_SIZE:
+        if y < start_y or y > start_y + GRID_ROWS * tile_size:
             return
-        col = int((x - start_x) // TILE_SIZE)
-        row = int((y - start_y) // TILE_SIZE)
+        col = int((x - start_x) // tile_size)
+        row = int((y - start_y) // tile_size)
         if 0 <= row < GRID_ROWS and 0 <= col < GRID_COLS:
             self.event_bus.emit(EVENT_TILE_CLICK, row=row, col=col)

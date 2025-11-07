@@ -7,6 +7,7 @@ from ecs.systems.match import MatchSystem
 from ecs.systems.match_resolution import MatchResolutionSystem
 from ecs.world import create_world
 from ecs.components.tile import TileType
+from ecs.components.active_switch import ActiveSwitch
 
 class DummyWindow:
     def __init__(self, width=800, height=600):
@@ -35,11 +36,16 @@ def test_phased_clear_gravity_refill_sequence():
     assert e21 is not None
     assert e22 is not None
     assert e23 is not None
-    from_color = (40,40,40)
-    world.component_for_entity(e20, TileType).color = from_color
-    world.component_for_entity(e21, TileType).color = from_color
-    world.component_for_entity(e22, TileType).color = (60,60,60)
-    world.component_for_entity(e23, TileType).color = from_color
+    # Force a future horizontal match after swap: set three archers and one cavalry
+    world.component_for_entity(e20, TileType).type_name = 'archers'
+    world.component_for_entity(e21, TileType).type_name = 'archers'
+    world.component_for_entity(e22, TileType).type_name = 'cavalry'
+    world.component_for_entity(e23, TileType).type_name = 'archers'
+    # Ensure all are active
+    world.component_for_entity(e20, ActiveSwitch).active = True
+    world.component_for_entity(e21, ActiveSwitch).active = True
+    world.component_for_entity(e22, ActiveSwitch).active = True
+    world.component_for_entity(e23, ActiveSwitch).active = True
 
     events_order = []
     def on_anim_start(sender, **k):

@@ -29,7 +29,7 @@ class AnimationFactory:
         ents = []
         for m in moves:
             ent = self.world.create_entity()
-            self.world.add_component(ent, FallAnimation(src=m['from'], dst=m['to'], color=m['color']))
+            self.world.add_component(ent, FallAnimation(src=m['from'], dst=m['to']))
             self.world.add_component(ent, Duration(duration))
             ents.append(ent)
         return ents

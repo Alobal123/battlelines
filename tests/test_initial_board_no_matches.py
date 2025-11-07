@@ -3,39 +3,46 @@ from ecs.world import create_world
 from ecs.systems.board import BoardSystem
 from ecs.components.tile import TileType
 from ecs.components.board_position import BoardPosition
+from ecs.components.active_switch import ActiveSwitch
 
 def has_match(world, rows, cols):
     # scan horizontal & vertical
     # build map
-    colors = {}
+    types = {}
     for ent, pos in world.get_component(BoardPosition):
-        color_comp = world.component_for_entity(ent, TileType)
-        colors[(pos.row, pos.col)] = color_comp.color
+        try:
+            active_sw: ActiveSwitch = world.component_for_entity(ent, ActiveSwitch)
+        except KeyError:
+            continue
+        if not active_sw.active:
+            continue
+        tt = world.component_for_entity(ent, TileType)
+        types[(pos.row, pos.col)] = tt.type_name
     # horizontal
     for r in range(rows):
         run=[]; last=None
         for c in range(cols):
-            colr=colors[(r,c)]
-            if colr==last:
+            tval=types.get((r,c))
+            if tval==last:
                 run.append((r,c))
             else:
                 if len(run)>=3:
                     return True
                 run=[(r,c)]
-                last=colr
+                last=tval
         if len(run)>=3:
             return True
     for c in range(cols):
         run=[]; last=None
         for r in range(rows):
-            colr=colors[(r,c)]
-            if colr==last:
+            tval=types.get((r,c))
+            if tval==last:
                 run.append((r,c))
             else:
                 if len(run)>=3:
                     return True
                 run=[(r,c)]
-                last=colr
+                last=tval
         if len(run)>=3:
             return True
     return False

@@ -9,7 +9,7 @@ class Ability:
       name: Display / reference name.
       kind: Semantic category (e.g., 'active', 'passive', 'special').
       cost: Mapping of tile type names to counts consumed when activated.
-      params: Arbitrary configuration values (e.g., {'target_color': 'green'}).
+      params: Arbitrary configuration values 
     """
     name: str
     kind: str

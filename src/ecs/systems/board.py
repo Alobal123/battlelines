@@ -2,22 +2,15 @@ import random
 from typing import List, Optional, Tuple
 from esper import World
 from ecs.events.bus import EventBus, EVENT_TILE_CLICK, EVENT_TILE_SELECTED, EVENT_TILE_DESELECTED, EVENT_TILE_SWAP_REQUEST, EVENT_TILE_SWAP_FINALIZE, EVENT_TILE_SWAP_DO, EVENT_MOUSE_PRESS, EVENT_CASCADE_STEP, EVENT_CASCADE_COMPLETE, EVENT_ABILITY_TARGET_MODE, EVENT_TURN_ADVANCED
+from ecs.components.active_switch import ActiveSwitch
+from ecs.components.tile_type_registry import TileTypeRegistry
+from ecs.components.tile_types import TileTypes
 from ecs.components.tile import TileType
 from ecs.components.board_position import BoardPosition
 from ecs.components.targeting_state import TargetingState
 
-# Seven distinct colors -> initial type names (will evolve into domain types later)
-COLOR_NAME_MAP = {
-    (180, 60, 60): 'red',
-    (80, 170, 80): 'green',
-    (70, 90, 180): 'blue',
-    (200, 190, 80): 'yellow',
-    (170, 80, 160): 'magenta',
-    (70, 170, 170): 'cyan',
-    (200, 130, 60): 'orange',
-}
-NAME_TO_COLOR = {v:k for k,v in COLOR_NAME_MAP.items()}
-PALETTE: List[Tuple[int,int,int]] = list(COLOR_NAME_MAP.keys())
+# Legacy color constants removed; rendering derives colors solely from TileTypes.
+PALETTE: List[Tuple[int,int,int]] = []  # retained only if future random color generation needed for new types.
 
 from ecs.components.board import Board
 
@@ -45,24 +38,25 @@ class BoardSystem:
             for c in range(board.cols):
                 ent = self.world.create_entity()
                 self.world.add_component(ent, BoardPosition(row=r, col=c))
-                # Choose a color that does not create an immediate horizontal or vertical triple.
-                available = PALETTE.copy()
-                # Prevent horizontal triple: if last two cells same color, exclude that color.
+                # Access registry for available type names
+                registry = self._registry()
+                all_types = registry.all_types()
+                available_types = all_types[:]
+                # Prevent horizontal triple (same type_name in a run of two preceding)
                 if c >= 2:
-                    left1 = self._get_color(r, c-1)
-                    left2 = self._get_color(r, c-2)
-                    if left1 == left2 and left1 in available:
-                        available = [clr for clr in available if clr != left1]
-                # Prevent vertical triple: if last two rows same color in this column, exclude that color.
+                    left1 = self._get_type_name(r, c-1)
+                    left2 = self._get_type_name(r, c-2)
+                    if left1 and left1 == left2 and left1 in available_types:
+                        available_types = [t for t in available_types if t != left1]
+                # Prevent vertical triple
                 if r >= 2:
-                    down1 = self._get_color(r-1, c)
-                    down2 = self._get_color(r-2, c)
-                    if down1 == down2 and down1 in available:
-                        available = [clr for clr in available if clr != down1]
-                color = random.choice(available) if available else random.choice(PALETTE)
-                type_name = COLOR_NAME_MAP.get(color, 'unknown')
-                # Provide raw_color for legacy color-based logic/tests while attaching semantic type
-                self.world.add_component(ent, TileType(type_name=type_name, color_name=type_name, raw_color=color))
+                    down1 = self._get_type_name(r-1, c)
+                    down2 = self._get_type_name(r-2, c)
+                    if down1 and down1 == down2 and down1 in available_types:
+                        available_types = [t for t in available_types if t != down1]
+                type_name = random.choice(available_types) if available_types else random.choice(all_types)
+                self.world.add_component(ent, TileType(type_name=type_name))
+                self.world.add_component(ent, ActiveSwitch(active=True))
 
     def on_tile_click(self, sender, **kwargs):
         row = kwargs.get('row')
@@ -98,17 +92,14 @@ class BoardSystem:
         return (abs(ar - br) == 1 and ac == bc) or (abs(ac - bc) == 1 and ar == br)
 
     def swap_tiles(self, a: Tuple[int,int], b: Tuple[int,int]):
-        # Swap TileType data between entities at positions a and b (type & color_name together)
+        # Swap TileType data between entities at positions a and b (type + background)
         ent_a = self._get_entity_at(*a)
         ent_b = self._get_entity_at(*b)
         if ent_a is None or ent_b is None:
             return
         type_a: TileType = self.world.component_for_entity(ent_a, TileType)
         type_b: TileType = self.world.component_for_entity(ent_b, TileType)
-        # Swap all relevant fields so both legacy color logic and new type semantics remain consistent
         type_a.type_name, type_b.type_name = type_b.type_name, type_a.type_name
-        type_a.color_name, type_b.color_name = type_b.color_name, type_a.color_name
-        type_a.raw_color, type_b.raw_color = type_b.raw_color, type_a.raw_color
 
     def on_mouse_press(self, sender, **kwargs):
         # Right-click always clears current selection (independent of targeting state)
@@ -155,9 +146,20 @@ class BoardSystem:
                 return ent
         return None
 
-    def _get_color(self, row: int, col: int):
+    def _get_type_name(self, row: int, col: int):
         ent = self._get_entity_at(row, col)
         if ent is None:
             return None
-        type_comp: TileType = self.world.component_for_entity(ent, TileType)
-        return type_comp.raw_color
+        try:
+            active_comp: ActiveSwitch = self.world.component_for_entity(ent, ActiveSwitch)
+            if not active_comp.active:
+                return None
+            type_comp: TileType = self.world.component_for_entity(ent, TileType)
+            return type_comp.type_name
+        except KeyError:
+            return None
+
+    def _registry(self) -> TileTypes:
+        for ent, _ in self.world.get_component(TileTypeRegistry):
+            return self.world.component_for_entity(ent, TileTypes)
+        raise RuntimeError("TileTypes definitions not found")

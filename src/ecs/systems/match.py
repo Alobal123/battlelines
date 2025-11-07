@@ -1,6 +1,7 @@
 from typing import Tuple, List, Set
 from ecs.events.bus import EventBus, EVENT_TILE_SWAP_REQUEST, EVENT_TILE_SWAP_VALID, EVENT_TILE_SWAP_INVALID
 from ecs.components.tile import TileType
+from ecs.components.active_switch import ActiveSwitch
 from ecs.components.board_position import BoardPosition
 from esper import World
 
@@ -23,45 +24,51 @@ class MatchSystem:
             self.event_bus.emit(EVENT_TILE_SWAP_INVALID, src=src, dst=dst)
 
     def creates_match(self, a: Tuple[int,int], b: Tuple[int,int]) -> bool:
-        # Build map row,col -> color
-        grid = {}
+        # Build map row,col -> type_name (only if tile not cleared)
+        grid: dict[Tuple[int,int], str] = {}
         for ent, pos in self.world.get_component(BoardPosition):
-            color_comp = self.world.component_for_entity(ent, TileType)
-            grid[(pos.row, pos.col)] = color_comp.color
-        # Virtually swap
-        grid[a], grid[b] = grid[b], grid[a]
-        # Check lines containing a or b for any run >=3
-        to_check = {a, b}
-        for pos in list(to_check):
+            try:
+                active_comp: ActiveSwitch = self.world.component_for_entity(ent, ActiveSwitch)
+            except KeyError:
+                continue
+            if not active_comp.active:
+                continue
+            tile_comp = self.world.component_for_entity(ent, TileType)
+            grid[(pos.row, pos.col)] = tile_comp.type_name
+        # Virtually swap type names
+        if a in grid and b in grid:
+            grid[a], grid[b] = grid[b], grid[a]
+        # Check lines containing a or b for any run >=3 of same type
+        for pos in (a, b):
             if self.has_line_match(grid, pos):
                 return True
         return False
 
     def has_line_match(self, grid: dict, pos: Tuple[int,int]) -> bool:
         row, col = pos
-        color = grid.get(pos)
-        if color is None:
+        tval = grid.get(pos)
+        if tval is None:
             return False
         # Horizontal
         h_run = [(row, col)]
-        c_left = col-1
-        while (row, c_left) in grid and grid[(row, c_left)] == color:
+        c_left = col - 1
+        while (row, c_left) in grid and grid[(row, c_left)] == tval:
             h_run.append((row, c_left))
             c_left -= 1
-        c_right = col+1
-        while (row, c_right) in grid and grid[(row, c_right)] == color:
+        c_right = col + 1
+        while (row, c_right) in grid and grid[(row, c_right)] == tval:
             h_run.append((row, c_right))
             c_right += 1
         if len(h_run) >= 3:
             return True
         # Vertical
         v_run = [(row, col)]
-        r_up = row-1
-        while (r_up, col) in grid and grid[(r_up, col)] == color:
+        r_up = row - 1
+        while (r_up, col) in grid and grid[(r_up, col)] == tval:
             v_run.append((r_up, col))
             r_up -= 1
-        r_down = row+1
-        while (r_down, col) in grid and grid[(r_down, col)] == color:
+        r_down = row + 1
+        while (r_down, col) in grid and grid[(r_down, col)] == tval:
             v_run.append((r_down, col))
             r_down += 1
         return len(v_run) >= 3

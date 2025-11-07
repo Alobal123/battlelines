@@ -84,6 +84,7 @@ class AnimationSystem:
         if kind == 'fade':
             self.factory.create_fade_group(items)
         elif kind == 'fall':
+            # items contain dicts with 'from'/'to' only; color derived at render via TileTypes
             self.factory.create_fall_group(items)
         elif kind == 'refill':
             self.factory.create_refill_group(items)
@@ -145,7 +146,7 @@ class AnimationSystem:
                     if fall.linear > 1.0:
                         fall.linear = 1.0
             if all(fall.linear >= 1.0 for _, fall in falls):
-                items = [{'from':fall.src,'to':fall.dst,'color':fall.color} for _, fall in falls]
+                items = [{'from':fall.src,'to':fall.dst} for _, fall in falls]
                 for ent, _ in falls:
                     self._delete_animation_entity(ent, FallAnimation)
                 self.event_bus.emit(EVENT_ANIMATION_COMPLETE, kind='fall', items=items)

@@ -5,9 +5,12 @@ from ecs.events.bus import (EventBus, EVENT_TILE_SWAP_FINALIZE, EVENT_MATCH_FOUN
                             EVENT_MATCH_CLEARED, EVENT_GRAVITY_APPLIED, EVENT_REFILL_COMPLETED,
                             EVENT_CASCADE_STEP, EVENT_CASCADE_COMPLETE, EVENT_ANIMATION_START, EVENT_ANIMATION_COMPLETE,
                             EVENT_BOARD_CHANGED)
+from ecs.components.active_switch import ActiveSwitch
+from ecs.components.tile_type_registry import TileTypeRegistry
+from ecs.components.tile_types import TileTypes
 from ecs.components.tile import TileType
 from ecs.components.board_position import BoardPosition
-from ecs.systems.board import PALETTE
+# Board color mapping deprecated; use TileTypeRegistry
 from ecs.components.board import Board
 
 class MatchResolutionSystem:
@@ -63,22 +66,25 @@ class MatchResolutionSystem:
             return
         # Deterministic ordering for events/tests
         positions = sorted(positions)
-        # Capture colors prior to clearing
-        colored = []  # list of (r,c,color)
+        # Capture tile type names prior to clearing (render system derives colors on demand)
+        types_before = []  # list of (r,c,type_name) for logic consumers (bank, stats)
+        registry = self._registry()
         for (r,c) in positions:
             ent = self._get_entity_at(r,c)
             if ent is None:
                 continue
             try:
-                color_comp: TileType = self.world.component_for_entity(ent, TileType)
-                if color_comp.color is not None:
-                    colored.append((r,c,color_comp.color))
+                sw: ActiveSwitch = self.world.component_for_entity(ent, ActiveSwitch)
+                if sw.active:
+                    tt: TileType = self.world.component_for_entity(ent, TileType)
+                    types_before.append((r,c, tt.type_name))
             except Exception:
                 pass
         # Now clear logically
         self.clear_positions(positions)
         owner_entity = self._active_owner()
-        self.event_bus.emit(EVENT_MATCH_CLEARED, positions=positions, colors=colored, owner_entity=owner_entity)
+        # Emit match cleared with type info only; colors are derived in RenderSystem.
+        self.event_bus.emit(EVENT_MATCH_CLEARED, positions=positions, types=types_before, owner_entity=owner_entity)
         # Gravity
         moves, cascades = self.compute_gravity_moves()
         if moves:
@@ -116,45 +122,54 @@ class MatchResolutionSystem:
         self.event_bus.emit(EVENT_MATCH_FOUND, positions=flat_positions, size=len(flat_positions))
         self.event_bus.emit(EVENT_ANIMATION_START, kind='fade', items=flat_positions)
 
-    def board_map(self) -> Dict[Tuple[int,int], Tuple[int,int,int]]:
-        mapping = {}
+    def board_map(self) -> Dict[Tuple[int,int], str]:
+        mapping: Dict[Tuple[int,int], str] = {}
         for ent, pos in self.world.get_component(BoardPosition):
-            color_comp = self.world.component_for_entity(ent, TileType)
-            mapping[(pos.row, pos.col)] = color_comp.color
+            try:
+                sw: ActiveSwitch = self.world.component_for_entity(ent, ActiveSwitch)
+            except KeyError:
+                continue
+            if not sw.active:
+                continue
+            try:
+                tt: TileType = self.world.component_for_entity(ent, TileType)
+            except KeyError:
+                continue
+            mapping[(pos.row, pos.col)] = tt.type_name
         return mapping
 
     def find_all_matches(self) -> List[List[Tuple[int,int]]]:
-        colors = self.board_map()
+        types = self.board_map()
         matches: List[List[Tuple[int,int]]] = []
         # Horizontal scans
         board_comp = self._board()
         for r in range(board_comp.rows):
             run: List[Tuple[int,int]] = []
-            last_color = None
+            last_type = None
             for c in range(board_comp.cols):
-                colr = colors.get((r,c))
-                if colr is not None and colr == last_color:
+                tval = types.get((r,c))
+                if tval is not None and tval == last_type:
                     run.append((r,c))
                 else:
                     if len(run) >= 3:
                         matches.append(run.copy())
-                    run = [(r,c)] if colr is not None else []
-                    last_color = colr
+                    run = [(r,c)] if tval is not None else []
+                    last_type = tval
             if len(run) >= 3:
                 matches.append(run.copy())
         # Vertical scans
         for c in range(board_comp.cols):
             run = []
-            last_color = None
+            last_type = None
             for r in range(board_comp.rows):
-                colr = colors.get((r,c))
-                if colr is not None and colr == last_color:
+                tval = types.get((r,c))
+                if tval is not None and tval == last_type:
                     run.append((r,c))
                 else:
                     if len(run) >= 3:
                         matches.append(run.copy())
-                    run = [(r,c)] if colr is not None else []
-                    last_color = colr
+                    run = [(r,c)] if tval is not None else []
+                    last_type = tval
             if len(run) >= 3:
                 matches.append(run.copy())
         # Merge overlapping groups into flat sets then split again (avoid double removal)
@@ -177,37 +192,44 @@ class MatchResolutionSystem:
         return [sorted(list(g)) for g in merged]
 
     def clear_positions(self, positions: List[Tuple[int,int]]):
-    # Clear tile color (TileType.color = None) to mark empty (could also remove entity; keep entity for fixed grid indexing)
         for pos in positions:
             ent = self._get_entity_at(*pos)
             if ent is None:
                 continue
-            # Replace color with None sentinel
-            color_comp: TileType = self.world.component_for_entity(ent, TileType)
-            color_comp.color = None
+            try:
+                sw: ActiveSwitch = self.world.component_for_entity(ent, ActiveSwitch)
+                sw.active = False
+            except KeyError:
+                continue
 
     def compute_gravity_moves(self) -> Tuple[List[Dict], int]:
         board_comp = self._board()
         moves: List[Dict] = []
         cascades = 0
+        registry = self._registry()
         for c in range(board_comp.cols):
-            # Gather non-empty rows bottom-up
             filled_rows: List[int] = []
-            for r in range(board_comp.rows):  # r=0 bottom
+            for r in range(board_comp.rows):
                 ent = self._get_entity_at(r, c)
                 if ent is None:
                     continue
-                color_comp: TileType = self.world.component_for_entity(ent, TileType)
-                if color_comp.color is not None:
+                try:
+                    sw: ActiveSwitch = self.world.component_for_entity(ent, ActiveSwitch)
+                except KeyError:
+                    continue
+                if sw.active:
                     filled_rows.append(r)
-            # Target rows will be 0..len(filled_rows)-1
             for target_index, original_row in enumerate(filled_rows):
                 if original_row != target_index:
-                    ent = self._get_entity_at(original_row, c)
-                    if ent is None:
+                    src_ent = self._get_entity_at(original_row, c)
+                    dst_ent = self._get_entity_at(target_index, c)
+                    if src_ent is None or dst_ent is None:
                         continue
-                    color_comp: TileType = self.world.component_for_entity(ent, TileType)
-                    moves.append({'from': (original_row, c), 'to': (target_index, c), 'color': color_comp.color})
+                    src_sw: ActiveSwitch = self.world.component_for_entity(src_ent, ActiveSwitch)
+                    if not src_sw.active:
+                        continue
+                    src_tt: TileType = self.world.component_for_entity(src_ent, TileType)
+                    moves.append({'from': (original_row, c), 'to': (target_index, c), 'type_name': src_tt.type_name})
             if any(m['from'][1] == c for m in moves):
                 cascades += 1
         return moves, cascades
@@ -221,20 +243,36 @@ class MatchResolutionSystem:
             dst_ent = self._get_entity_at(dst_r, dst_c)
             if src_ent is None or dst_ent is None:
                 continue
-            src_color: TileType = self.world.component_for_entity(src_ent, TileType)
-            dst_color: TileType = self.world.component_for_entity(dst_ent, TileType)
-            dst_color.color = src_color.color
-            src_color.color = None
+            src_sw: ActiveSwitch = self.world.component_for_entity(src_ent, ActiveSwitch)
+            dst_sw: ActiveSwitch = self.world.component_for_entity(dst_ent, ActiveSwitch)
+            if not src_sw.active:
+                continue
+            src_tt: TileType = self.world.component_for_entity(src_ent, TileType)
+            dst_tt: TileType = self.world.component_for_entity(dst_ent, TileType)
+            dst_tt.type_name = src_tt.type_name
+            dst_sw.active = True
+            src_sw.active = False
 
     def refill(self) -> List[Tuple[int,int]]:
         spawned = []
-        board_comp = self._board()
+        registry = self._registry()
+        all_types = registry.all_types()
         for ent, pos in self.world.get_component(BoardPosition):
-            color_comp: TileType = self.world.component_for_entity(ent, TileType)
-            if color_comp.color is None:
-                color_comp.color = random.choice(PALETTE)
+            try:
+                sw: ActiveSwitch = self.world.component_for_entity(ent, ActiveSwitch)
+            except KeyError:
+                continue
+            if not sw.active:
+                tt: TileType = self.world.component_for_entity(ent, TileType)
+                tt.type_name = random.choice(all_types)
+                sw.active = True
                 spawned.append((pos.row, pos.col))
         return spawned
+
+    def _registry(self) -> TileTypes:
+        for ent, _ in self.world.get_component(TileTypeRegistry):
+            return self.world.component_for_entity(ent, TileTypes)
+        raise RuntimeError('TileTypes definitions not found')
 
     def _get_entity_at(self, row: int, col: int):
         for ent, pos in self.world.get_component(BoardPosition):

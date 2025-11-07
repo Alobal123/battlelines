@@ -10,7 +10,8 @@ from ecs.events.bus import (
 )
 from ecs.components.tile_bank import TileBank
 from ecs.components.ability_list_owner import AbilityListOwner
-from ecs.systems.board import COLOR_NAME_MAP
+from ecs.components.tile_type_registry import TileTypeRegistry
+from ecs.components.tile_types import TileTypes
 
 class TileBankSystem:
     """Tracks cleared tiles and manages spending for abilities.
@@ -20,9 +21,7 @@ class TileBankSystem:
       - On EVENT_TILE_BANK_SPEND_REQUEST: validate and spend or emit insufficient.
         Assumptions:
             - Single player entity with AbilityListOwner; extend later for multiple players.
-      - colors payload from match cleared includes (r,c,color_tuple); we map color_name from tuple via ability cost keys.
-        For now we treat raw RGB tuples as not directly useful: spending expects semantic type names, so ensure future
-        pipeline translates match colors to type names if required.
+        Color is no longer processed here; semantic type names are the sole currency.
     """
     def __init__(self, world: World, event_bus: EventBus):
         self.world = world
@@ -43,8 +42,8 @@ class TileBankSystem:
         return [ent for ent, comp in self.world.get_component(AbilityListOwner)]
 
     def on_match_cleared(self, sender, **kwargs):
-        positions = kwargs.get('positions', [])
-        colors = kwargs.get('colors', [])  # list of (r,c,color_tuple)
+        positions = kwargs.get('positions', [])  # retained for possible future metrics
+        types = kwargs.get('types', [])    # list of (r,c,type_name)
         owner_entity = kwargs.get('owner_entity')
         if owner_entity is None:
             owners = self._list_owners()
@@ -53,16 +52,8 @@ class TileBankSystem:
             owner_entity = owners[0]
         bank_ent = self._get_or_create_bank(owner_entity)
         bank: TileBank = self.world.component_for_entity(bank_ent, TileBank)
-        # Currently we don't have direct type_name in payload; approximate from RGB stringified
-        for (_, _, color) in colors:
-            if color is None:
-                continue
-            type_key = COLOR_NAME_MAP.get(color)
-            if not type_key:
-                # Fallback to rgb string if color not recognized
-                r,g,b = color
-                type_key = f"{r}_{g}_{b}"
-            bank.add(type_key, 1)
+        for (_, _, type_name) in types:
+            bank.add(type_name, 1)
         self.event_bus.emit(EVENT_TILE_BANK_CHANGED, entity=bank_ent, counts=bank.counts.copy())
 
     def on_spend_request(self, sender, **kwargs):
@@ -94,3 +85,8 @@ class TileBankSystem:
     def process(self):
         # Not used per-frame currently
         return
+
+    def _registry(self) -> TileTypes:
+        for ent, _ in self.world.get_component(TileTypeRegistry):
+            return self.world.component_for_entity(ent, TileTypes)
+        raise RuntimeError('TileTypes definitions not found')
