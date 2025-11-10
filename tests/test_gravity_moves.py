@@ -5,6 +5,7 @@ from ecs.systems.render import RenderSystem
 from ecs.systems.animation import AnimationSystem
 from ecs.systems.match import MatchSystem
 from ecs.systems.match_resolution import MatchResolutionSystem
+from ecs.systems.turn_system import TurnSystem
 from ecs.world import create_world
 from ecs.components.tile import TileType
 from ecs.components.active_switch import ActiveSwitch
@@ -26,6 +27,7 @@ def test_gravity_moves_emitted():
     MatchSystem(world, bus)
     AnimationSystem(world, bus)
     RenderSystem(world, bus, window)
+    TurnSystem(world, bus)
     MatchResolutionSystem(world, bus)
     # Create vertical match after swap at column 0 between (3,0) and (4,0)
     e00 = board._get_entity_at(0,0)

@@ -4,6 +4,7 @@ from ecs.world import create_world
 from ecs.systems.board import BoardSystem
 from ecs.systems.render import RenderSystem
 from ecs.systems.ability_system import AbilitySystem
+from ecs.systems.ability_targeting_system import AbilityTargetingSystem
 
 @pytest.fixture
 def setup_world():
@@ -15,6 +16,7 @@ def setup_world():
     window = DummyWindow()
     board = BoardSystem(world, bus)
     render = RenderSystem(world, bus, window)
+    AbilityTargetingSystem(world, bus)
     ability = AbilitySystem(world, bus)
     return bus, world, board, render
 

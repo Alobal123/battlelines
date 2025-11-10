@@ -22,6 +22,7 @@ Central EventBus (blinker's Signal) in `ecs/events/bus.py`.
 Define event names as constants (e.g. EVENT_TICK, EVENT_SPAWN). Add new names in a single place to avoid fragmentation.
 Emit events from systems or main loop instead of calling other systems directly.
 Prefer payload dicts with primitive types or component instances; avoid passing World to handlers.
+`EVENT_ABILITY_EXECUTE` bridges the tile bank spend confirmation (`TileBankSystem`) to resolver execution—emit it instead of resolving abilities inline.
 Input processing belongs in `InputSystem` translating raw mouse presses (EVENT_MOUSE_PRESS) to semantic game events (EVENT_TILE_CLICK).
 
 ## Frame Flow (Target Design)
@@ -53,13 +54,16 @@ Type hints everywhere. Dataclasses for components. Avoid circular imports by kee
 No hidden globals; pass EventBus explicitly.
 
 ## Next Recommended Steps (for agents)
-Implement tick loop (Arcade on_update) emitting EVENT_TICK.
-Add Movement component + MovementSystem reacting to EVENT_TICK and input events.
-Render basic shapes for Position in RenderSystem; abilities are displayed as stacked rectangles on the left with affordability coloring.
-Introduce factories module for entity creation.
+Implement window `on_update` to emit `EVENT_TICK` and migrate systems off ad-hoc polling.
+Add Movement/Command systems reacting to semantic events from InputSystem.
+Extend RenderSystem visuals (unit overlays, ability affordance) using SpriteCache where possible.
+Introduce factories module for deterministic scenario creation (tests & content).
 
 ## Ability System Notes
-Single-ability ownership has been upgraded to multi-ability via `AbilityListOwner(ability_entities=[...])`. Each ability is its own entity with `Ability` + `AbilityTarget`. Activation uses precise hitboxes derived from `RenderSystem` layout cache and checks affordability through the TileBank spend request event before entering targeting mode.
+Single-ability ownership has been upgraded to multi-ability via `AbilityListOwner(ability_entities=[...])`. Each ability is its own entity with `Ability` + `AbilityTarget`. Activation uses precise hitboxes derived from `RenderSystem` layout cache and checks affordability through the TileBank spend request event before entering targeting mode. The flow is now split across:
+	AbilityTargetingSystem → queues targeting / spend requests
+	AbilityActivationSystem → listens for `EVENT_TILE_BANK_SPENT`, emits `EVENT_ABILITY_EXECUTE`
+	AbilityResolutionSystem → handles `EVENT_ABILITY_EXECUTE`, delegates to resolvers (see `ecs/systems/abilities/registry.py`)
 Current sample abilities:
 	tactical_shift: after selecting a target tile, all tiles of that tile's original color convert to red, then matches are processed.
 	crimson_pulse: clears (sets empty) a 3x3 area centered on the target tile, triggering gravity/refill cascade.

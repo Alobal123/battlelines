@@ -5,6 +5,7 @@ from ecs.systems.render import RenderSystem
 from ecs.systems.animation import AnimationSystem
 from ecs.systems.match import MatchSystem
 from ecs.systems.match_resolution import MatchResolutionSystem
+from ecs.systems.turn_system import TurnSystem
 from ecs.world import create_world
 from ecs.components.tile import TileType
 from ecs.components.active_switch import ActiveSwitch
@@ -26,6 +27,7 @@ def test_horizontal_match_clears_and_refills():
     MatchSystem(world, bus)
     AnimationSystem(world, bus)
     RenderSystem(world, bus, window)
+    TurnSystem(world, bus)
     MatchResolutionSystem(world, bus)
     # Force a horizontal triple at row 2 columns 0-2 after swap between (2,2) and (2,3)
     e20 = board._get_entity_at(2,0)

@@ -2,6 +2,7 @@ import pytest
 from ecs.events.bus import EventBus, EVENT_MOUSE_PRESS, EVENT_ABILITY_ACTIVATE_REQUEST, EVENT_ABILITY_TARGET_CANCELLED
 from ecs.world import create_world
 from ecs.systems.ability_system import AbilitySystem
+from ecs.systems.ability_targeting_system import AbilityTargetingSystem
 from ecs.systems.board import BoardSystem
 from ecs.systems.render import RenderSystem
 from ecs.components.ability_list_owner import AbilityListOwner
@@ -15,6 +16,7 @@ def setup_world():
         width = 800
         height = 600
     window = DummyWindow()
+    AbilityTargetingSystem(world, bus)
     ability_system = AbilitySystem(world, bus)
     board_system = BoardSystem(world, bus)
     render_system = RenderSystem(world, bus, window)

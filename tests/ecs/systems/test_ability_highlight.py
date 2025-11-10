@@ -3,6 +3,7 @@ from ecs.events.bus import EventBus, EVENT_ABILITY_ACTIVATE_REQUEST
 from ecs.world import create_world
 from ecs.systems.render import RenderSystem
 from ecs.systems.ability_system import AbilitySystem
+from ecs.systems.ability_targeting_system import AbilityTargetingSystem
 from ecs.components.ability_list_owner import AbilityListOwner
 
 class DummyWindow:
@@ -15,6 +16,7 @@ def setup_world():
     world = create_world(bus)
     window = DummyWindow()
     render = RenderSystem(world, bus, window)
+    AbilityTargetingSystem(world, bus)
     ability = AbilitySystem(world, bus)
     return bus, world, render, ability
 

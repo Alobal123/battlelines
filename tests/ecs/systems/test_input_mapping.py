@@ -5,6 +5,7 @@ from ecs.systems.board import BoardSystem
 from ecs.systems.render import RenderSystem
 from ecs.systems.input import InputSystem
 from ecs.systems.ability_system import AbilitySystem
+from ecs.systems.ability_targeting_system import AbilityTargetingSystem
 from ecs.systems.turn_system import TurnSystem
 from ecs.systems.tile_bank_system import TileBankSystem
 from ecs.systems.match import MatchSystem
@@ -23,6 +24,7 @@ def setup_world():
     setattr(render.window, 'render_system', render)
     match_res = MatchResolutionSystem(world, bus)
     tile_bank = TileBankSystem(world, bus)
+    AbilityTargetingSystem(world, bus)
     ability = AbilitySystem(world, bus)
     turn = TurnSystem(world, bus)
     input_sys = InputSystem(bus, render.window, world)

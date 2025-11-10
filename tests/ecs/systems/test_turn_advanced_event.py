@@ -3,6 +3,7 @@ from ecs.events.bus import EventBus, EVENT_MATCH_CLEARED, EVENT_CASCADE_COMPLETE
 from ecs.world import create_world
 from ecs.systems.turn_system import TurnSystem
 from ecs.systems.ability_system import AbilitySystem
+from ecs.systems.ability_targeting_system import AbilityTargetingSystem
 from ecs.systems.tile_bank_system import TileBankSystem
 from ecs.components.active_turn import ActiveTurn
 from ecs.components.ability_list_owner import AbilityListOwner
@@ -12,6 +13,7 @@ from ecs.components.ability import Ability
 def setup_world():
     bus = EventBus(); world = create_world(bus)
     TurnSystem(world, bus)
+    AbilityTargetingSystem(world, bus)
     AbilitySystem(world, bus)
     TileBankSystem(world, bus)
     return bus, world

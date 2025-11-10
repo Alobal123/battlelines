@@ -1,13 +1,14 @@
 import random
 from typing import List, Optional, Tuple
 from esper import World
-from ecs.events.bus import EventBus, EVENT_TILE_CLICK, EVENT_TILE_SELECTED, EVENT_TILE_DESELECTED, EVENT_TILE_SWAP_REQUEST, EVENT_TILE_SWAP_FINALIZE, EVENT_TILE_SWAP_DO, EVENT_MOUSE_PRESS, EVENT_CASCADE_STEP, EVENT_CASCADE_COMPLETE, EVENT_ABILITY_TARGET_MODE, EVENT_TURN_ADVANCED
+from ecs.events.bus import EventBus, EVENT_TILE_CLICK, EVENT_TILE_SELECTED, EVENT_TILE_DESELECTED, EVENT_TILE_SWAP_REQUEST, EVENT_TILE_SWAP_FINALIZE, EVENT_TILE_SWAP_DO, EVENT_MOUSE_PRESS, EVENT_ABILITY_TARGET_MODE, EVENT_TURN_ADVANCED
 from ecs.components.active_switch import ActiveSwitch
 from ecs.components.tile_type_registry import TileTypeRegistry
 from ecs.components.tile_types import TileTypes
 from ecs.components.tile import TileType
 from ecs.components.board_position import BoardPosition
 from ecs.components.targeting_state import TargetingState
+from ecs.systems.turn_state_utils import get_or_create_turn_state
 
 # Legacy color constants removed; rendering derives colors solely from TileTypes.
 PALETTE: List[Tuple[int,int,int]] = []  # retained only if future random color generation needed for new types.
@@ -22,12 +23,9 @@ class BoardSystem:
         self.board_entity = self.world.create_entity()
         self.world.add_component(self.board_entity, Board(rows=rows, cols=cols))
         self.selected: Optional[Tuple[int,int]] = None
-        self._cascade_active: bool = False
         self.event_bus.subscribe(EVENT_TILE_CLICK, self.on_tile_click)
         self.event_bus.subscribe(EVENT_TILE_SWAP_DO, self.on_swap_do)
         self.event_bus.subscribe(EVENT_MOUSE_PRESS, self.on_mouse_press)
-        self.event_bus.subscribe(EVENT_CASCADE_STEP, self.on_cascade_step)
-        self.event_bus.subscribe(EVENT_CASCADE_COMPLETE, self.on_cascade_complete)
         self.event_bus.subscribe(EVENT_ABILITY_TARGET_MODE, self.on_target_mode)
         self.event_bus.subscribe(EVENT_TURN_ADVANCED, self.on_turn_advanced)
         self._init_board()
@@ -64,7 +62,7 @@ class BoardSystem:
         if row is None or col is None:
             return
         # Block interaction while cascades resolving
-        if self._cascade_active:
+        if self._is_cascade_active():
             return
         # Ignore normal selection/swaps while in targeting mode
         targeting = list(self.world.get_component(TargetingState))
@@ -120,11 +118,9 @@ class BoardSystem:
         self.swap_tiles(src, dst)
         self.event_bus.emit(EVENT_TILE_SWAP_FINALIZE, src=src, dst=dst)
 
-    def on_cascade_step(self, sender, **kwargs):
-        self._cascade_active = True
-
-    def on_cascade_complete(self, sender, **kwargs):
-        self._cascade_active = False
+    def _is_cascade_active(self) -> bool:
+        state = get_or_create_turn_state(self.world)
+        return state.cascade_active
 
     def _emit_deselect(self, reason: str):
         if self.selected is not None:

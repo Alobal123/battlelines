@@ -6,6 +6,7 @@ from ecs.systems.render import RenderSystem
 from ecs.systems.animation import AnimationSystem
 from ecs.systems.match import MatchSystem
 from ecs.systems.match_resolution import MatchResolutionSystem
+from ecs.systems.turn_system import TurnSystem
 from ecs.components.tile import TileType
 from ecs.components.active_switch import ActiveSwitch
 
@@ -23,6 +24,7 @@ def test_two_step_cascade():
     match=MatchSystem(world,bus)
     AnimationSystem(world,bus)
     render=RenderSystem(world,bus,window)
+    TurnSystem(world, bus)
     mr=MatchResolutionSystem(world,bus)
     base_types = ['ranged', 'cavalry', 'infantry', 'plunder', 'logistics', 'subterfuge', 'tactics']
     for r in range(5):

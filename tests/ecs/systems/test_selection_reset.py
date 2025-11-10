@@ -3,6 +3,7 @@ from ecs.events.bus import EventBus, EVENT_TILE_CLICK, EVENT_ABILITY_ACTIVATE_RE
 from ecs.world import create_world
 from ecs.systems.board import BoardSystem
 from ecs.systems.ability_system import AbilitySystem
+from ecs.systems.ability_targeting_system import AbilityTargetingSystem
 from ecs.systems.turn_system import TurnSystem
 from ecs.components.ability_list_owner import AbilityListOwner
 
@@ -10,6 +11,7 @@ from ecs.components.ability_list_owner import AbilityListOwner
 def setup_world():
     bus = EventBus(); world = create_world(bus)
     board = BoardSystem(world, bus)
+    AbilityTargetingSystem(world, bus)
     ability = AbilitySystem(world, bus)
     turn = TurnSystem(world, bus)
     return bus, world, board

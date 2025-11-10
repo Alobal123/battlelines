@@ -2,6 +2,7 @@ import pytest
 from ecs.events.bus import EventBus, EVENT_ABILITY_ACTIVATE_REQUEST, EVENT_TILE_CLICK, EVENT_TILE_BANK_SPENT, EVENT_TURN_ADVANCED, EVENT_CASCADE_COMPLETE, EVENT_CASCADE_STEP
 from ecs.world import create_world
 from ecs.systems.ability_system import AbilitySystem
+from ecs.systems.ability_targeting_system import AbilityTargetingSystem
 from ecs.systems.tile_bank_system import TileBankSystem
 from ecs.systems.turn_system import TurnSystem
 from ecs.components.ability_list_owner import AbilityListOwner
@@ -10,6 +11,7 @@ from ecs.components.active_turn import ActiveTurn
 @pytest.fixture
 def setup_world():
     bus = EventBus(); world = create_world(bus)
+    AbilityTargetingSystem(world, bus)
     AbilitySystem(world, bus)
     TileBankSystem(world, bus)
     TurnSystem(world, bus)

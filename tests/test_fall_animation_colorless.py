@@ -4,6 +4,7 @@ from ecs.systems.render import RenderSystem
 from ecs.systems.animation import AnimationSystem
 from ecs.systems.match import MatchSystem
 from ecs.systems.match_resolution import MatchResolutionSystem
+from ecs.systems.turn_system import TurnSystem
 from ecs.world import create_world
 from ecs.components.tile import TileType
 from ecs.components.active_switch import ActiveSwitch
@@ -23,11 +24,15 @@ def test_fall_animation_colorless_items():
     MatchSystem(world, bus)
     AnimationSystem(world, bus)
     RenderSystem(world, bus, window)
+    TurnSystem(world, bus)
     MatchResolutionSystem(world, bus)
     # Vertical match after swap at column 0 between (3,0) and (4,0)
     e00 = board._get_entity_at(0,0); e10 = board._get_entity_at(1,0); e20 = board._get_entity_at(2,0); e30 = board._get_entity_at(3,0); e40 = board._get_entity_at(4,0)
-    for ent in (e00,e10,e20,e30,e40):
-        assert ent is not None
+    assert e00 is not None
+    assert e10 is not None
+    assert e20 is not None
+    assert e30 is not None
+    assert e40 is not None
     world.component_for_entity(e00, TileType).type_name='ranged'
     world.component_for_entity(e10, TileType).type_name='ranged'
     world.component_for_entity(e20, TileType).type_name='ranged'

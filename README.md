@@ -20,13 +20,12 @@ pip install -r requirements.txt
 ```powershell
 python src/main.py
 ```
-(Initial window opens; rendering logic minimal.)
+(Arcade window opens with current board/ability UI.)
 
 ## Tests
 ```powershell
 pytest -q
 ```
-(Add pytest to requirements as soon as testing expands.)
 
 ## Project Layout
 ```
@@ -46,10 +45,19 @@ src/
 - No global state; pass EventBus and World explicitly.
 
 ## Next Steps
-1. Add a ticking game loop emitting `tick` events.
-2. Implement rendering of positions with Arcade shapes.
-3. Add movement system responding to input events.
-4. Introduce entity factory utilities.
+1. Promote the scheduled `on_update` hook in `BattlelinesWindow` to emit `EVENT_TICK` and migrate systems that currently poll inside `process`.
+2. Add a movement/command system that reacts to semantic events from `InputSystem` and drives board interactions beyond swaps.
+3. Introduce entity factories (`ecs/factories.py`) for scenario setup to keep tests and future content authoring tidy.
+4. Sketch high-level architecture notes (`docs/ARCHITECTURE.md`) once additional systems land (movement/AI/battle outcome).
+
+## Ability Flow
+Ability control now spans three lightweight systems:
+
+- `AbilityTargetingSystem` manages activation requests and gathers targeting input while locking out cascades.
+- `AbilityActivationSystem` listens for `EVENT_TILE_BANK_SPENT`, marks the turn action as started, and re-emits the confirmed payload as `EVENT_ABILITY_EXECUTE`.
+- `AbilityResolutionSystem` handles `EVENT_ABILITY_EXECUTE`, looks up the matching resolver (see `ecs/systems/abilities/`), and emits `EVENT_ABILITY_EFFECT_APPLIED` after the effect resolves.
+
+Resolvers live in `ecs/systems/abilities/` with plugin discovery consolidated in `abilities/registry.py`. Each resolver receives an `AbilityContext` containing the pending targeting data, world, and event bus.
 
 ## Event Reference (Selected)
 Key gameplay events emitted by systems:
@@ -57,8 +65,9 @@ Key gameplay events emitted by systems:
 - `match_found` / `match_cleared`: Detection and logical clearing of matches.
 - `gravity_applied` / `refill_completed`: Board settling and new tile spawn.
 - `cascade_step` / `cascade_complete`: Multi-step resolution depth tracking.
-- `ability_activate_request` / `ability_target_mode` / `ability_target_selected` / `ability_effect_applied`: Ability targeting & resolution.
+- `ability_activate_request` / `ability_target_mode` / `ability_target_selected` / `ability_execute` / `ability_effect_applied`: Ability targeting & resolution.
 - `tile_bank_spend_request` / `tile_bank_spent` / `tile_bank_insufficient` / `tile_bank_changed`: Resource economy.
+- `turn_action_started`: Fired when any turn-level action (swap, ability, etc.) kicks off; pairs with `turn_advanced` for UI state machines.
 - `turn_advanced`: Emitted by `TurnSystem` whenever active owner changes (payload: previous_owner, new_owner). Use this for UI updates instead of polling `ActiveTurn`.
 
 See `ecs/events/bus.py` for the full list.

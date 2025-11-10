@@ -43,10 +43,12 @@ EVENT_TILE_BANK_INSUFFICIENT = "tile_bank_insufficient"  # payload: entity=int, 
 EVENT_ABILITY_ACTIVATE_REQUEST = "ability_activate_request"  # payload: ability_entity=int, owner_entity=int
 EVENT_ABILITY_TARGET_MODE = "ability_target_mode"  # payload: ability_entity=int, owner_entity=int
 EVENT_ABILITY_TARGET_SELECTED = "ability_target_selected"  # payload: ability_entity=int, target=(r,c)
+EVENT_ABILITY_EXECUTE = "ability_execute"  # payload: ability_entity=int, owner_entity=int|None, pending=PendingAbilityTarget
 EVENT_ABILITY_EFFECT_APPLIED = "ability_effect_applied"  # payload: ability_entity=int, affected=list[(r,c)]
 EVENT_ABILITY_TARGET_CANCELLED = "ability_target_cancelled"  # payload: ability_entity=int, owner_entity=int, reason=str
 EVENT_BOARD_CHANGED = "board_changed"  # payload: reason=str, positions=list[(r,c)]
 EVENT_TURN_ADVANCED = "turn_advanced"  # payload: previous_owner=int|None, new_owner=int
+EVENT_TURN_ACTION_STARTED = "turn_action_started"  # payload: source=str, owner_entity=int|None, ability_entity=int|None
 EVENT_BATTLE_RESOLVED = "battle_resolved"  # payload: attacker_owner=int, defender_owner=int, forward=dict, counter=dict
 EVENT_EFFECT_APPLY = "effect_apply"  # payload: owner_entity=int, slug=str, metadata=dict, duration=float|None, ...
 EVENT_EFFECT_REMOVE = "effect_remove"  # payload: effect_entity=int|None, owner_entity=int|None, slug=str|None

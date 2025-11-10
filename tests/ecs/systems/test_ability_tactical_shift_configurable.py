@@ -12,6 +12,7 @@ from ecs.components.active_switch import ActiveSwitch
 from ecs.components.tile_type_registry import TileTypeRegistry
 from ecs.components.tile_types import TileTypes
 from ecs.systems.ability_system import AbilitySystem
+from ecs.systems.ability_targeting_system import AbilityTargetingSystem
 
 class DummyBus(EventBus):
     pass
@@ -43,6 +44,7 @@ def world_and_bus():
     bank = world.component_for_entity(player_ent, TileBank)
     bank.owner_entity = player_ent
     bank.counts['infantry'] = 5
+    AbilityTargetingSystem(world, bus)
     AbilitySystem(world, bus)
     return world, bus, ability_entity, player_ent, target_color_name
 

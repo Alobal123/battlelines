@@ -8,6 +8,7 @@ from ecs.events.bus import (
 )
 from ecs.world import create_world
 from ecs.systems.ability_system import AbilitySystem
+from ecs.systems.ability_targeting_system import AbilityTargetingSystem
 from ecs.systems.tile_bank_system import TileBankSystem
 from ecs.systems.effect_lifecycle_system import EffectLifecycleSystem
 from ecs.components.ability import Ability
@@ -38,6 +39,7 @@ def _get_tile_bank(world, owner_entity):
 def test_bolster_morale_applies_effect_and_expires():
     bus = EventBus()
     world = create_world(bus)
+    AbilityTargetingSystem(world, bus)
     AbilitySystem(world, bus)
     TileBankSystem(world, bus)
     EffectLifecycleSystem(world, bus)
@@ -96,6 +98,7 @@ def test_bolster_morale_applies_effect_and_expires():
 def test_bolster_morale_stacks_with_repeated_use():
     bus = EventBus()
     world = create_world(bus)
+    AbilityTargetingSystem(world, bus)
     AbilitySystem(world, bus)
     TileBankSystem(world, bus)
     EffectLifecycleSystem(world, bus)

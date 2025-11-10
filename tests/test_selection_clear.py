@@ -5,6 +5,7 @@ from ecs.systems.render import RenderSystem
 from ecs.systems.animation import AnimationSystem
 from ecs.systems.match import MatchSystem
 from ecs.systems.match_resolution import MatchResolutionSystem
+from ecs.systems.turn_system import TurnSystem
 
 class DummyWindow:
     def __init__(self):
@@ -23,6 +24,7 @@ def test_selection_clears_on_swap_request():
     MatchSystem(world, bus)
     AnimationSystem(world, bus)
     render = RenderSystem(world, bus, window)
+    TurnSystem(world, bus)
     MatchResolutionSystem(world, bus)
     # Click two adjacent tiles to initiate swap
     bus.emit(EVENT_TILE_CLICK, row=0, col=0)

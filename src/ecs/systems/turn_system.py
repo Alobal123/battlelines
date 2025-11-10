@@ -1,8 +1,18 @@
 from esper import World
-from ecs.events.bus import EventBus, EVENT_MATCH_CLEARED, EVENT_CASCADE_COMPLETE, EVENT_ABILITY_EFFECT_APPLIED, EVENT_TURN_ADVANCED
+from ecs.events.bus import (
+    EventBus,
+    EVENT_ABILITY_EFFECT_APPLIED,
+    EVENT_CASCADE_COMPLETE,
+    EVENT_CASCADE_STEP,
+    EVENT_MATCH_CLEARED,
+    EVENT_TURN_ACTION_STARTED,
+    EVENT_TURN_ADVANCED,
+)
 from ecs.components.turn_order import TurnOrder
 from ecs.components.active_turn import ActiveTurn
 from ecs.components.ability_list_owner import AbilityListOwner
+from ecs.components.turn_state import TurnState
+from ecs.systems.turn_state_utils import get_or_create_turn_state
 
 class TurnSystem:
     """Rotates active owner only after cascades finish.
@@ -15,11 +25,14 @@ class TurnSystem:
     def __init__(self, world: World, event_bus: EventBus):
         self.world = world
         self.event_bus = event_bus
+        self.event_bus.subscribe(EVENT_TURN_ACTION_STARTED, self.on_turn_action_started)
         self.event_bus.subscribe(EVENT_MATCH_CLEARED, self.on_match_cleared)
+        self.event_bus.subscribe(EVENT_CASCADE_STEP, self.on_cascade_step)
         self.event_bus.subscribe(EVENT_CASCADE_COMPLETE, self.on_cascade_complete)
         self.event_bus.subscribe(EVENT_ABILITY_EFFECT_APPLIED, self.on_ability_effect_applied)
         self.rotation_pending = False
         self._ensure_turn_order()
+        self._ensure_turn_state()
 
     def _ensure_turn_order(self):
         # If no TurnOrder component, create one using current owners
@@ -32,6 +45,12 @@ class TurnSystem:
         if not list(self.world.get_component(ActiveTurn)) and owners:
             self.world.create_entity(ActiveTurn(owner_entity=owners[0]))
 
+    def _ensure_turn_state(self):
+        get_or_create_turn_state(self.world)
+
+    def _turn_state(self) -> TurnState:
+        return get_or_create_turn_state(self.world)
+
     def on_match_cleared(self, sender, **payload):
         # Set rotation pending (only first time in a cascade). Multiple match_cleared within cascade should not queue multiple advances.
         if not self.rotation_pending:
@@ -42,7 +61,25 @@ class TurnSystem:
         if not self.rotation_pending:
             self.rotation_pending = True
 
+    def on_turn_action_started(self, sender, **payload):
+        state = self._turn_state()
+        state.action_source = payload.get("source")
+        state.cascade_active = False
+        state.cascade_depth = 0
+        state.cascade_observed = False
+
+    def on_cascade_step(self, sender, **payload):
+        state = self._turn_state()
+        state.cascade_active = True
+        state.cascade_observed = True
+        state.cascade_depth = payload.get("depth", state.cascade_depth + 1)
+
     def on_cascade_complete(self, sender, **payload):
+        state = self._turn_state()
+        state.cascade_active = False
+        state.cascade_depth = payload.get("depth", state.cascade_depth)
+        state.cascade_observed = False
+        state.action_source = None
         if not self.rotation_pending:
             return
         self.rotation_pending = False

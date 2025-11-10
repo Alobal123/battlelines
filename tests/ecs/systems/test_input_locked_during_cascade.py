@@ -3,6 +3,7 @@ from ecs.events.bus import EventBus, EVENT_CASCADE_STEP, EVENT_CASCADE_COMPLETE,
 from ecs.world import create_world
 from ecs.systems.board import BoardSystem
 from ecs.systems.ability_system import AbilitySystem
+from ecs.systems.ability_targeting_system import AbilityTargetingSystem
 from ecs.systems.tile_bank_system import TileBankSystem
 from ecs.systems.turn_system import TurnSystem
 from ecs.components.targeting_state import TargetingState
@@ -11,6 +12,7 @@ from ecs.components.targeting_state import TargetingState
 def setup_env():
     bus = EventBus(); world = create_world(bus)
     board = BoardSystem(world, bus, 5, 5)
+    AbilityTargetingSystem(world, bus)
     AbilitySystem(world, bus)
     TileBankSystem(world, bus)
     TurnSystem(world, bus)

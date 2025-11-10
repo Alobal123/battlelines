@@ -5,6 +5,7 @@ from ecs.systems.render import RenderSystem
 from ecs.systems.animation import AnimationSystem
 from ecs.systems.match import MatchSystem
 from ecs.systems.match_resolution import MatchResolutionSystem
+from ecs.systems.turn_system import TurnSystem
 from ecs.world import create_world
 from ecs.components.tile import TileType
 from ecs.components.active_switch import ActiveSwitch
@@ -26,6 +27,7 @@ def test_phased_clear_gravity_refill_sequence():
     MatchSystem(world, bus)
     AnimationSystem(world, bus)
     RenderSystem(world, bus, window)
+    TurnSystem(world, bus)
     MatchResolutionSystem(world, bus)
     # horizontal match after swap at row 2 between (2,2) and (2,3)
     e20 = board._get_entity_at(2,0)

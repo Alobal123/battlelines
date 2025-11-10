@@ -4,6 +4,7 @@ from ecs.systems.board import BoardSystem
 from ecs.systems.animation import AnimationSystem
 from ecs.systems.match import MatchSystem
 from ecs.systems.match_resolution import MatchResolutionSystem
+from ecs.systems.turn_system import TurnSystem
 from ecs.systems.render import RenderSystem
 from ecs.components.tile import TileType
 from ecs.components.active_switch import ActiveSwitch
@@ -20,12 +21,13 @@ def drive_ticks(bus, count=1, dt=0.02):
 def test_vertical_motion_interpolates_from_source_row():
     bus = EventBus(); world = create_world(bus); window = DummyWindow()
     board = BoardSystem(world, bus, 5, 5)
-    MatchSystem(world, bus); AnimationSystem(world, bus); mr = MatchResolutionSystem(world, bus)
+    MatchSystem(world, bus); AnimationSystem(world, bus); TurnSystem(world, bus); mr = MatchResolutionSystem(world, bus)
     render = RenderSystem(world, bus, window)
     # Pattern to create vertical match after swap (3,0)<->(4,0)
     e = [board._get_entity_at(r,0) for r in range(5)]
     names = ['ranged','ranged','ranged','cavalry','ranged']
     for ent,name in zip(e,names):
+        assert ent is not None
         world.component_for_entity(ent, TileType).type_name = name
         world.component_for_entity(ent, ActiveSwitch).active = True
     bus.emit(EVENT_TILE_SWAP_REQUEST, src=(3,0), dst=(4,0))
