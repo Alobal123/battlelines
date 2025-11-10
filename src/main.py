@@ -4,6 +4,7 @@ Sets up ECS world, event bus, systems, and Arcade window.
 """
 from arcade import Window, run, set_background_color, color
 from ecs.world import create_world
+from ecs.constants import GRID_ROWS, GRID_COLS
 from ecs.events.bus import EVENT_TICK, EventBus, EVENT_MOUSE_PRESS
 from ecs.systems.render import RenderSystem
 from ecs.systems.animation import AnimationSystem
@@ -12,8 +13,10 @@ from ecs.systems.input import InputSystem
 from ecs.systems.match import MatchSystem
 from ecs.systems.match_resolution import MatchResolutionSystem
 from ecs.systems.tile_bank_system import TileBankSystem
+from ecs.systems.effect_lifecycle_system import EffectLifecycleSystem
 from ecs.systems.ability_system import AbilitySystem
 from ecs.systems.turn_system import TurnSystem
+from ecs.systems.battle import BattleSystem
 
 class BattlelinesWindow(Window):
     def __init__(self):
@@ -21,14 +24,17 @@ class BattlelinesWindow(Window):
         self.set_update_rate(1/60)
         self.event_bus = EventBus()
         self.world = create_world(self.event_bus)
-        self.board_system = BoardSystem(self.world, self.event_bus)
+        # Use configured constants for dynamic board dimensions
+        self.board_system = BoardSystem(self.world, self.event_bus, rows=GRID_ROWS, cols=GRID_COLS)
         self.match_system = MatchSystem(self.world, self.event_bus)
         self.animation_system = AnimationSystem(self.world, self.event_bus)
         self.render_system = RenderSystem(self.world, self.event_bus, self)
         self.match_resolution_system = MatchResolutionSystem(self.world, self.event_bus)
         self.tile_bank_system = TileBankSystem(self.world, self.event_bus)
+        self.effect_lifecycle_system = EffectLifecycleSystem(self.world, self.event_bus)
         self.ability_system = AbilitySystem(self.world, self.event_bus)
         self.turn_system = TurnSystem(self.world, self.event_bus)
+        self.battle_system = BattleSystem(self.world, self.event_bus)
         # InputSystem expects (event_bus, window)
         self.input_system = InputSystem(self.event_bus, self, self.world)
         set_background_color(color.BLACK)

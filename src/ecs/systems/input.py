@@ -1,4 +1,4 @@
-from ecs.events.bus import EventBus, EVENT_MOUSE_PRESS, EVENT_TILE_CLICK, EVENT_ABILITY_ACTIVATE_REQUEST
+from ecs.events.bus import EventBus, EVENT_MOUSE_PRESS, EVENT_TILE_CLICK, EVENT_ABILITY_ACTIVATE_REQUEST, EVENT_REGIMENT_CLICK
 from ecs.constants import GRID_COLS, GRID_ROWS
 from ecs.ui.layout import compute_board_geometry
 
@@ -32,6 +32,17 @@ class InputSystem:
                         owner_entity=owner_entity,
                     )
                     return  # Do not treat as tile click
+        # Otherwise treat as regiment click if within cached layout
+        if render_system and hasattr(render_system, 'get_regiment_at_point'):
+            regiment_entry = render_system.get_regiment_at_point(x, y)
+            if regiment_entry:
+                self.event_bus.emit(
+                    EVENT_REGIMENT_CLICK,
+                    owner_entity=regiment_entry.get('owner_entity'),
+                    regiment_entity=regiment_entry.get('regiment_entity'),
+                    is_active=regiment_entry.get('is_active', False),
+                )
+                return
         # Otherwise treat as board click if within bounds
         if hasattr(self.window, 'render_system'):
             tile_size, start_x, start_y = compute_board_geometry(self.window.width, self.window.height)

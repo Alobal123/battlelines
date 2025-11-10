@@ -12,6 +12,8 @@ from ecs.components.tile_bank import TileBank
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.tile_type_registry import TileTypeRegistry
 from ecs.components.tile_types import TileTypes
+from ecs.components.army_roster import ArmyRoster
+from ecs.components.regiment import Regiment
 
 class TileBankSystem:
     """Tracks cleared tiles and manages spending for abilities.
@@ -52,8 +54,12 @@ class TileBankSystem:
             owner_entity = owners[0]
         bank_ent = self._get_or_create_bank(owner_entity)
         bank: TileBank = self.world.component_for_entity(bank_ent, TileBank)
+        readiness_gains: Dict[str, int] = {}
         for (_, _, type_name) in types:
             bank.add(type_name, 1)
+            readiness_gains[type_name] = readiness_gains.get(type_name, 0) + 1
+        if readiness_gains:
+            self._apply_readiness_from_tiles(owner_entity, readiness_gains)
         self.event_bus.emit(EVENT_TILE_BANK_CHANGED, entity=bank_ent, counts=bank.counts.copy())
 
     def on_spend_request(self, sender, **kwargs):
@@ -90,3 +96,38 @@ class TileBankSystem:
         for ent, _ in self.world.get_component(TileTypeRegistry):
             return self.world.component_for_entity(ent, TileTypes)
         raise RuntimeError('TileTypes definitions not found')
+
+    def _apply_readiness_from_tiles(self, owner_entity: int, gains: Dict[str, int]) -> None:
+        try:
+            roster: ArmyRoster = self.world.component_for_entity(owner_entity, ArmyRoster)
+        except KeyError:
+            return
+        if not roster.regiment_entities:
+            return
+        alias_map = {
+            "infantry": ("infantry",),
+            "cavalry": ("cavalry",),
+            "ranged": ("ranged",),
+        }
+        activation_slot: int | None = None
+        activation_gain = 0
+        for slot, regiment_ent in enumerate(roster.regiment_entities):
+            try:
+                regiment: Regiment = self.world.component_for_entity(regiment_ent, Regiment)
+            except KeyError:
+                continue
+            unit_type = regiment.unit_type
+            aliases = alias_map.get(unit_type)
+            if not aliases:
+                continue
+            gained = sum(gains.get(alias, 0) for alias in aliases)
+            if not gained:
+                continue
+            regiment.battle_readiness += gained
+            if gained >= 3:
+                if activation_slot is None or gained > activation_gain:
+                    activation_slot = slot
+                    activation_gain = gained
+        if activation_slot is not None and activation_slot != roster.active_index:
+            if 0 <= activation_slot < len(roster.regiment_entities):
+                roster.active_index = activation_slot

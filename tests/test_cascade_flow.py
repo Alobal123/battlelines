@@ -24,16 +24,23 @@ def test_two_step_cascade():
     AnimationSystem(world,bus)
     render=RenderSystem(world,bus,window)
     mr=MatchResolutionSystem(world,bus)
+    base_types = ['ranged', 'cavalry', 'infantry', 'plunder', 'logistics', 'subterfuge', 'tactics']
+    for r in range(5):
+        for c in range(5):
+            ent = board._get_entity_at(r, c)
+            assert ent is not None, f"Missing entity at {(r,c)}"
+            world.component_for_entity(ent, TileType).type_name = base_types[(r * 5 + c) % len(base_types)]
+            world.component_for_entity(ent, ActiveSwitch).active = True
     # Construct board so first swap creates one match, refill yields a second match.
     # Simplify: force a horizontal near bottom and ensure above refill will line up.
     # First cascade target: row2 cols0-2 after swapping (2,2),(2,3)
     e20=board._get_entity_at(2,0); e21=board._get_entity_at(2,1); e22=board._get_entity_at(2,2); e23=board._get_entity_at(2,3)
     assert e20 and e21 and e22 and e23, 'Entities missing for initial pattern'
     # Assign matching type names alongside colors for new type-based match detection
-    world.component_for_entity(e20, TileType).type_name='archers'
-    world.component_for_entity(e21, TileType).type_name='archers'
+    world.component_for_entity(e20, TileType).type_name='ranged'
+    world.component_for_entity(e21, TileType).type_name='ranged'
     world.component_for_entity(e22, TileType).type_name='cavalry'
-    world.component_for_entity(e23, TileType).type_name='archers'
+    world.component_for_entity(e23, TileType).type_name='ranged'
     for ent in (e20,e21,e22,e23):
         world.component_for_entity(ent, ActiveSwitch).active = True
     # Clear a vertical slice to force refill-controlled cascade: empty cells at top of columns 1-3

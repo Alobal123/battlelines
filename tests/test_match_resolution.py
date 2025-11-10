@@ -39,10 +39,10 @@ def test_horizontal_match_clears_and_refills():
     t2 = world.component_for_entity(e22, TileType)
     t3 = world.component_for_entity(e23, TileType)
     # Use distinct placeholder palette colors but enforce type consistency for match detection
-    t0.type_name = 'archers'
-    t1.type_name = 'archers'
+    t0.type_name = 'ranged'
+    t1.type_name = 'ranged'
     t2.type_name = 'cavalry'
-    t3.type_name = 'archers'
+    t3.type_name = 'ranged'
     for ent in (e20,e21,e22,e23):
         world.component_for_entity(ent, ActiveSwitch).active = True
 

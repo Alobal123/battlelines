@@ -25,7 +25,7 @@ def world_and_bus():
         TileTypeRegistry(),
         TileTypes(types={
             'infantry': (70,90,180),
-            'archers': (180,60,60),
+            'ranged': (180,60,60),
             'cavalry': (80,170,80),
         })
     )
@@ -35,7 +35,7 @@ def world_and_bus():
         for c in range(2):
             ent = world.create_entity(
                 BoardPosition(row=r, col=c),
-                TileType(type_name='infantry' if (r == 0 and c == 0) else 'archers'),
+                TileType(type_name='infantry' if (r == 0 and c == 0) else 'ranged'),
                 ActiveSwitch(active=True),
             )
     ability_entity = world.create_entity(Ability(name='tactical_shift', kind='active', cost={'infantry':1}, params={'target_color': target_color_name}), AbilityTarget(target_type='tile', max_targets=1))

@@ -25,12 +25,19 @@ def test_invalid_swap_reverts():
     MatchSystem(world, bus)
     AnimationSystem(world, bus)
     render = RenderSystem(world, bus, window)
+    base_types = ['ranged', 'cavalry', 'infantry', 'plunder', 'logistics', 'subterfuge', 'tactics']
+    for r in range(3):
+        for c in range(3):
+            ent = board._get_entity_at(r, c)
+            assert ent is not None
+            world.component_for_entity(ent, TileType).type_name = base_types[(r * 3 + c) % len(base_types)]
+            world.component_for_entity(ent, ActiveSwitch).active = True
     e00 = board._get_entity_at(0,0)
     e01 = board._get_entity_at(0,1)
     e02 = board._get_entity_at(0,2)
     assert e00 is not None and e01 is not None and e02 is not None
     # Assign three distinct types to ensure swap yields no match
-    world.component_for_entity(e00, TileType).type_name = 'archers'
+    world.component_for_entity(e00, TileType).type_name = 'ranged'
     world.component_for_entity(e01, TileType).type_name = 'cavalry'
     world.component_for_entity(e02, TileType).type_name = 'infantry'
     world.component_for_entity(e00, ActiveSwitch).active = True
@@ -44,7 +51,7 @@ def test_invalid_swap_reverts():
     swaps = list(world.get_component(SwapAnimation))
     assert not swaps, f'Swap animation did not finish; remaining components={len(swaps)}'
     # Colors unchanged (no DO event fired)
-    assert world.component_for_entity(e00, TileType).type_name == 'archers'
+    assert world.component_for_entity(e00, TileType).type_name == 'ranged'
     assert world.component_for_entity(e01, TileType).type_name == 'cavalry'
 
 def test_valid_swap_applies():
@@ -55,14 +62,21 @@ def test_valid_swap_applies():
     MatchSystem(world, bus)
     AnimationSystem(world, bus)
     render = RenderSystem(world, bus, window)
+    base_types = ['ranged', 'cavalry', 'infantry', 'plunder', 'logistics', 'subterfuge', 'tactics']
+    for r in range(3):
+        for c in range(3):
+            ent = board._get_entity_at(r, c)
+            assert ent is not None
+            world.component_for_entity(ent, TileType).type_name = base_types[(r * 3 + c) % len(base_types)]
+            world.component_for_entity(ent, ActiveSwitch).active = True
     # Pre-create a triple row so any adjacent swap there is valid
     e00 = board._get_entity_at(0,0)
     e01 = board._get_entity_at(0,1)
     e02 = board._get_entity_at(0,2)
     assert e00 is not None and e01 is not None and e02 is not None
-    world.component_for_entity(e00, TileType).type_name = 'archers'
-    world.component_for_entity(e01, TileType).type_name = 'archers'
-    world.component_for_entity(e02, TileType).type_name = 'archers'
+    world.component_for_entity(e00, TileType).type_name = 'ranged'
+    world.component_for_entity(e01, TileType).type_name = 'ranged'
+    world.component_for_entity(e02, TileType).type_name = 'ranged'
     world.component_for_entity(e00, ActiveSwitch).active = True
     world.component_for_entity(e01, ActiveSwitch).active = True
     world.component_for_entity(e02, ActiveSwitch).active = True

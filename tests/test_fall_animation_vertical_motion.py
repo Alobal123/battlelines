@@ -24,7 +24,7 @@ def test_vertical_motion_interpolates_from_source_row():
     render = RenderSystem(world, bus, window)
     # Pattern to create vertical match after swap (3,0)<->(4,0)
     e = [board._get_entity_at(r,0) for r in range(5)]
-    names = ['archers','archers','archers','cavalry','archers']
+    names = ['ranged','ranged','ranged','cavalry','ranged']
     for ent,name in zip(e,names):
         world.component_for_entity(ent, TileType).type_name = name
         world.component_for_entity(ent, ActiveSwitch).active = True

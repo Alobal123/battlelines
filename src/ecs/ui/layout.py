@@ -1,17 +1,15 @@
-from ecs.constants import GRID_COLS, GRID_ROWS, TILE_SIZE, BOTTOM_MARGIN
+from ecs.constants import GRID_COLS, GRID_ROWS, TILE_SIZE, BOTTOM_MARGIN, BOARD_MAX_WIDTH_PCT, BOARD_MAX_HEIGHT_PCT
 
 def compute_board_geometry(window_width: int, window_height: int):
     """Return (tile_size, start_x, start_y) using same rules as RenderSystem dynamic scaling.
 
     Keeps input mapping consistent with render scaling. Mirrors logic in RenderSystem._recalculate_tile_size.
     """
-    ability_panel_w = 160
-    side_reserve = ability_panel_w * 2 + 120
-    available_w = max(200, window_width - side_reserve)
-    vertical_reserve = BOTTOM_MARGIN + 260
-    available_h = max(200, window_height - vertical_reserve)
-    tile_by_w = available_w / GRID_COLS
-    tile_by_h = available_h / GRID_ROWS
+    # Compute maximum board area based on percentage caps instead of static reserves.
+    max_board_w = window_width * BOARD_MAX_WIDTH_PCT
+    max_board_h = (window_height - BOTTOM_MARGIN) * BOARD_MAX_HEIGHT_PCT
+    tile_by_w = max_board_w / GRID_COLS
+    tile_by_h = max_board_h / GRID_ROWS
     tile_size = int(min(tile_by_w, tile_by_h))
     if tile_size < 20:
         tile_size = 20

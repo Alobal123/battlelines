@@ -37,8 +37,8 @@ def test_swap_animation_tick_progress():
     e00 = board._get_entity_at(0,0)
     e01 = board._get_entity_at(0,1)
     assert e00 is not None and e01 is not None
-    world.component_for_entity(e00, TileType).type_name = 'archers'
-    world.component_for_entity(e01, TileType).type_name = 'archers'
+    world.component_for_entity(e00, TileType).type_name = 'ranged'
+    world.component_for_entity(e01, TileType).type_name = 'ranged'
     bus.emit(EVENT_TILE_SWAP_REQUEST, src=(0,0), dst=(0,1))
     # Simulate ticks until animation completes (swap_duration=0.2)
     progressed = False

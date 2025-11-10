@@ -18,6 +18,8 @@ from ecs.events.bus import (
     EVENT_ANIMATION_START,
     EVENT_CASCADE_STEP,
     EVENT_CASCADE_COMPLETE,
+    EVENT_EFFECT_APPLY,
+    EVENT_REGIMENT_CLICK,
 )
 from ecs.components.ability import Ability
 from ecs.components.targeting_state import TargetingState
@@ -27,13 +29,14 @@ from ecs.components.tile_type_registry import TileTypeRegistry
 from ecs.components.tile_types import TileTypes
 from ecs.components.tile import TileType
 from ecs.components.pending_ability_target import PendingAbilityTarget
+from ecs.components.ability_target import AbilityTarget
 
 
 class AbilitySystem:
     """Ability activation, targeting, and effect application.
 
         Abilities:
-            tactical_shift: Convert all tiles of the selected tile's color to the configured target type (default archers).
+            tactical_shift: Convert all tiles of the selected tile's color to the configured target type (default ranged).
       crimson_pulse: Clear (remove) a 3x3 area centered on the selected tile (set color=None).
     """
 
@@ -42,6 +45,7 @@ class AbilitySystem:
         self.event_bus = event_bus
         self._cascade_active = False
         self._cascade_step_observed = False
+        self._ability_owner_cache = {}
         event_bus.subscribe(EVENT_ABILITY_ACTIVATE_REQUEST, self.on_activate_request)
         # Spend now delayed; we no longer subscribe to immediate spent for targeting.
         event_bus.subscribe(EVENT_TILE_BANK_INSUFFICIENT, self.on_bank_insufficient)
@@ -50,6 +54,7 @@ class AbilitySystem:
         event_bus.subscribe(EVENT_MOUSE_PRESS, self.on_mouse_press)
         event_bus.subscribe(EVENT_CASCADE_STEP, self.on_cascade_step)
         event_bus.subscribe(EVENT_CASCADE_COMPLETE, self.on_cascade_complete)
+        event_bus.subscribe(EVENT_REGIMENT_CLICK, self.on_regiment_click)
 
     def on_activate_request(self, sender, **payload):
         # Block ability activation while cascade active
@@ -66,6 +71,7 @@ class AbilitySystem:
         if ability_entity not in owners[owner_entity].ability_entities:
             # Ability doesn't belong to provided owner; reject activation
             return
+        self._ability_owner_cache[ability_entity] = owner_entity
         active_list = list(self.world.get_component(ActiveTurn))
         if active_list and active_list[0][1].owner_entity != owner_entity:
             # Not this owner's turn
@@ -83,31 +89,84 @@ class AbilitySystem:
             return
         if self._cascade_active:
             return
-        row = payload['row']; col = payload['col']
         owner_entity, targeting_state = targeting[0]
         ability_entity = targeting_state.ability_entity
-        # ability_entity should be int; defensive check
         if not isinstance(ability_entity, int):
             return
+        try:
+            ability_target = self.world.component_for_entity(ability_entity, AbilityTarget)
+        except KeyError:
+            return
+        if ability_target.target_type != 'tile':
+            return
+        row = payload['row']
+        col = payload['col']
         ability = self.world.component_for_entity(ability_entity, Ability)
-        # Attach pending component to ability entity (or overwrite existing)
-        self.world.add_component(ability_entity, PendingAbilityTarget(
-            ability_entity=ability_entity,
-            owner_entity=owner_entity,
-            row=row,
-            col=col,
-        ))
-        # Request spend; do NOT apply effect yet
+        self.world.add_component(
+            ability_entity,
+            PendingAbilityTarget(
+                ability_entity=ability_entity,
+                owner_entity=owner_entity,
+                row=row,
+                col=col,
+            ),
+        )
         self.event_bus.emit(
             EVENT_TILE_BANK_SPEND_REQUEST,
             entity=owner_entity,
             cost=ability.cost,
             ability_entity=ability_entity,
         )
-        # Remove targeting state (exit targeting irrespective of success)
         self.world.remove_component(owner_entity, TargetingState)
-        # Target selected event can fire now for UI feedback
-        self.event_bus.emit(EVENT_ABILITY_TARGET_SELECTED, ability_entity=ability_entity, target=(row, col))
+        self.event_bus.emit(
+            EVENT_ABILITY_TARGET_SELECTED,
+            ability_entity=ability_entity,
+            target=(row, col),
+        )
+
+    def on_regiment_click(self, sender, **payload):
+        targeting = list(self.world.get_component(TargetingState))
+        if not targeting:
+            return
+        if self._cascade_active:
+            return
+        owner_entity, targeting_state = targeting[0]
+        ability_entity = targeting_state.ability_entity
+        if not isinstance(ability_entity, int):
+            return
+        try:
+            ability_target = self.world.component_for_entity(ability_entity, AbilityTarget)
+        except KeyError:
+            return
+        if ability_target.target_type != 'regiment':
+            return
+        regiment_entity = payload.get('regiment_entity')
+        if regiment_entity is None:
+            return
+        clicked_owner = payload.get('owner_entity')
+        if clicked_owner is not None and clicked_owner != owner_entity:
+            return
+        ability = self.world.component_for_entity(ability_entity, Ability)
+        self.world.add_component(
+            ability_entity,
+            PendingAbilityTarget(
+                ability_entity=ability_entity,
+                owner_entity=owner_entity,
+                target_entity=regiment_entity,
+            ),
+        )
+        self.event_bus.emit(
+            EVENT_TILE_BANK_SPEND_REQUEST,
+            entity=owner_entity,
+            cost=ability.cost,
+            ability_entity=ability_entity,
+        )
+        self.world.remove_component(owner_entity, TargetingState)
+        self.event_bus.emit(
+            EVENT_ABILITY_TARGET_SELECTED,
+            ability_entity=ability_entity,
+            target=regiment_entity,
+        )
 
     def on_bank_spent(self, sender, **payload):
         # Reset cascade step observation for this ability resolution
@@ -120,10 +179,15 @@ class AbilitySystem:
             pending: PendingAbilityTarget = self.world.component_for_entity(ability_entity, PendingAbilityTarget)
         except KeyError:
             return  # No pending target stored
-        owner_entity = pending.owner_entity
-        row = pending.row; col = pending.col
+        owner_entity = self._resolve_owner_for_ability(ability_entity, default=pending.owner_entity)
+        row = pending.row
+        col = pending.col
         ability = self.world.component_for_entity(ability_entity, Ability)
         if ability.name == 'tactical_shift':
+            if row is None or col is None:
+                self.world.remove_component(ability_entity, PendingAbilityTarget)
+                self._ability_owner_cache.pop(ability_entity, None)
+                return
             affected = self._apply_transform_all_color_to_target(row, col, ability)
             self.event_bus.emit(EVENT_ABILITY_EFFECT_APPLIED, ability_entity=ability_entity, affected=affected)
             # Emit match-like cleared event for resource attribution
@@ -145,6 +209,10 @@ class AbilitySystem:
             if not self._cascade_step_observed:
                 self.event_bus.emit(EVENT_CASCADE_COMPLETE, depth=0)
         elif ability.name == 'crimson_pulse':
+            if row is None or col is None:
+                self.world.remove_component(ability_entity, PendingAbilityTarget)
+                self._ability_owner_cache.pop(ability_entity, None)
+                return
             positions = self._prepare_crimson_pulse_area(row, col)
             active_owner = self._get_active_owner()
             # Resolve clear and subsequent gravity/refill; emits board_changed after completion
@@ -155,20 +223,62 @@ class AbilitySystem:
             if not self._cascade_step_observed:
                 self.event_bus.emit(EVENT_CASCADE_COMPLETE, depth=0)
         else:
-            self.event_bus.emit(EVENT_ABILITY_EFFECT_APPLIED, ability_entity=ability_entity, affected=[])
+            if ability.name == 'bolster_morale':
+                target_entity = pending.target_entity
+                if target_entity is not None:
+                    bonus = ability.params.get('morale_bonus', 20)
+                    turns = ability.params.get('turns', 3)
+                    self.event_bus.emit(
+                        EVENT_EFFECT_APPLY,
+                        owner_entity=target_entity,
+                        source_entity=ability_entity,
+                        slug='morale_boost',
+                        stacks=True,
+                        metadata={
+                            'morale_bonus': bonus,
+                            'turns': turns,
+                            'caster_owner': owner_entity,
+                        },
+                        turns=turns,
+                    )
+                    self.event_bus.emit(
+                        EVENT_ABILITY_EFFECT_APPLIED,
+                        ability_entity=ability_entity,
+                        affected=[target_entity],
+                    )
+                    if not self._cascade_step_observed:
+                        self.event_bus.emit(EVENT_CASCADE_COMPLETE, depth=0)
+                else:
+                    self.event_bus.emit(EVENT_ABILITY_EFFECT_APPLIED, ability_entity=ability_entity, affected=[])
+                    if not self._cascade_step_observed:
+                        self.event_bus.emit(EVENT_CASCADE_COMPLETE, depth=0)
+            else:
+                self.event_bus.emit(EVENT_ABILITY_EFFECT_APPLIED, ability_entity=ability_entity, affected=[])
         # Remove pending component after applying effect
         self.world.remove_component(ability_entity, PendingAbilityTarget)
+        self._ability_owner_cache.pop(ability_entity, None)
+
+    def _resolve_owner_for_ability(self, ability_entity: int, *, default: int | None = None) -> int | None:
+        cached = self._ability_owner_cache.get(ability_entity)
+        if cached is not None:
+            return cached
+        from ecs.components.ability_list_owner import AbilityListOwner
+        for owner_ent, owner_comp in self.world.get_component(AbilityListOwner):
+            if ability_entity in owner_comp.ability_entities:
+                self._ability_owner_cache[ability_entity] = owner_ent
+                return owner_ent
+        return default
 
     def _apply_transform_all_color_to_target(self, row: int, col: int, ability: Ability):
         """Transform all tiles matching the clicked tile's type to the configured target type.
 
-        ability.params['target_color'] holds the desired replacement tile type name; defaults to 'archers'.
+        ability.params['target_color'] holds the desired replacement tile type name; defaults to 'ranged'.
         Color constants are no longer used; transformation is purely semantic on type_name.
         """
-        target_type = ability.params.get('target_color', 'archers') if hasattr(ability, 'params') else 'archers'
+        target_type = ability.params.get('target_color', 'ranged') if hasattr(ability, 'params') else 'ranged'
         registry = self._registry()
         if target_type not in registry.types:
-            target_type = 'archers'
+            target_type = 'ranged'
         # Determine source type from clicked tile
         source_type = None
         for ent, pos in self.world.get_component(BoardPosition):
@@ -307,7 +417,6 @@ class AbilitySystem:
             src_tile_sw.active = False
 
     def _refill(self):
-        from ecs.systems.board import PALETTE
         spawned = []
         for ent, pos in self.world.get_component(BoardPosition):
             import random
