@@ -6,9 +6,12 @@ from ecs.components.tile_bank import TileBank
 from ecs.constants import (
     ABILITY_TOP_PADDING,
     BANK_BAR_HEIGHT,
+    BANK_BAR_EXTRA_HEIGHT,
+    PLAYER_PANEL_HEIGHT,
     SIDE_GAP,
     SIDE_PANEL_INNER_PAD,
     SIDE_PANEL_MIN_WIDTH,
+    SIDE_PANEL_TOP_MARGIN,
 )
 
 if TYPE_CHECKING:
@@ -36,17 +39,19 @@ class AbilityPanelRenderer:
         owners = list(rs.world.get_component(AbilityListOwner))
         owners.sort(key=lambda item: item[0])
 
-        rect_h = 52
+        rect_h = 44  # reduced height for more space to bank bar
         spacing = 8
         board_left = ctx.board_left
         board_right = ctx.board_right
-        board_top = ctx.board_top
+        # Use expanded side panel top (near window top) for ability panel stacking
+        side_panel_top = ctx.window_height - SIDE_PANEL_TOP_MARGIN
         window_w = ctx.window_width
         left_space = max(0, board_left - SIDE_GAP)
         right_space = max(0, (window_w - board_right) - SIDE_GAP)
         left_col_w = max(SIDE_PANEL_MIN_WIDTH, left_space)
         right_col_w = max(SIDE_PANEL_MIN_WIDTH, right_space)
-        ability_panel_top = board_top - BANK_BAR_HEIGHT
+        # Account for player panel + bank (with extra breathing room) stacked above abilities.
+        ability_panel_top = side_panel_top - (PLAYER_PANEL_HEIGHT + BANK_BAR_HEIGHT + BANK_BAR_EXTRA_HEIGHT)
         first_rect_bottom = ability_panel_top - ABILITY_TOP_PADDING - rect_h
         left_rect_w = max(60, left_col_w - 2 * SIDE_PANEL_INNER_PAD)
         right_rect_w = max(60, right_col_w - 2 * SIDE_PANEL_INNER_PAD)

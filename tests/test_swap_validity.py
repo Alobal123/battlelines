@@ -25,7 +25,7 @@ def test_invalid_swap_reverts():
     MatchSystem(world, bus)
     AnimationSystem(world, bus)
     render = RenderSystem(world, bus, window)
-    base_types = ['ranged', 'cavalry', 'infantry', 'plunder', 'logistics', 'subterfuge', 'tactics']
+    base_types = ['ranged', 'cavalry', 'infantry', 'plunder', 'support', 'engineering', 'subterfuge', 'tactics']
     for r in range(3):
         for c in range(3):
             ent = board._get_entity_at(r, c)
@@ -62,7 +62,7 @@ def test_valid_swap_applies():
     MatchSystem(world, bus)
     AnimationSystem(world, bus)
     render = RenderSystem(world, bus, window)
-    base_types = ['ranged', 'cavalry', 'infantry', 'plunder', 'logistics', 'subterfuge', 'tactics']
+    base_types = ['ranged', 'cavalry', 'infantry', 'plunder', 'support', 'engineering', 'subterfuge', 'tactics']
     for r in range(3):
         for c in range(3):
             ent = board._get_entity_at(r, c)

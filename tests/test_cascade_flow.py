@@ -26,7 +26,7 @@ def test_two_step_cascade():
     render=RenderSystem(world,bus,window)
     TurnSystem(world, bus)
     mr=MatchResolutionSystem(world,bus)
-    base_types = ['ranged', 'cavalry', 'infantry', 'plunder', 'logistics', 'subterfuge', 'tactics']
+    base_types = ['ranged', 'cavalry', 'infantry', 'plunder', 'support', 'engineering', 'subterfuge', 'tactics']
     for r in range(5):
         for c in range(5):
             ent = board._get_entity_at(r, c)

@@ -103,13 +103,14 @@ def create_world(event_bus: EventBus) -> World:
     registry_entity = world.create_entity(
         TileTypeRegistry(),
         TileTypes(types={
-            'ranged': (180, 60, 60),
-            'cavalry': (80, 170, 80),
+            'ranged': (155, 65, 185),  # brightened purple for higher contrast
+            'cavalry': (60, 205, 195),  # brighter neon teal
             'infantry': (70, 90, 180),
-            'logistics': (200, 190, 80),
-            'plunder': (170, 80, 160),
-            'subterfuge': (70, 170, 170),
-            'tactics': (200, 130, 60),
+            'plunder': (225, 215, 100),
+            'support': (245, 240, 245),
+            'subterfuge': (90, 200, 85),  # brighter neon green for higher pop
+            'tactics': (180, 60, 60),
+            'engineering': (200, 130, 70),
         })
     )
     # TESTING: Prefill both banks generously with all type names

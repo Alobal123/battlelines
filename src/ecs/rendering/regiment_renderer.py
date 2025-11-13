@@ -46,13 +46,21 @@ class RegimentRenderer:
         left_panel_center = left_panel_left + left_col_w / 2
         right_panel_center = right_panel_left + right_col_w / 2
 
-        circle_spacing = 110
-        base_radius = 36
-        active_radius = 52
+        # New layout: For each player: two vertically stacked inactive units adjacent to a large active unit.
+        # Horizontal ordering overall (L->R): blank | P1 inactive stack | P1 active | spacer | P2 active | P2 inactive stack | blank
+        # If fewer than two inactive units, show only available. If more than two, take first two by slot order.
+        base_radius = 40  # larger inactive circles
+        active_radius = 70  # larger active circle
         outline_color = (245, 245, 245)
-        active_y = board_top + 110
-        inactive_y = board_top + 70
-        bank_offsets = [-0.6, 0.6, -1.2, 1.2]
+        # Shift active units more toward center for breathing room
+        p1_active_x = board_left + total_width * 0.35
+        p2_active_x = board_right - total_width * 0.35
+        inactive_stack_dx = 140  # increased horizontal separation from active circle
+        p1_stack_x = p1_active_x - inactive_stack_dx
+        p2_stack_x = p2_active_x + inactive_stack_dx
+        active_center_y = board_top + 145  # move active slightly up
+        stack_top_y = board_top + 190     # move top inactive further up
+        stack_bottom_y = board_top + 75  # wider vertical gap
         text_commands: list[tuple[str, float, float, tuple[int, int, int], int]] = []
         layout_cache = []
 
@@ -60,17 +68,23 @@ class RegimentRenderer:
             if not roster.regiment_entities:
                 continue
             is_first_player = index == 0
-            panel_center = left_panel_center if is_first_player else right_panel_center
-            active_x = board_left + total_width * 0.25 if is_first_player else board_right - total_width * 0.25
-
-            non_active_slots = [slot for slot in range(len(roster.regiment_entities)) if slot != roster.active_index]
+            active_x = p1_active_x if is_first_player else p2_active_x
+            stack_x = p1_stack_x if is_first_player else p2_stack_x
+            # Collect inactive slots (exclude active_index)
+            inactive_slots = [s for s in range(len(roster.regiment_entities)) if s != roster.active_index]
+            # Limit to two for display
+            display_inactive = inactive_slots[:2]
             position_by_slot: dict[int, tuple[float, float, float]] = {}
-            position_by_slot[roster.active_index] = (active_x, active_y, active_radius)
-
-            for pos_idx, slot in enumerate(non_active_slots):
-                offset = bank_offsets[pos_idx] if pos_idx < len(bank_offsets) else bank_offsets[-1]
-                center_x = panel_center + offset * circle_spacing
-                position_by_slot[slot] = (center_x, inactive_y, base_radius)
+            # Active regiment placement
+            position_by_slot[roster.active_index] = (active_x, active_center_y, active_radius)
+            # Inactive stack placement (top then bottom)
+            for pos_idx, slot in enumerate(display_inactive):
+                # If only one inactive, center it vertically between stack positions
+                if len(display_inactive) == 1:
+                    cy = (stack_top_y + stack_bottom_y) / 2
+                else:
+                    cy = stack_top_y if pos_idx == 0 else stack_bottom_y
+                position_by_slot[slot] = (stack_x, cy, base_radius)
 
             for slot, regiment_entity in enumerate(roster.regiment_entities):
                 coords = position_by_slot.get(slot)
@@ -116,11 +130,22 @@ class RegimentRenderer:
                     "is_active": slot == roster.active_index,
                 })
 
-                morale_text = f"Morale {regiment.morale:.0f}"
-                text_commands.append((morale_text, center_x, center_y + radius + 30, (240, 240, 240), 12))
-                text_commands.append((regiment.unit_type.title(), center_x, center_y + radius + 12, (220, 220, 220), 12))
-                readiness_text = str(regiment.battle_readiness)
-                text_commands.append((readiness_text, center_x, center_y - radius - 24, (230, 230, 230), 12))
+                # Text layout adjustments: active unit keeps vertical placement; non-active units show side text.
+                morale_text = f"Mor {regiment.morale:.0f}"  # shortened label for compactness
+                readiness_text = f"R {regiment.battle_readiness}"  # shortened label
+                if slot == roster.active_index:
+                    # Active: morale above, readiness below
+                    text_commands.append((morale_text, center_x, center_y + radius + 20, (240, 240, 240), 13))
+                    text_commands.append((readiness_text, center_x, center_y - radius - 32, (230, 230, 230), 12))
+                else:
+                    # Non-active: stack morale above readiness on side: left for player 1, right for player 2
+                    side_offset = radius + 50
+                    if is_first_player:
+                        mx = center_x - side_offset
+                    else:
+                        mx = center_x + side_offset
+                    text_commands.append((morale_text, mx, center_y + 10, (240, 240, 240), 11))
+                    text_commands.append((readiness_text, mx, center_y - 12, (230, 230, 230), 11))
 
         rs._regiment_layout_cache = layout_cache
 

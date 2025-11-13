@@ -5,8 +5,11 @@ from typing import TYPE_CHECKING
 from ecs.components.tile_bank import TileBank
 from ecs.constants import (
     BANK_BAR_HEIGHT,
+    BANK_BAR_EXTRA_HEIGHT,
+    PLAYER_PANEL_HEIGHT,
     SIDE_GAP,
     SIDE_PANEL_MIN_WIDTH,
+    SIDE_PANEL_TOP_MARGIN,
 )
 
 if TYPE_CHECKING:
@@ -25,13 +28,14 @@ class BankPanelRenderer:
         rs = self._rs
         board_left = ctx.board_left
         board_right = ctx.board_right
-        board_top = ctx.board_top
+        # Expand side panels upward nearly to top of window (keep small margin)
+        side_panel_top = ctx.window_height - SIDE_PANEL_TOP_MARGIN
         board_start_y = ctx.board_bottom
         banks = list(rs.world.get_component(TileBank))
         if not banks:
             return
         banks_sorted = sorted(banks, key=lambda pair: pair[1].owner_entity)
-        visible_types = {"tactics", "subterfuge", "logistics"}
+        visible_types = {"tactics", "subterfuge", "support", "engineering"}
         window_w = ctx.window_width
         left_space = max(0, board_left - SIDE_GAP)
         right_space = max(0, (window_w - board_right) - SIDE_GAP)
@@ -40,22 +44,25 @@ class BankPanelRenderer:
         left_panel_left = board_left - SIDE_GAP - left_col_w
         right_panel_left = board_right + SIDE_GAP
         panel_bottom = board_start_y
-        panel_top = board_top
+        panel_top = side_panel_top
         panel_color = (20, 20, 20)
         border_color = (180, 180, 180)
 
+        # Bank bar sits below external player panel renderer; include configured extra height.
+        bar_height = BANK_BAR_HEIGHT + BANK_BAR_EXTRA_HEIGHT
         for side, col_w in (("left", left_col_w), ("right", right_col_w)):
             x = left_panel_left if side == "left" else right_panel_left
             ability_bottom = panel_bottom
-            ability_top = panel_top - BANK_BAR_HEIGHT
+            ability_top = panel_top - (PLAYER_PANEL_HEIGHT + bar_height)
             points = [
                 (x, ability_bottom), (x + col_w, ability_bottom),
                 (x + col_w, ability_top), (x, ability_top),
             ]
             arcade.draw_polygon_filled(points, panel_color)
             arcade.draw_polygon_outline(points, border_color, 2)
-            bar_bottom = panel_top - BANK_BAR_HEIGHT
-            bar_top = panel_top
+            # Bank bar directly below (player panel rendered separately)
+            bar_top = panel_top - PLAYER_PANEL_HEIGHT
+            bar_bottom = bar_top - bar_height
             bar_points = [
                 (x, bar_bottom), (x + col_w, bar_bottom),
                 (x + col_w, bar_top), (x, bar_top),
@@ -64,25 +71,23 @@ class BankPanelRenderer:
             arcade.draw_polygon_outline(bar_points, border_color, 2)
 
         circle_radius = 32
-        ordered_types = ["tactics", "logistics", "subterfuge"]
+        ordered_types = ["tactics", "support", "engineering", "subterfuge"]
         for idx, (bank_ent, bank) in enumerate(banks_sorted):
             bar_left = left_panel_left if idx == 0 else right_panel_left
-            bar_bottom = panel_top - BANK_BAR_HEIGHT
-            center_y = bar_bottom + BANK_BAR_HEIGHT / 2
+            bar_bottom = panel_top - PLAYER_PANEL_HEIGHT - bar_height
+            # Center circles vertically inside bank bar
+            bar_top = panel_top - PLAYER_PANEL_HEIGHT
+            center_y = (bar_bottom + bar_top) / 2
             col_w = left_col_w if idx == 0 else right_col_w
-            pad_left = bar_left + 32
-            pad_right = bar_left + col_w - 32
-            full_span = max(0, pad_right - pad_left)
-            cluster_ratio = 0.6
-            cluster_width = full_span * cluster_ratio
-            cluster_left = pad_left + (full_span - cluster_width) / 2
-            span_width = cluster_width
+            pad_left = bar_left + 48  # increased left gutter
+            pad_right = bar_left + col_w - 48  # increased right gutter
+            span_width = max(0, pad_right - pad_left)
             slots = len(ordered_types)
-            if slots == 1:
-                positions = [cluster_left + span_width / 2]
+            if slots <= 1:
+                positions = [pad_left + span_width / 2]
             else:
-                step = span_width / (slots - 1) if slots > 1 else 0
-                positions = [cluster_left + i * step for i in range(slots)]
+                step = span_width / (slots - 1)
+                positions = [pad_left + i * step for i in range(slots)]
             for type_name, cx in zip(ordered_types, positions):
                 if type_name not in visible_types:
                     continue
@@ -96,6 +101,8 @@ class BankPanelRenderer:
                 icon_sprite = self._sprites.ensure_bank_sprite(arcade, bank_ent, type_name)
                 if icon_sprite is not None:
                     self._sprites.update_sprite_visuals(icon_sprite, cx, center_y, circle_radius * 1.2, 255)
-                arcade.draw_text(str(count), cx, center_y - 10, arcade.color.WHITE, 16, anchor_x="center")
+                # Place count just below circle bottom, remain inside bar
+                text_y = center_y - circle_radius - 6
+                arcade.draw_text(str(count), cx, text_y, arcade.color.WHITE, 16, anchor_x="center")
 
         self._sprites.draw_bank_sprites()

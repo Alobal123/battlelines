@@ -13,6 +13,7 @@ from ecs.rendering.board_renderer import BoardRenderer
 from ecs.rendering.ability_panel_renderer import AbilityPanelRenderer
 from ecs.rendering.bank_panel_renderer import BankPanelRenderer
 from ecs.rendering.regiment_renderer import RegimentRenderer
+from ecs.rendering.player_panel_renderer import PlayerPanelRenderer
 from ecs.rendering.sprite_cache import SpriteCache
 from ecs.constants import (
     GRID_ROWS, GRID_COLS, TILE_SIZE, BOTTOM_MARGIN,
@@ -51,6 +52,7 @@ class RenderSystem:
         self._ability_panel_renderer = AbilityPanelRenderer(self)
         self._bank_panel_renderer = BankPanelRenderer(self, self.sprite_cache)
         self._regiment_renderer = RegimentRenderer(self, self.sprite_cache)
+        self._player_panel_renderer = PlayerPanelRenderer(self)
 
     def notify_resize(self, width: int, height: int):
         self._last_window_size = (width, height)
@@ -135,6 +137,7 @@ class RenderSystem:
 
         if not headless:
             # Draw panel bases before ability rectangles so overlays remain visible.
+            self._player_panel_renderer.render(arcade, ctx)
             self._bank_panel_renderer.render(arcade, ctx, registry)
 
         self._ability_panel_renderer.render(arcade, ctx, headless=headless)
