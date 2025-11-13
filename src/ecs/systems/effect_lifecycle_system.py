@@ -9,7 +9,6 @@ from ecs.components.effect import Effect
 from ecs.components.effect_duration import EffectDuration
 from ecs.components.effect_expiry import EffectExpireOnEvents
 from ecs.components.effect_list import EffectList
-from ecs.components.regiment import Regiment
 from ecs.effects.registry import default_effect_registry, EffectDefinition
 from ecs.events.bus import (
     EVENT_EFFECT_APPLY,
@@ -161,11 +160,8 @@ class EffectLifecycleSystem:
         for effect_entity, components in list(self.world.get_components(Effect, EffectDuration)):
             effect_comp = cast(Effect, components[0])
             duration_comp = cast(EffectDuration, components[1])
-            try:
-                regiment = self.world.component_for_entity(effect_comp.owner_entity, Regiment)
-            except KeyError:
-                continue
-            if regiment.owner_id != previous_owner:
+            # Previously filtered by regiment owner; now just decrement all effects owned by previous owner entity.
+            if effect_comp.owner_entity != previous_owner:
                 continue
             duration_comp.remaining_turns -= 1
             if duration_comp.remaining_turns <= 0:
@@ -306,22 +302,10 @@ class EffectLifecycleSystem:
         )
 
     def _apply_effect_side_effects(self, effect: Effect, apply: bool) -> None:
+        # Morale boost side-effects removed with regiment system; placeholder for future focus/ward adjustments.
         if effect.slug != "morale_boost":
             return
-        try:
-            regiment = self.world.component_for_entity(effect.owner_entity, Regiment)
-        except KeyError:
-            return
-        bonus = int(effect.metadata.get("morale_bonus", 0))
-        if bonus <= 0:
-            return
-        applied_key = "_applied_bonus"
-        if apply:
-            regiment.morale += bonus
-            effect.metadata[applied_key] = bonus
-        else:
-            applied = int(effect.metadata.get(applied_key, bonus))
-            regiment.morale = max(0.0, regiment.morale - applied)
+        # No-op; effect metadata retained for potential UI display.
 
     def _register_event_triggers(
         self,

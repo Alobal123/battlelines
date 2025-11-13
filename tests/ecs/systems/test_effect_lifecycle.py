@@ -12,7 +12,6 @@ from ecs.systems.effect_lifecycle_system import EffectLifecycleSystem
 from ecs.components.effect_list import EffectList
 from ecs.components.effect import Effect
 from ecs.components.effect_duration import EffectDuration
-from ecs.components.regiment import Regiment
 from ecs.effects.registry import EffectDefinition, default_effect_registry, register_effect
 from ecs.events.bus import EVENT_TURN_ADVANCED
 
@@ -145,22 +144,8 @@ def test_effect_expires_on_event_payload_match(lifecycle_world):
     assert last_expired.get("reason") == f"event:{EVENT_BATTLE_RESOLVED}"
 
 
-def test_turn_advanced_expires_morale_boost_and_reverts_bonus(lifecycle_world):
-    bus, world, _system, _owner = lifecycle_world
-    base_morale = 60.0
-    regiment_ent = world.create_entity(
-        Regiment(
-            owner_id=123,
-            name="Test Regiment",
-            unit_type="infantry",
-            num_men=400,
-            combat_skill=1.0,
-            armor_rating=0.2,
-            manoeuvre=0.5,
-            morale=base_morale,
-            max_morale=120.0,
-        )
-    )
+def test_turn_advanced_ticks_duration_and_expires(lifecycle_world):
+    bus, world, _system, owner = lifecycle_world
     expired_payloads: list[dict] = []
 
     def _record_expired(sender, **payload):
@@ -169,30 +154,23 @@ def test_turn_advanced_expires_morale_boost_and_reverts_bonus(lifecycle_world):
     bus.subscribe(EVENT_EFFECT_EXPIRED, _record_expired)
     bus.emit(
         EVENT_EFFECT_APPLY,
-        owner_entity=regiment_ent,
+        owner_entity=owner,
         slug="morale_boost",
         metadata={"morale_bonus": 20, "turns": 3},
         turns=3,
     )
-    effect_entities = _effect_entities(world, regiment_ent)
+    effect_entities = _effect_entities(world, owner)
     assert len(effect_entities) == 1
     effect_entity = effect_entities[0]
     duration_comp = world.component_for_entity(effect_entity, EffectDuration)
     assert duration_comp.remaining_turns == 3
-    regiment = world.component_for_entity(regiment_ent, Regiment)
-    assert regiment.morale == base_morale + 20
-    # Advance turns for owners that are not the regiment's owner -> no change
-    bus.emit(EVENT_TURN_ADVANCED, previous_owner=999, new_owner=123)
-    duration_comp = world.component_for_entity(effect_entity, EffectDuration)
-    assert duration_comp.remaining_turns == 3
-    # Advance for owning player -> should tick down
+    # Advance unrelated owner id -> no tick
+    bus.emit(EVENT_TURN_ADVANCED, previous_owner=999, new_owner=owner)
+    assert world.component_for_entity(effect_entity, EffectDuration).remaining_turns == 3
+    # Advance matching owner id -> ticks
     for expected in (2, 1, 0):
-        bus.emit(EVENT_TURN_ADVANCED, previous_owner=regiment.owner_id, new_owner=None)
+        bus.emit(EVENT_TURN_ADVANCED, previous_owner=owner, new_owner=None)
         if expected > 0:
-            duration_comp = world.component_for_entity(effect_entity, EffectDuration)
-            assert duration_comp.remaining_turns == expected
-        else:
-            break
-    assert not _effect_entities(world, regiment_ent)
+            assert world.component_for_entity(effect_entity, EffectDuration).remaining_turns == expected
+    assert not _effect_entities(world, owner)
     assert expired_payloads[-1]["effect_entity"] == effect_entity
-    assert pytest.approx(regiment.morale) == base_morale

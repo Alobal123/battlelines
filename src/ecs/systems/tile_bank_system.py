@@ -7,13 +7,12 @@ from ecs.events.bus import (
     EVENT_TILE_BANK_SPEND_REQUEST,
     EVENT_TILE_BANK_SPENT,
     EVENT_TILE_BANK_INSUFFICIENT,
+    EVENT_HEALTH_DAMAGE,
 )
 from ecs.components.tile_bank import TileBank
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.tile_type_registry import TileTypeRegistry
 from ecs.components.tile_types import TileTypes
-from ecs.components.army_roster import ArmyRoster
-from ecs.components.regiment import Regiment
 
 class TileBankSystem:
     """Tracks cleared tiles and manages spending for abilities.
@@ -62,6 +61,10 @@ class TileBankSystem:
             self._apply_readiness_from_tiles(owner_entity, readiness_gains)
         self.event_bus.emit(EVENT_TILE_BANK_CHANGED, entity=bank_ent, counts=bank.counts.copy())
 
+        witchfire_cleared = readiness_gains.get('witchfire', 0)
+        if witchfire_cleared:
+            self._apply_witchfire_damage(owner_entity, witchfire_cleared)
+
     def on_spend_request(self, sender, **kwargs):
         owner_entity = kwargs.get('entity')
         cost: Dict[str, int] = kwargs.get('cost', {})
@@ -98,36 +101,21 @@ class TileBankSystem:
         raise RuntimeError('TileTypes definitions not found')
 
     def _apply_readiness_from_tiles(self, owner_entity: int, gains: Dict[str, int]) -> None:
-        try:
-            roster: ArmyRoster = self.world.component_for_entity(owner_entity, ArmyRoster)
-        except KeyError:
-            return
-        if not roster.regiment_entities:
-            return
-        alias_map = {
-            "infantry": ("infantry",),
-            "cavalry": ("cavalry",),
-            "ranged": ("ranged",),
-        }
-        activation_slot: int | None = None
-        activation_gain = 0
-        for slot, regiment_ent in enumerate(roster.regiment_entities):
-            try:
-                regiment: Regiment = self.world.component_for_entity(regiment_ent, Regiment)
-            except KeyError:
-                continue
-            unit_type = regiment.unit_type
-            aliases = alias_map.get(unit_type)
-            if not aliases:
-                continue
-            gained = sum(gains.get(alias, 0) for alias in aliases)
-            if not gained:
-                continue
-            regiment.battle_readiness += gained
-            if gained >= 3:
-                if activation_slot is None or gained > activation_gain:
-                    activation_slot = slot
-                    activation_gain = gained
-        if activation_slot is not None and activation_slot != roster.active_index:
-            if 0 <= activation_slot < len(roster.regiment_entities):
-                roster.active_index = activation_slot
+        # Regiment readiness removed; placeholder for future House/Circle progression.
+        return
+
+    def _apply_witchfire_damage(self, clearing_owner: int, amount: int) -> None:
+        """Emit damage events for each opponent when witchfire is cleared."""
+        from ecs.components.health import Health
+        opponents = [
+            ent for ent, _ in self.world.get_component(Health)
+            if ent != clearing_owner
+        ]
+        for opponent in opponents:
+            self.event_bus.emit(
+                EVENT_HEALTH_DAMAGE,
+                source_owner=clearing_owner,
+                target_entity=opponent,
+                amount=amount,
+                reason="witchfire",
+            )

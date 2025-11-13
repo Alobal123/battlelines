@@ -17,11 +17,11 @@ from ecs.systems.effect_lifecycle_system import EffectLifecycleSystem
 from ecs.systems.ability_system import AbilitySystem
 from ecs.systems.ability_targeting_system import AbilityTargetingSystem
 from ecs.systems.turn_system import TurnSystem
-from ecs.systems.battle import BattleSystem
+from ecs.systems.health_system import HealthSystem
 
 class BattlelinesWindow(Window):
     def __init__(self):
-        super().__init__(800, 600, "Battlelines")
+        super().__init__(800, 600, "Witchfire")
         self.set_update_rate(1/60)
         self.event_bus = EventBus()
         self.world = create_world(self.event_bus)
@@ -36,7 +36,7 @@ class BattlelinesWindow(Window):
         self.ability_targeting_system = AbilityTargetingSystem(self.world, self.event_bus)
         self.ability_system = AbilitySystem(self.world, self.event_bus)
         self.turn_system = TurnSystem(self.world, self.event_bus)
-        self.battle_system = BattleSystem(self.world, self.event_bus)
+        self.health_system = HealthSystem(self.world, self.event_bus)
         # InputSystem expects (event_bus, window)
         self.input_system = InputSystem(self.event_bus, self, self.world)
         set_background_color(color.BLACK)

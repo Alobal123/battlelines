@@ -35,7 +35,8 @@ class BankPanelRenderer:
         if not banks:
             return
         banks_sorted = sorted(banks, key=lambda pair: pair[1].owner_entity)
-        visible_types = {"tactics", "subterfuge", "support", "engineering"}
+        # Witch school faculty display
+        visible_types = {"nature", "blood", "shapeshift", "spirit", "hex"}
         window_w = ctx.window_width
         left_space = max(0, board_left - SIDE_GAP)
         right_space = max(0, (window_w - board_right) - SIDE_GAP)
@@ -71,7 +72,7 @@ class BankPanelRenderer:
             arcade.draw_polygon_outline(bar_points, border_color, 2)
 
         circle_radius = 32
-        ordered_types = ["tactics", "support", "engineering", "subterfuge"]
+        ordered_types = ["nature", "blood", "shapeshift", "spirit", "hex"]
         for idx, (bank_ent, bank) in enumerate(banks_sorted):
             bar_left = left_panel_left if idx == 0 else right_panel_left
             bar_bottom = panel_top - PLAYER_PANEL_HEIGHT - bar_height

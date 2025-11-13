@@ -25,7 +25,7 @@ def test_invalid_swap_reverts():
     MatchSystem(world, bus)
     AnimationSystem(world, bus)
     render = RenderSystem(world, bus, window)
-    base_types = ['ranged', 'cavalry', 'infantry', 'plunder', 'support', 'engineering', 'subterfuge', 'tactics']
+    base_types = ['hex', 'nature', 'blood', 'shapeshift', 'spirit', 'secrets', 'witchfire']
     for r in range(3):
         for c in range(3):
             ent = board._get_entity_at(r, c)
@@ -37,9 +37,9 @@ def test_invalid_swap_reverts():
     e02 = board._get_entity_at(0,2)
     assert e00 is not None and e01 is not None and e02 is not None
     # Assign three distinct types to ensure swap yields no match
-    world.component_for_entity(e00, TileType).type_name = 'ranged'
-    world.component_for_entity(e01, TileType).type_name = 'cavalry'
-    world.component_for_entity(e02, TileType).type_name = 'infantry'
+    world.component_for_entity(e00, TileType).type_name = 'hex'
+    world.component_for_entity(e01, TileType).type_name = 'nature'
+    world.component_for_entity(e02, TileType).type_name = 'blood'
     world.component_for_entity(e00, ActiveSwitch).active = True
     world.component_for_entity(e01, ActiveSwitch).active = True
     world.component_for_entity(e02, ActiveSwitch).active = True
@@ -51,8 +51,8 @@ def test_invalid_swap_reverts():
     swaps = list(world.get_component(SwapAnimation))
     assert not swaps, f'Swap animation did not finish; remaining components={len(swaps)}'
     # Colors unchanged (no DO event fired)
-    assert world.component_for_entity(e00, TileType).type_name == 'ranged'
-    assert world.component_for_entity(e01, TileType).type_name == 'cavalry'
+    assert world.component_for_entity(e00, TileType).type_name == 'hex'
+    assert world.component_for_entity(e01, TileType).type_name == 'nature'
 
 def test_valid_swap_applies():
     bus = EventBus()
@@ -62,7 +62,7 @@ def test_valid_swap_applies():
     MatchSystem(world, bus)
     AnimationSystem(world, bus)
     render = RenderSystem(world, bus, window)
-    base_types = ['ranged', 'cavalry', 'infantry', 'plunder', 'support', 'engineering', 'subterfuge', 'tactics']
+    base_types = ['hex', 'nature', 'blood', 'shapeshift', 'spirit', 'secrets', 'witchfire']
     for r in range(3):
         for c in range(3):
             ent = board._get_entity_at(r, c)
@@ -74,9 +74,9 @@ def test_valid_swap_applies():
     e01 = board._get_entity_at(0,1)
     e02 = board._get_entity_at(0,2)
     assert e00 is not None and e01 is not None and e02 is not None
-    world.component_for_entity(e00, TileType).type_name = 'ranged'
-    world.component_for_entity(e01, TileType).type_name = 'ranged'
-    world.component_for_entity(e02, TileType).type_name = 'ranged'
+    world.component_for_entity(e00, TileType).type_name = 'hex'
+    world.component_for_entity(e01, TileType).type_name = 'hex'
+    world.component_for_entity(e02, TileType).type_name = 'hex'
     world.component_for_entity(e00, ActiveSwitch).active = True
     world.component_for_entity(e01, ActiveSwitch).active = True
     world.component_for_entity(e02, ActiveSwitch).active = True

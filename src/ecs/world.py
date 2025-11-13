@@ -7,12 +7,15 @@ from ecs.components.ability_target import AbilityTarget
 from ecs.components.tile_bank import TileBank
 from ecs.components.tile_type_registry import TileTypeRegistry
 from ecs.components.tile_types import TileTypes
-from ecs.components.regiment import Regiment
-from ecs.components.army_roster import ArmyRoster
 from ecs.effects.registry import EffectDefinition, default_effect_registry, register_effect
+from ecs.components.health import Health
+
 
 def create_world(event_bus: EventBus) -> World:
     world = World()
+    # THEME: Transitioning from army combat to witch school.
+    # Previous regiment/army abstractions retained temporarily; new tile types below reflect magical faculties.
+    # Future refactor: replace Regiment/ArmyRoster with House/Circle components.
     if not default_effect_registry.has("morale_boost"):
         register_effect(
             EffectDefinition(
@@ -23,33 +26,34 @@ def create_world(event_bus: EventBus) -> World:
                 default_metadata={"morale_bonus": 20, "turns": 3},
             )
         )
-    # Shared ability definitions (each owner gets its own instances for independent pending targeting/components)
+    # Shared spell definitions (each owner gets its own instances)
     def make_abilities():
         ability_shift = world.create_entity(
-            Ability(name="tactical_shift", kind="active", cost={"ranged": 3, "infantry": 2}, params={"target_color": "ranged"}),
+            Ability(name="tactical_shift", kind="active", cost={"hex": 3, "nature": 2}, params={"target_color": "hex"}),
             AbilityTarget(target_type="tile", max_targets=1),
         )
         ability_pulse = world.create_entity(
-            Ability(name="crimson_pulse", kind="active", cost={"ranged": 5}),
+            Ability(name="crimson_pulse", kind="active", cost={"hex": 5}),
             AbilityTarget(target_type="tile", max_targets=1),
         )
-        ability_morale = world.create_entity(
+        ability_focus = world.create_entity(
             Ability(
-                name="bolster_morale",
+                name="bolster_focus",
                 kind="active",
-                cost={"tactics": 3},
-                params={"morale_bonus": 20, "turns": 3},
+                cost={"spirit": 3},
+                params={"focus_bonus": 20, "turns": 3},
             ),
-            AbilityTarget(target_type="regiment", max_targets=1),
+            AbilityTarget(target_type="entity", max_targets=1),
         )
-        return [ability_shift, ability_pulse, ability_morale]
+        return [ability_shift, ability_pulse, ability_focus]
 
     # Player 1 (human)
     abilities_p1 = make_abilities()
     player1_ent = world.create_entity(
         HumanAgent(),
         AbilityListOwner(ability_entities=abilities_p1),
-        TileBank(owner_entity=0)
+        TileBank(owner_entity=0),
+        Health(current=30, max_hp=30),
     )
     bank1 = world.component_for_entity(player1_ent, TileBank)
     bank1.owner_entity = player1_ent
@@ -58,63 +62,30 @@ def create_world(event_bus: EventBus) -> World:
     player2_ent = world.create_entity(
         HumanAgent(),
         AbilityListOwner(ability_entities=abilities_p2),
-        TileBank(owner_entity=0)
+        TileBank(owner_entity=0),
+        Health(current=30, max_hp=30),
     )
     bank2 = world.component_for_entity(player2_ent, TileBank)
     bank2.owner_entity = player2_ent
 
-    # Initial armies: each player gets three regiment entities (infantry, ranged, cavalry)
-    def create_regiments(owner_ent: int, label: str, unit_order: list[str]):
-        base_stats = {
-            "num_men": 400,
-            "combat_skill": 1.0,
-            "armor_rating": 0.25,
-            "manoeuvre": 0.7,
-        }
-        entities: list[int] = []
-        for unit_type in unit_order:
-            name = f"{unit_type.title()} {label}"
-            entities.append(
-                world.create_entity(
-                    Regiment(
-                        owner_id=owner_ent,
-                        name=name,
-                        unit_type=unit_type,
-                        num_men=base_stats["num_men"],
-                        combat_skill=base_stats["combat_skill"],
-                        armor_rating=base_stats["armor_rating"],
-                        manoeuvre=base_stats["manoeuvre"],
-                    )
-                )
-            )
-        return entities
-
-    order_p1 = ["infantry", "ranged", "cavalry"]
-    order_p2 = ["infantry", "ranged", "cavalry"]
-    regiments_p1 = create_regiments(player1_ent, "P1", order_p1)
-    regiments_p2 = create_regiments(player2_ent, "P2", order_p2)
-    active_index_p1 = order_p1.index("infantry")
-    active_index_p2 = order_p2.index("infantry")
-
-    world.add_component(player1_ent, ArmyRoster(regiment_entities=regiments_p1, active_index=active_index_p1))
-    world.add_component(player2_ent, ArmyRoster(regiment_entities=regiments_p2, active_index=active_index_p2))
+    # Removed regiment creation; future: create Houses/Circles here.
 
     # Create single registry entity with canonical types
     registry_entity = world.create_entity(
         TileTypeRegistry(),
         TileTypes(types={
-            'ranged': (155, 65, 185),  # brightened purple for higher contrast
-            'cavalry': (60, 205, 195),  # brighter neon teal
-            'infantry': (70, 90, 180),
-            'plunder': (225, 215, 100),
-            'support': (245, 240, 245),
-            'subterfuge': (90, 200, 85),  # brighter neon green for higher pop
-            'tactics': (180, 60, 60),
-            'engineering': (200, 130, 70),
+            'nature':      (63, 127, 59),    # #3F7F3B
+            'blood':       (179, 18, 42),    # #B3122A
+            'shapeshift':  (216, 155, 38),   # #D89B26
+            'spirit':      (165, 139, 234),  # #A58BEA
+            'hex':         (123, 62, 133),   # #7B3E85
+            'secrets':     (232, 215, 161),  # #E8D7A1
+            'witchfire':   (226, 62, 160),   # #E23EA0
         })
     )
     # TESTING: Prefill both banks generously with all type names
-    definitions: TileTypes = world.component_for_entity(registry_entity, TileTypes)
+    definitions: TileTypes = world.component_for_entity(
+        registry_entity, TileTypes)
     for type_name in definitions.types.keys():
         bank1.counts[type_name] = 100
         bank2.counts[type_name] = 100

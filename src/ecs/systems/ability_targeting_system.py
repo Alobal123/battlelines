@@ -14,7 +14,6 @@ from ecs.events.bus import (
     EVENT_ABILITY_TARGET_MODE,
     EVENT_ABILITY_TARGET_SELECTED,
     EVENT_MOUSE_PRESS,
-    EVENT_REGIMENT_CLICK,
     EVENT_TILE_BANK_SPEND_REQUEST,
     EVENT_TILE_CLICK,
 )
@@ -29,7 +28,6 @@ class AbilityTargetingSystem:
         self.event_bus = event_bus
         event_bus.subscribe(EVENT_ABILITY_ACTIVATE_REQUEST, self.on_activate_request)
         event_bus.subscribe(EVENT_TILE_CLICK, self.on_tile_click)
-        event_bus.subscribe(EVENT_REGIMENT_CLICK, self.on_regiment_click)
         event_bus.subscribe(EVENT_MOUSE_PRESS, self.on_mouse_press)
 
     def on_activate_request(self, sender, **payload) -> None:
@@ -96,52 +94,6 @@ class AbilityTargetingSystem:
             target=(row, col),
         )
 
-    def on_regiment_click(self, sender, **payload) -> None:
-        if self._is_cascade_active():
-            return
-        targeting = list(self.world.get_component(TargetingState))
-        if not targeting:
-            return
-        owner_entity, targeting_state = targeting[0]
-        ability_entity = targeting_state.ability_entity
-        if ability_entity is None:
-            return
-        try:
-            ability_target = self.world.component_for_entity(ability_entity, AbilityTarget)
-        except KeyError:
-            return
-        if ability_target.target_type != "regiment":
-            return
-        regiment_entity = payload.get("regiment_entity")
-        if regiment_entity is None:
-            return
-        clicked_owner = payload.get("owner_entity")
-        if clicked_owner is not None and clicked_owner != owner_entity:
-            return
-        try:
-            ability = self.world.component_for_entity(ability_entity, Ability)
-        except KeyError:
-            return
-        self.world.add_component(
-            ability_entity,
-            PendingAbilityTarget(
-                ability_entity=ability_entity,
-                owner_entity=owner_entity,
-                target_entity=regiment_entity,
-            ),
-        )
-        self.event_bus.emit(
-            EVENT_TILE_BANK_SPEND_REQUEST,
-            entity=owner_entity,
-            cost=ability.cost,
-            ability_entity=ability_entity,
-        )
-        self._clear_targeting(owner_entity)
-        self.event_bus.emit(
-            EVENT_ABILITY_TARGET_SELECTED,
-            ability_entity=ability_entity,
-            target=regiment_entity,
-        )
 
     def on_mouse_press(self, sender, **payload) -> None:
         button = payload.get("button")

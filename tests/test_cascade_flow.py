@@ -26,7 +26,7 @@ def test_two_step_cascade():
     render=RenderSystem(world,bus,window)
     TurnSystem(world, bus)
     mr=MatchResolutionSystem(world,bus)
-    base_types = ['ranged', 'cavalry', 'infantry', 'plunder', 'support', 'engineering', 'subterfuge', 'tactics']
+    base_types = ['hex', 'nature', 'blood', 'shapeshift', 'spirit', 'secrets', 'witchfire']
     for r in range(5):
         for c in range(5):
             ent = board._get_entity_at(r, c)
@@ -39,10 +39,10 @@ def test_two_step_cascade():
     e20=board._get_entity_at(2,0); e21=board._get_entity_at(2,1); e22=board._get_entity_at(2,2); e23=board._get_entity_at(2,3)
     assert e20 and e21 and e22 and e23, 'Entities missing for initial pattern'
     # Assign matching type names alongside colors for new type-based match detection
-    world.component_for_entity(e20, TileType).type_name='ranged'
-    world.component_for_entity(e21, TileType).type_name='ranged'
-    world.component_for_entity(e22, TileType).type_name='cavalry'
-    world.component_for_entity(e23, TileType).type_name='ranged'
+    world.component_for_entity(e20, TileType).type_name='hex'
+    world.component_for_entity(e21, TileType).type_name='hex'
+    world.component_for_entity(e22, TileType).type_name='nature'
+    world.component_for_entity(e23, TileType).type_name='hex'
     for ent in (e20,e21,e22,e23):
         world.component_for_entity(ent, ActiveSwitch).active = True
     # Clear a vertical slice to force refill-controlled cascade: empty cells at top of columns 1-3
@@ -69,7 +69,7 @@ def test_two_step_cascade():
         e0=board._get_entity_at(0,0); e1=board._get_entity_at(0,1); e2=board._get_entity_at(0,2)
         for e in (e0,e1,e2):
             assert e is not None
-            world.component_for_entity(e, TileType).type_name = 'plunder'
+            world.component_for_entity(e, TileType).type_name = 'blood'
             world.component_for_entity(e, ActiveSwitch).active = True
         forced_second['done'] = True
     bus.subscribe(EVENT_ANIMATION_COMPLETE, on_refill_anim_complete)

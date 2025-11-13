@@ -7,13 +7,12 @@ from ecs.events.bus import (EVENT_TICK, EventBus, EVENT_TILE_SELECTED, EVENT_TIL
 from ecs.components.tile_type_registry import TileTypeRegistry
 from ecs.components.tile_types import TileTypes
 from ecs.components.active_turn import ActiveTurn
-from ecs.systems.battle import BattleConfig
 from ecs.rendering.context import RenderContext, build_render_context, collect_animation_maps
 from ecs.rendering.board_renderer import BoardRenderer
 from ecs.rendering.ability_panel_renderer import AbilityPanelRenderer
 from ecs.rendering.bank_panel_renderer import BankPanelRenderer
-from ecs.rendering.regiment_renderer import RegimentRenderer
 from ecs.rendering.player_panel_renderer import PlayerPanelRenderer
+from ecs.rendering.lifebar_renderer import LifebarRenderer
 from ecs.rendering.sprite_cache import SpriteCache
 from ecs.constants import (
     GRID_ROWS, GRID_COLS, TILE_SIZE, BOTTOM_MARGIN,
@@ -41,18 +40,18 @@ class RenderSystem:
         self.use_easing = True
         self._texture_dir = Path(__file__).resolve().parents[3] / "graphics"
         self.sprite_cache = SpriteCache(self._texture_dir)
-        self._regiment_layout_cache = []
         self._ability_layout_cache = []
         self._time = 0.0
-        self._attack_threshold = BattleConfig().minimum_readiness_to_attack
+        # BattleConfig removed with combat system; attack threshold concept deprecated.
+        self._attack_threshold = 0
         self._current_active_owner: int | None = None
         self._render_ctx: RenderContext | None = None
         self._last_draw_coords: dict[tuple[int, int], tuple[float, float]] = {}
         self._board_renderer = BoardRenderer(self, self.sprite_cache, padding=PADDING)
         self._ability_panel_renderer = AbilityPanelRenderer(self)
         self._bank_panel_renderer = BankPanelRenderer(self, self.sprite_cache)
-        self._regiment_renderer = RegimentRenderer(self, self.sprite_cache)
         self._player_panel_renderer = PlayerPanelRenderer(self)
+        self._lifebar_renderer = LifebarRenderer(self.world)
 
     def notify_resize(self, width: int, height: int):
         self._last_window_size = (width, height)
@@ -136,14 +135,13 @@ class RenderSystem:
         self._board_renderer.render(arcade, ctx, registry, headless=headless)
 
         if not headless:
-            # Draw panel bases before ability rectangles so overlays remain visible.
+            # Draw panel bases; then lifebars; then ability rectangles.
             self._player_panel_renderer.render(arcade, ctx)
+            self._lifebar_renderer.render(arcade, ctx)
             self._bank_panel_renderer.render(arcade, ctx, registry)
 
         self._ability_panel_renderer.render(arcade, ctx, headless=headless)
 
-        if not headless:
-            self._regiment_renderer.render(arcade, ctx, registry)
 
     def get_ability_at_point(self, x: float, y: float):
         """Return ability layout entry if point inside its rectangle."""
@@ -152,12 +150,7 @@ class RenderSystem:
             return hit
         return None
 
-    def get_regiment_at_point(self, x: float, y: float):
-        """Return regiment layout entry if point falls within its circle."""
-        hit = self._regiment_renderer.hit_test(x, y)
-        if hit is not None:
-            return hit
-        return None
+    # Regiment interaction removed.
 
     def on_match_found(self, sender, **kwargs):
         # Notification only; no immediate action required.

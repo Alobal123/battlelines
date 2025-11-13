@@ -14,7 +14,7 @@ def test_ability_entity_created():
     ent, ability = ability_entities[0]
     assert ability.name == "tactical_shift"
     assert ability.kind == "active"
-    assert ability.cost == {"ranged": 3, "infantry": 2}
+    assert ability.cost == {"hex": 3, "nature": 2}
     # Confirm targeting component paired
     target = world.component_for_entity(ent, AbilityTarget)
     assert target.target_type == "tile"

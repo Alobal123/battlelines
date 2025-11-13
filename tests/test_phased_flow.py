@@ -38,11 +38,11 @@ def test_phased_clear_gravity_refill_sequence():
     assert e21 is not None
     assert e22 is not None
     assert e23 is not None
-    # Force a future horizontal match after swap: set three ranged and one cavalry
-    world.component_for_entity(e20, TileType).type_name = 'ranged'
-    world.component_for_entity(e21, TileType).type_name = 'ranged'
-    world.component_for_entity(e22, TileType).type_name = 'cavalry'
-    world.component_for_entity(e23, TileType).type_name = 'ranged'
+    # Force a future horizontal match after swap: set three hex and one nature
+    world.component_for_entity(e20, TileType).type_name = 'hex'
+    world.component_for_entity(e21, TileType).type_name = 'hex'
+    world.component_for_entity(e22, TileType).type_name = 'nature'
+    world.component_for_entity(e23, TileType).type_name = 'hex'
     # Ensure all are active
     world.component_for_entity(e20, ActiveSwitch).active = True
     world.component_for_entity(e21, ActiveSwitch).active = True

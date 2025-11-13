@@ -40,11 +40,11 @@ def test_gravity_moves_emitted():
     assert e20 is not None
     assert e30 is not None
     assert e40 is not None
-    world.component_for_entity(e00, TileType).type_name='ranged'
-    world.component_for_entity(e10, TileType).type_name='ranged'
-    world.component_for_entity(e20, TileType).type_name='ranged'
-    world.component_for_entity(e30, TileType).type_name='cavalry'
-    world.component_for_entity(e40, TileType).type_name='ranged'
+    world.component_for_entity(e00, TileType).type_name='hex'
+    world.component_for_entity(e10, TileType).type_name='hex'
+    world.component_for_entity(e20, TileType).type_name='hex'
+    world.component_for_entity(e30, TileType).type_name='nature'
+    world.component_for_entity(e40, TileType).type_name='hex'
     for ent in (e00,e10,e20,e30,e40):
         world.component_for_entity(ent, ActiveSwitch).active = True
 
