@@ -23,6 +23,7 @@ EVENT_PLAYER_CLICK = "player_click"   # payload: player_entity=int
 EVENT_TILE_SELECTED = "tile_selected" # payload: row, col
 EVENT_TILE_DESELECTED = "tile_deselected" # payload: reason=str
 EVENT_MOUSE_PRESS = "mouse_press"     # payload: x, y, button
+EVENT_MOUSE_MOVE = "mouse_move"       # payload: x, y, dx, dy
 EVENT_TILE_SWAP_REQUEST = "tile_swap_request"  # payload: src=(r,c), dst=(r,c)
 EVENT_TILE_SWAP_FINALIZE = "tile_swap_finalize" # payload: src=(r,c), dst=(r,c)
 EVENT_TILE_SWAP_DO = "tile_swap_do"             # payload: src=(r,c), dst=(r,c)

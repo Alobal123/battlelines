@@ -50,6 +50,7 @@ def compute_ability_layout(
       'owner_entity': owner_entity,
       'name': ability.name,
       'cost': dict(ability.cost),
+  'description': ability.description,
       'affordable': affordable,
       'x': x,
       'y': y,

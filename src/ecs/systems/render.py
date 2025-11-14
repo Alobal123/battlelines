@@ -13,6 +13,7 @@ from ecs.rendering.ability_panel_renderer import AbilityPanelRenderer
 from ecs.rendering.bank_panel_renderer import BankPanelRenderer
 from ecs.rendering.player_panel_renderer import PlayerPanelRenderer
 from ecs.rendering.lifebar_renderer import LifebarRenderer
+from ecs.components.tooltip_state import TooltipState
 from ecs.rendering.sprite_cache import SpriteCache
 from ecs.constants import (
     GRID_ROWS, GRID_COLS, TILE_SIZE, BOTTOM_MARGIN,
@@ -41,6 +42,7 @@ class RenderSystem:
         self._texture_dir = Path(__file__).resolve().parents[3] / "graphics"
         self.sprite_cache = SpriteCache(self._texture_dir)
         self._ability_layout_cache = []
+        self._player_panel_cache: list[dict[str, Any]] = []
         self._time = 0.0
         # BattleConfig removed with combat system; attack threshold concept deprecated.
         self._attack_threshold = 0
@@ -142,12 +144,25 @@ class RenderSystem:
 
         self._ability_panel_renderer.render(arcade, ctx, headless=headless)
 
+        if not headless:
+            self._render_tooltip(arcade)
+
 
     def get_ability_at_point(self, x: float, y: float):
         """Return ability layout entry if point inside its rectangle."""
         hit = self._ability_panel_renderer.hit_test(x, y)
         if hit is not None:
             return hit
+        return None
+
+    def get_player_panel_at_point(self, x: float, y: float):
+        for entry in getattr(self, "_player_panel_cache", []):
+            ex = entry.get("x", 0.0)
+            ey = entry.get("y", 0.0)
+            width = entry.get("width", 0.0)
+            height = entry.get("height", 0.0)
+            if ex <= x <= ex + width and ey <= y <= ey + height:
+                return entry
         return None
 
     # Regiment interaction removed.
@@ -171,4 +186,31 @@ class RenderSystem:
         for ent, _ in self.world.get_component(TileTypeRegistry):
             return self.world.component_for_entity(ent, TileTypes)
         raise RuntimeError('TileTypes definitions not found')
+
+    def _current_tooltip(self) -> TooltipState | None:
+        entries = list(self.world.get_component(TooltipState))
+        if not entries:
+            return None
+        return entries[0][1]
+
+    def _render_tooltip(self, arcade) -> None:
+        tooltip = self._current_tooltip()
+        if not tooltip or not tooltip.visible or not tooltip.lines:
+            return
+        left = tooltip.x
+        bottom = tooltip.y
+        width = tooltip.width
+        height = tooltip.height
+        padding = tooltip.padding
+        line_height = tooltip.line_height
+        bg_color = (20, 20, 30)
+        border_color = (150, 150, 180)
+        top = bottom + height
+        arcade.draw_lrbt_rectangle_filled(left, left + width, bottom, top, bg_color)
+        arcade.draw_lrbt_rectangle_outline(left, left + width, bottom, top, border_color, 2)
+        text_x = left + padding
+        text_y = bottom + height - padding - line_height
+        for line in tooltip.lines:
+            arcade.draw_text(line, text_x, text_y, arcade.color.WHITE, 12)
+            text_y -= line_height
 

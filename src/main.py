@@ -5,7 +5,7 @@ Sets up ECS world, event bus, systems, and Arcade window.
 from arcade import Window, run, set_background_color, color
 from ecs.world import create_world
 from ecs.constants import GRID_ROWS, GRID_COLS
-from ecs.events.bus import EVENT_TICK, EventBus, EVENT_MOUSE_PRESS
+from ecs.events.bus import EVENT_TICK, EventBus, EVENT_MOUSE_PRESS, EVENT_MOUSE_MOVE
 from ecs.systems.render import RenderSystem
 from ecs.systems.animation import AnimationSystem
 from ecs.systems.board import BoardSystem
@@ -22,6 +22,7 @@ from ecs.systems.effects.damage_effect_system import DamageEffectSystem
 from ecs.systems.effects.heal_effect_system import HealEffectSystem
 from ecs.systems.effects.board_clear_effect_system import BoardClearEffectSystem
 from ecs.systems.effects.board_transform_effect_system import BoardTransformEffectSystem
+from ecs.systems.tooltip_system import TooltipSystem
 
 class BattlelinesWindow(Window):
     def __init__(self):
@@ -34,6 +35,7 @@ class BattlelinesWindow(Window):
         self.match_system = MatchSystem(self.world, self.event_bus)
         self.animation_system = AnimationSystem(self.world, self.event_bus)
         self.render_system = RenderSystem(self.world, self.event_bus, self)
+        self.tooltip_system = TooltipSystem(self.world, self.event_bus, self, self.render_system)
         self.match_resolution_system = MatchResolutionSystem(self.world, self.event_bus)
         self.tile_bank_system = TileBankSystem(self.world, self.event_bus)
         self.effect_lifecycle_system = EffectLifecycleSystem(self.world, self.event_bus)
@@ -70,6 +72,9 @@ class BattlelinesWindow(Window):
 
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int):
         self.event_bus.emit(EVENT_MOUSE_PRESS, x=x, y=y, button=button)
+
+    def on_mouse_motion(self, x: float, y: float, dx: float, dy: float):
+        self.event_bus.emit(EVENT_MOUSE_MOVE, x=x, y=y, dx=dx, dy=dy)
 
 
 def main():

@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ecs.constants import PLAYER_PANEL_HEIGHT, SIDE_GAP, SIDE_PANEL_MIN_WIDTH, SIDE_PANEL_TOP_MARGIN
+from ecs.components.ability_list_owner import AbilityListOwner
 
 if TYPE_CHECKING:
     from ecs.rendering.context import RenderContext
@@ -33,6 +34,19 @@ class PlayerPanelRenderer:
         panel_color = (50, 50, 50)
         border_color = (180, 180, 180)
 
+        rs = self._rs
+        rs._player_panel_cache = []
+        owners = list(rs.world.get_component(AbilityListOwner))
+        owners.sort(key=lambda item: item[0])
+        owner_by_side: dict[str, int] = {}
+        for idx, (entity, _owner_comp) in enumerate(owners):
+            if idx == 0:
+                owner_by_side["left"] = entity
+            elif idx == 1:
+                owner_by_side["right"] = entity
+            else:
+                break
+
         for side, col_w in (("left", left_col_w), ("right", right_col_w)):
             x = left_panel_left if side == "left" else right_panel_left
             player_bottom = panel_top - PLAYER_PANEL_HEIGHT
@@ -45,3 +59,16 @@ class PlayerPanelRenderer:
             label = "Player 1" if side == "left" else "Player 2"
             arcade.draw_text(label, x + col_w / 2, player_bottom + PLAYER_PANEL_HEIGHT / 2 - 8,
                              arcade.color.WHITE, 16, anchor_x="center")
+            owner_entity = owner_by_side.get(side)
+            if owner_entity is not None:
+                rs._player_panel_cache.append(
+                    {
+                        "side": side,
+                        "owner_entity": owner_entity,
+                        "x": x,
+                        "y": player_bottom,
+                        "width": col_w,
+                        "height": PLAYER_PANEL_HEIGHT,
+                        "label": label,
+                    }
+                )
