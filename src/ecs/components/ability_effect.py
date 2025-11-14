@@ -8,6 +8,7 @@ AbilityEffectTarget = Literal[
     "opponent",
     "pending_target",
     "pending_target_or_self",
+    "board",
 ]
 
 

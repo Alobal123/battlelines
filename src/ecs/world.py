@@ -45,6 +45,31 @@ def create_world(event_bus: EventBus) -> World:
                 },
             )
         )
+    if not default_effect_registry.has("board_clear_area"):
+        register_effect(
+            EffectDefinition(
+                slug="board_clear_area",
+                display_name="Clear Tiles",
+                description="Removes tiles in an area, triggering cascades.",
+                default_metadata={
+                    "shape": "square",
+                    "radius": 0,
+                    "reason": "effect",
+                },
+            )
+        )
+    if not default_effect_registry.has("board_transform_type"):
+        register_effect(
+            EffectDefinition(
+                slug="board_transform_type",
+                display_name="Transform Tiles",
+                description="Converts tiles of a given type to another type.",
+                default_metadata={
+                    "target_type": "",
+                    "reason": "effect",
+                },
+            )
+        )
 
     # Player 1 (human)
     abilities_p1 = create_default_player_abilities(world)

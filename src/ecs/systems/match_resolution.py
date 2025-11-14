@@ -1,4 +1,4 @@
-from typing import List, Tuple, Dict, Set
+from typing import List, Tuple
 from esper import World
 from ecs.events.bus import (EventBus, EVENT_TILE_SWAP_FINALIZE, EVENT_MATCH_FOUND,
                             EVENT_MATCH_CLEARED, EVENT_GRAVITY_APPLIED, EVENT_REFILL_COMPLETED,
@@ -9,7 +9,7 @@ from ecs.components.tile import TileType
 from ecs.components.board_position import BoardPosition
 # Board color mapping deprecated; use TileTypeRegistry
 from ecs.components.board import Board
-from ecs.systems.board_ops import clear_tiles_with_cascade, refill_inactive_tiles
+from ecs.systems.board_ops import clear_tiles_with_cascade, refill_inactive_tiles, find_all_matches
 from ecs.systems.turn_state_utils import get_or_create_turn_state
 
 class MatchResolutionSystem:
@@ -41,7 +41,7 @@ class MatchResolutionSystem:
 
     def _initiate_resolution_if_matches(self, reason: str):
         state = get_or_create_turn_state(self.world)
-        matches = self.find_all_matches()
+        matches = find_all_matches(self.world)
         if not matches:
             if state.cascade_active:
                 self.event_bus.emit(EVENT_CASCADE_COMPLETE, depth=state.cascade_depth)
@@ -98,7 +98,7 @@ class MatchResolutionSystem:
     def _after_refill(self):
         # After refill animation completes, check for next cascade step
         state = get_or_create_turn_state(self.world)
-        matches = self.find_all_matches()
+        matches = find_all_matches(self.world)
         if not matches:
             # Cascade ends
             if state.cascade_active:
@@ -119,84 +119,9 @@ class MatchResolutionSystem:
         self.event_bus.emit(EVENT_MATCH_FOUND, positions=flat_positions, size=len(flat_positions))
         self.event_bus.emit(EVENT_ANIMATION_START, kind='fade', items=flat_positions)
 
-    def board_map(self) -> Dict[Tuple[int,int], str]:
-        mapping: Dict[Tuple[int,int], str] = {}
-        for ent, pos in self.world.get_component(BoardPosition):
-            try:
-                sw: ActiveSwitch = self.world.component_for_entity(ent, ActiveSwitch)
-            except KeyError:
-                continue
-            if not sw.active:
-                continue
-            try:
-                tt: TileType = self.world.component_for_entity(ent, TileType)
-            except KeyError:
-                continue
-            mapping[(pos.row, pos.col)] = tt.type_name
-        return mapping
-
-    def find_all_matches(self) -> List[List[Tuple[int,int]]]:
-        types = self.board_map()
-        matches: List[List[Tuple[int,int]]] = []
-        # Horizontal scans
-        board_comp = self._board()
-        for r in range(board_comp.rows):
-            run: List[Tuple[int,int]] = []
-            last_type = None
-            for c in range(board_comp.cols):
-                tval = types.get((r,c))
-                if tval is not None and tval == last_type:
-                    run.append((r,c))
-                else:
-                    if len(run) >= 3:
-                        matches.append(run.copy())
-                    run = [(r,c)] if tval is not None else []
-                    last_type = tval
-            if len(run) >= 3:
-                matches.append(run.copy())
-        # Vertical scans
-        for c in range(board_comp.cols):
-            run = []
-            last_type = None
-            for r in range(board_comp.rows):
-                tval = types.get((r,c))
-                if tval is not None and tval == last_type:
-                    run.append((r,c))
-                else:
-                    if len(run) >= 3:
-                        matches.append(run.copy())
-                    run = [(r,c)] if tval is not None else []
-                    last_type = tval
-            if len(run) >= 3:
-                matches.append(run.copy())
-        # Merge overlapping groups into flat sets then split again (avoid double removal)
-        if not matches:
-            return []
-        # Convert to sets and merge overlaps
-        groups = [set(m) for m in matches]
-        merged: List[Set[Tuple[int,int]]] = []
-        while groups:
-            first = groups.pop()
-            changed = True
-            while changed:
-                changed = False
-                for g in groups[:]:
-                    if first & g:
-                        first |= g
-                        groups.remove(g)
-                        changed = True
-            merged.append(first)
-        return [sorted(list(g)) for g in merged]
-
     def _active_owner(self):
         from ecs.components.active_turn import ActiveTurn
         active = list(self.world.get_component(ActiveTurn))
         if not active:
             return None
         return active[0][1].owner_entity
-
-    def _board(self) -> Board:
-        # Assume single Board component
-        for ent, board in self.world.get_component(Board):
-            return board
-        raise RuntimeError('Board component not found')

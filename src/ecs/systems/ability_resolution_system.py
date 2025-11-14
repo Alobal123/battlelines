@@ -64,13 +64,6 @@ class AbilityResolutionSystem:
             active_owner=self._get_active_owner(),
         )
 
-        if owner_entity is not None:
-            self.event_bus.emit(
-                EVENT_TURN_ACTION_STARTED,
-                source="ability",
-                owner_entity=owner_entity,
-            )
-
         resolver = self._resolvers.get(ability.name)
         if resolver is not None:
             resolver.resolve(context)
@@ -103,8 +96,10 @@ class AbilityResolutionSystem:
             pass
 
     def _resolve_via_effects(self, context: AbilityContext) -> None:
-        has_declared_effects = self.world.has_component(context.ability_entity, AbilityEffects)
-        affected = self._effect_helper._apply_declared_effects(context) if has_declared_effects else []
+        specs = ()
+        if self.world.has_component(context.ability_entity, AbilityEffects):
+            specs = self._effect_helper._collect_effect_specs(context)
+        affected = self._effect_helper._apply_declared_effects(context) if specs else []
         self.event_bus.emit(
             EVENT_ABILITY_EFFECT_APPLIED,
             ability_entity=context.ability_entity,

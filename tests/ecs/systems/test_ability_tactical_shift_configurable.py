@@ -13,6 +13,10 @@ from ecs.components.tile_type_registry import TileTypeRegistry
 from ecs.components.tile_types import TileTypes
 from ecs.systems.ability_system import AbilitySystem
 from ecs.systems.ability_targeting_system import AbilityTargetingSystem
+from ecs.systems.effect_lifecycle_system import EffectLifecycleSystem
+from ecs.systems.effects.board_transform_effect_system import BoardTransformEffectSystem
+from ecs.components.board import Board
+from ecs.components.ability_effect import AbilityEffectSpec, AbilityEffects
 
 class DummyBus(EventBus):
     pass
@@ -30,6 +34,7 @@ def world_and_bus():
             'cavalry': (80,170,80),
         })
     )
+    world.create_entity(Board(rows=2, cols=2))
     target_color_name = 'cavalry'
     # Build minimal 2x2 board with one infantry to transform
     for r in range(2):
@@ -39,13 +44,36 @@ def world_and_bus():
                 TileType(type_name='infantry' if (r == 0 and c == 0) else 'ranged'),
                 ActiveSwitch(active=True),
             )
-    ability_entity = world.create_entity(Ability(name='tactical_shift', kind='active', cost={'infantry':1}, params={'target_color': target_color_name}), AbilityTarget(target_type='tile', max_targets=1))
+    ability_entity = world.create_entity(
+        Ability(
+            name='tactical_shift',
+            kind='active',
+            cost={'infantry':1},
+            params={'target_color': target_color_name},
+        ),
+        AbilityTarget(target_type='tile', max_targets=1),
+        AbilityEffects(
+            effects=(
+                AbilityEffectSpec(
+                    slug='board_transform_type',
+                    target='board',
+                    metadata={
+                        'target_type': target_color_name,
+                        'reason': 'tactical_shift',
+                    },
+                    param_overrides={'target_type': 'target_color'},
+                ),
+            ),
+        ),
+    )
     player_ent = world.create_entity(HumanAgent(), AbilityListOwner(ability_entities=[ability_entity]), TileBank(owner_entity=0))
     bank = world.component_for_entity(player_ent, TileBank)
     bank.owner_entity = player_ent
     bank.counts['infantry'] = 5
     AbilityTargetingSystem(world, bus)
     AbilitySystem(world, bus)
+    EffectLifecycleSystem(world, bus)
+    BoardTransformEffectSystem(world, bus)
     return world, bus, ability_entity, player_ent, target_color_name
 
 def test_tactical_shift_configurable_color(world_and_bus):

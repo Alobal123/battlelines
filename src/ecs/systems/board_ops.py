@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import Dict, List, Set, Tuple
 
 from esper import World
 
@@ -11,6 +11,7 @@ from ecs.components.active_switch import ActiveSwitch
 from ecs.components.tile import TileType
 from ecs.components.tile_type_registry import TileTypeRegistry
 from ecs.components.tile_types import TileTypes
+from ecs.components.board import Board
 
 Position = Tuple[int, int]
 ColorEntry = Tuple[int, int, Tuple[int, int, int]]
@@ -87,8 +88,6 @@ def clear_tiles_with_cascade(world: World, positions: List[Position]):
 
 
 def compute_gravity_moves(world: World) -> Tuple[List[GravityMove], int]:
-    from ecs.components.board import Board
-
     board_comp = None
     for _, board in world.get_component(Board):
         board_comp = board
@@ -154,3 +153,80 @@ def refill_inactive_tiles(world: World) -> List[Position]:
         tile_switch.active = True
         spawned.append((position.row, position.col))
     return spawned
+
+
+def active_tile_type_map(world: World) -> Dict[Position, str]:
+    """Return mapping of active tile positions to their type names."""
+    mapping: Dict[Position, str] = {}
+    for entity, position in world.get_component(BoardPosition):
+        try:
+            switch: ActiveSwitch = world.component_for_entity(entity, ActiveSwitch)
+            if not switch.active:
+                continue
+            tile: TileType = world.component_for_entity(entity, TileType)
+        except KeyError:
+            continue
+        mapping[(position.row, position.col)] = tile.type_name
+    return mapping
+
+
+def board_dimensions(world: World) -> Tuple[int, int] | None:
+    for _, board in world.get_component(Board):
+        return board.rows, board.cols
+    return None
+
+
+def find_all_matches(world: World) -> List[List[Position]]:
+    """Detect all contiguous horizontal or vertical matches of length >= 3."""
+    types = active_tile_type_map(world)
+    dims = board_dimensions(world)
+    if not dims or not types:
+        return []
+    rows, cols = dims
+    matches: List[List[Position]] = []
+    # Horizontal runs
+    for r in range(rows):
+        run: List[Position] = []
+        last_type = None
+        for c in range(cols):
+            tval = types.get((r, c))
+            if tval is not None and tval == last_type:
+                run.append((r, c))
+            else:
+                if len(run) >= 3:
+                    matches.append(run.copy())
+                run = [(r, c)] if tval is not None else []
+                last_type = tval
+        if len(run) >= 3:
+            matches.append(run.copy())
+    # Vertical runs
+    for c in range(cols):
+        run = []
+        last_type = None
+        for r in range(rows):
+            tval = types.get((r, c))
+            if tval is not None and tval == last_type:
+                run.append((r, c))
+            else:
+                if len(run) >= 3:
+                    matches.append(run.copy())
+                run = [(r, c)] if tval is not None else []
+                last_type = tval
+        if len(run) >= 3:
+            matches.append(run.copy())
+    if not matches:
+        return []
+    groups = [set(m) for m in matches]
+    merged: List[Set[Position]] = []
+    while groups:
+        first = groups.pop()
+        changed = True
+        while changed:
+            changed = False
+            for g in groups[:]:
+                if first & g:
+                    first |= g
+                    groups.remove(g)
+                    changed = True
+        merged.append(first)
+    return [sorted(list(group)) for group in merged]

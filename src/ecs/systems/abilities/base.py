@@ -85,6 +85,8 @@ class EffectDrivenAbilityResolver:
                 return ctx.pending.target_entity
             case "pending_target_or_self":
                 return ctx.pending.target_entity or ctx.owner_entity
+            case "board":
+                return self._find_board_entity(ctx)
             case _:
                 return None
 
@@ -96,6 +98,10 @@ class EffectDrivenAbilityResolver:
                 metadata[key] = params[param_key]
         if ctx.owner_entity is not None:
             metadata.setdefault("source_owner", ctx.owner_entity)
+        if ctx.pending.row is not None:
+            metadata.setdefault("origin_row", ctx.pending.row)
+        if ctx.pending.col is not None:
+            metadata.setdefault("origin_col", ctx.pending.col)
         metadata.setdefault("reason", spec.slug)
         return metadata
 
@@ -108,3 +114,11 @@ class EffectDrivenAbilityResolver:
             if entity != ctx.owner_entity:
                 return entity
         return None
+
+    def _find_board_entity(self, ctx: AbilityContext) -> int | None:
+        from ecs.components.board import Board
+
+        boards = list(ctx.world.get_component(Board))
+        if not boards:
+            return None
+        return boards[0][0]

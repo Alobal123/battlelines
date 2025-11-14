@@ -20,6 +20,19 @@ def create_default_player_abilities(world: World) -> List[int]:
             params={"target_color": "hex"},
         ),
         AbilityTarget(target_type="tile", max_targets=1),
+        AbilityEffects(
+            effects=(
+                AbilityEffectSpec(
+                    slug="board_transform_type",
+                    target="board",
+                    metadata={
+                        "target_type": "hex",
+                        "reason": "tactical_shift",
+                    },
+                    param_overrides={"target_type": "target_color"},
+                ),
+            )
+        ),
     )
     crimson_pulse = world.create_entity(
         Ability(
@@ -29,6 +42,20 @@ def create_default_player_abilities(world: World) -> List[int]:
             description="Clear a 3x3 area centered on the target tile.",
         ),
         AbilityTarget(target_type="tile", max_targets=1),
+        AbilityEffects(
+            effects=(
+                AbilityEffectSpec(
+                    slug="board_clear_area",
+                    target="board",
+                    metadata={
+                        "shape": "square",
+                        "radius": 1,
+                        "reason": "crimson_pulse",
+                        "source": "ability",
+                    },
+                ),
+            )
+        ),
     )
     verdant_touch = world.create_entity(
         Ability(
