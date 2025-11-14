@@ -3,7 +3,7 @@ from esper import World
 from ecs.events.bus import (EventBus, EVENT_TILE_SWAP_FINALIZE, EVENT_MATCH_FOUND,
                             EVENT_MATCH_CLEARED, EVENT_GRAVITY_APPLIED, EVENT_REFILL_COMPLETED,
                             EVENT_CASCADE_STEP, EVENT_CASCADE_COMPLETE, EVENT_ANIMATION_START, EVENT_ANIMATION_COMPLETE,
-                            EVENT_BOARD_CHANGED, EVENT_TURN_ACTION_STARTED)
+                            EVENT_BOARD_CHANGED, EVENT_TURN_ACTION_STARTED, EVENT_TICK)
 from ecs.components.active_switch import ActiveSwitch
 from ecs.components.tile import TileType
 from ecs.components.board_position import BoardPosition
@@ -19,7 +19,9 @@ class MatchResolutionSystem:
         self.event_bus.subscribe(EVENT_TILE_SWAP_FINALIZE, self.on_swap_finalize)
         self.event_bus.subscribe(EVENT_BOARD_CHANGED, self.on_board_changed)
         self.event_bus.subscribe(EVENT_ANIMATION_COMPLETE, self.on_animation_complete)
+        self.event_bus.subscribe(EVENT_TICK, self.on_tick)
         self.pending_match_positions: List[Tuple[int, int]] = []
+        self._pending_refill_checks = 0
 
     def on_swap_finalize(self, sender, **kwargs):
         # After a logical swap, initiate resolution sequence
@@ -62,6 +64,14 @@ class MatchResolutionSystem:
         elif kind == 'fall':
             self._after_fall(items)
         elif kind == 'refill':
+            self._pending_refill_checks += 1
+
+    def on_tick(self, sender, **kwargs):
+        if not self._pending_refill_checks:
+            return
+        pending = self._pending_refill_checks
+        self._pending_refill_checks = 0
+        for _ in range(pending):
             self._after_refill()
 
     def _after_fade(self, positions):

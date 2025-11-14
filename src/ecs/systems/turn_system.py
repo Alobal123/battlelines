@@ -53,9 +53,6 @@ class TurnSystem:
 
     def on_match_cleared(self, sender, **payload):
         # Set rotation pending (only first time in a cascade). Multiple match_cleared within cascade should not queue multiple advances.
-        state = self._turn_state()
-        if not state.cascade_observed:
-            return
         if not self.rotation_pending:
             self.rotation_pending = True
 

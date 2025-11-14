@@ -70,6 +70,19 @@ def create_world(event_bus: EventBus) -> World:
                 },
             )
         )
+    if not default_effect_registry.has("damage_bonus"):
+        register_effect(
+            EffectDefinition(
+                slug="damage_bonus",
+                display_name="Damage Bonus",
+                description="Increases damage dealt by the owner.",
+                default_metadata={
+                    "bonus": 1,
+                    "reason": "damage_bonus",
+                    "stack_key": "damage_bonus",
+                },
+            )
+        )
 
     # Player 1 (human)
     abilities_p1 = create_default_player_abilities(world)

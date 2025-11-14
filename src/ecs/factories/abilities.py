@@ -57,6 +57,30 @@ def create_default_player_abilities(world: World) -> List[int]:
             )
         ),
     )
+    ferality = world.create_entity(
+        Ability(
+            name="ferality",
+            kind="active",
+            cost={"shapeshift": 3},
+            description="Gain +1 damage to all attacks for three turns.",
+        ),
+        AbilityTarget(target_type="self", max_targets=0),
+        AbilityEffects(
+            effects=(
+                AbilityEffectSpec(
+                    slug="damage_bonus",
+                    target="pending_target_or_self",
+                    turns=4,
+                    metadata={
+                        "bonus": 1,
+                        "reason": "ferality",
+                        "stack_key": "damage_bonus",
+                        "stacks": True,
+                    },
+                ),
+            )
+        ),
+    )
     verdant_touch = world.create_entity(
         Ability(
             name="verdant_touch",
@@ -115,4 +139,4 @@ def create_default_player_abilities(world: World) -> List[int]:
             )
         ),
     )
-    return [tactical_shift, crimson_pulse, verdant_touch, blood_bolt]
+    return [tactical_shift, crimson_pulse, ferality, verdant_touch, blood_bolt]
