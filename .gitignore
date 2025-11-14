@@ -1,4 +1,4 @@
 __pycache__/
 *.pyc
 src/ecs/systems/__pycache__/
-src/ecs/__pycache__/world.cpython-311.pyc
+src/ecs/__pycache__/
