@@ -4,7 +4,6 @@ from importlib import metadata
 from typing import Dict, Iterable
 
 from ecs.systems.abilities.base import AbilityResolver
-from ecs.systems.abilities.bolster_morale import BolsterMoraleResolver
 from ecs.systems.abilities.crimson_pulse import CrimsonPulseResolver
 from ecs.systems.abilities.tactical_shift import TacticalShiftResolver
 
@@ -73,7 +72,6 @@ def _builtin_resolvers() -> Dict[str, AbilityResolver]:
     return {
         TacticalShiftResolver.name: TacticalShiftResolver(),
         CrimsonPulseResolver.name: CrimsonPulseResolver(),
-        BolsterMoraleResolver.name: BolsterMoraleResolver(),
     }
 
 

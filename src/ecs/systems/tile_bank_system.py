@@ -7,7 +7,7 @@ from ecs.events.bus import (
     EVENT_TILE_BANK_SPEND_REQUEST,
     EVENT_TILE_BANK_SPENT,
     EVENT_TILE_BANK_INSUFFICIENT,
-    EVENT_HEALTH_DAMAGE,
+    EVENT_EFFECT_APPLY,
 )
 from ecs.components.tile_bank import TileBank
 from ecs.components.ability_list_owner import AbilityListOwner
@@ -113,9 +113,14 @@ class TileBankSystem:
         ]
         for opponent in opponents:
             self.event_bus.emit(
-                EVENT_HEALTH_DAMAGE,
-                source_owner=clearing_owner,
-                target_entity=opponent,
-                amount=amount,
-                reason="witchfire",
+                EVENT_EFFECT_APPLY,
+                owner_entity=opponent,
+                source_entity=None,
+                slug="damage",
+                turns=0,
+                metadata={
+                    "amount": amount,
+                    "reason": "witchfire",
+                    "source_owner": clearing_owner,
+                },
             )

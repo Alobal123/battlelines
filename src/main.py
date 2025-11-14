@@ -18,6 +18,8 @@ from ecs.systems.ability_system import AbilitySystem
 from ecs.systems.ability_targeting_system import AbilityTargetingSystem
 from ecs.systems.turn_system import TurnSystem
 from ecs.systems.health_system import HealthSystem
+from ecs.systems.effects.damage_effect_system import DamageEffectSystem
+from ecs.systems.effects.heal_effect_system import HealEffectSystem
 
 class BattlelinesWindow(Window):
     def __init__(self):
@@ -33,6 +35,8 @@ class BattlelinesWindow(Window):
         self.match_resolution_system = MatchResolutionSystem(self.world, self.event_bus)
         self.tile_bank_system = TileBankSystem(self.world, self.event_bus)
         self.effect_lifecycle_system = EffectLifecycleSystem(self.world, self.event_bus)
+        self.damage_effect_system = DamageEffectSystem(self.world, self.event_bus)
+        self.heal_effect_system = HealEffectSystem(self.world, self.event_bus)
         self.ability_targeting_system = AbilityTargetingSystem(self.world, self.event_bus)
         self.ability_system = AbilitySystem(self.world, self.event_bus)
         self.turn_system = TurnSystem(self.world, self.event_bus)

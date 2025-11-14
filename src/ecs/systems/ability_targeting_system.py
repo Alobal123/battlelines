@@ -41,6 +41,35 @@ class AbilityTargetingSystem:
             return
         if not self._is_owner_active(owner_entity):
             return
+        
+        # Check if ability needs targeting or can be executed immediately
+        try:
+            ability_target = self.world.component_for_entity(ability_entity, AbilityTarget)
+            ability = self.world.component_for_entity(ability_entity, Ability)
+        except KeyError:
+            return
+        
+        # If target_type is "self", execute immediately without entering targeting mode
+        if ability_target.target_type == "self":
+            self.world.add_component(
+                ability_entity,
+                PendingAbilityTarget(
+                    ability_entity=ability_entity,
+                    owner_entity=owner_entity,
+                    row=None,
+                    col=None,
+                    target_entity=owner_entity,  # Target is the caster
+                ),
+            )
+            self.event_bus.emit(
+                EVENT_TILE_BANK_SPEND_REQUEST,
+                entity=owner_entity,
+                cost=ability.cost,
+                ability_entity=ability_entity,
+            )
+            return
+        
+        # Otherwise enter targeting mode
         self.world.add_component(owner_entity, TargetingState(ability_entity=ability_entity))
         self.event_bus.emit(
             EVENT_ABILITY_TARGET_MODE,

@@ -20,13 +20,13 @@ from ecs.events.bus import EVENT_TURN_ADVANCED
 def lifecycle_world():
     bus = EventBus()
     world = World()
-    if not default_effect_registry.has("morale_boost"):
+    if not default_effect_registry.has("test_buff"):
         register_effect(
             EffectDefinition(
-                slug="morale_boost",
-                display_name="Morale Boost",
-                description="Temporarily increases morale.",
-                default_metadata={"morale_bonus": 20, "turns": 3},
+                slug="test_buff",
+                display_name="Test Buff",
+                description="A stackable test effect.",
+                default_metadata={"value": 1},
             )
         )
     system = EffectLifecycleSystem(world, bus)
@@ -44,7 +44,7 @@ def test_effects_stack_when_allowed(lifecycle_world):
     bus.emit(
         EVENT_EFFECT_APPLY,
         owner_entity=owner,
-        slug="morale_boost",
+        slug="test_buff",
         stacks=True,
         metadata={"value": 1},
     )
@@ -54,7 +54,7 @@ def test_effects_stack_when_allowed(lifecycle_world):
     bus.emit(
         EVENT_EFFECT_APPLY,
         owner_entity=owner,
-        slug="morale_boost",
+        slug="test_buff",
         stacks=True,
         metadata={"value": 3},
     )
@@ -155,8 +155,8 @@ def test_turn_advanced_ticks_duration_and_expires(lifecycle_world):
     bus.emit(
         EVENT_EFFECT_APPLY,
         owner_entity=owner,
-        slug="morale_boost",
-        metadata={"morale_bonus": 20, "turns": 3},
+        slug="test_buff",
+        metadata={"value": 10},
         turns=3,
     )
     effect_entities = _effect_entities(world, owner)

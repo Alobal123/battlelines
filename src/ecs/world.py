@@ -2,13 +2,12 @@ from esper import World
 from .events.bus import EventBus
 from ecs.components.human_agent import HumanAgent
 from ecs.components.ability_list_owner import AbilityListOwner
-from ecs.components.ability import Ability
-from ecs.components.ability_target import AbilityTarget
 from ecs.components.tile_bank import TileBank
 from ecs.components.tile_type_registry import TileTypeRegistry
 from ecs.components.tile_types import TileTypes
 from ecs.effects.registry import EffectDefinition, default_effect_registry, register_effect
 from ecs.components.health import Health
+from ecs.factories.abilities import create_default_player_abilities
 
 
 def create_world(event_bus: EventBus) -> World:
@@ -16,39 +15,39 @@ def create_world(event_bus: EventBus) -> World:
     # THEME: Transitioning from army combat to witch school.
     # Previous regiment/army abstractions retained temporarily; new tile types below reflect magical faculties.
     # Future refactor: replace Regiment/ArmyRoster with House/Circle components.
-    if not default_effect_registry.has("morale_boost"):
+    
+    # Register core effect definitions if not already present.
+    if not default_effect_registry.has("damage"):
         register_effect(
             EffectDefinition(
-                slug="morale_boost",
-                display_name="Bolster Morale",
-                description="Temporarily increases a regiment's morale.",
-                tags=("morale", "buff"),
-                default_metadata={"morale_bonus": 20, "turns": 3},
+                slug="damage",
+                display_name="Damage",
+                description="Applies damage when triggered.",
+                default_metadata={
+                    "amount": 0,
+                    "reason": "effect",
+                    "source_owner": None,
+                    "turns": 0,
+                },
             )
         )
-    # Shared spell definitions (each owner gets its own instances)
-    def make_abilities():
-        ability_shift = world.create_entity(
-            Ability(name="tactical_shift", kind="active", cost={"hex": 3, "nature": 2}, params={"target_color": "hex"}),
-            AbilityTarget(target_type="tile", max_targets=1),
+    if not default_effect_registry.has("heal"):
+        register_effect(
+            EffectDefinition(
+                slug="heal",
+                display_name="Heal",
+                description="Applies healing when triggered.",
+                default_metadata={
+                    "amount": 0,
+                    "reason": "effect",
+                    "source_owner": None,
+                    "turns": 0,
+                },
+            )
         )
-        ability_pulse = world.create_entity(
-            Ability(name="crimson_pulse", kind="active", cost={"hex": 5}),
-            AbilityTarget(target_type="tile", max_targets=1),
-        )
-        ability_focus = world.create_entity(
-            Ability(
-                name="bolster_focus",
-                kind="active",
-                cost={"spirit": 3},
-                params={"focus_bonus": 20, "turns": 3},
-            ),
-            AbilityTarget(target_type="entity", max_targets=1),
-        )
-        return [ability_shift, ability_pulse, ability_focus]
 
     # Player 1 (human)
-    abilities_p1 = make_abilities()
+    abilities_p1 = create_default_player_abilities(world)
     player1_ent = world.create_entity(
         HumanAgent(),
         AbilityListOwner(ability_entities=abilities_p1),
@@ -58,7 +57,7 @@ def create_world(event_bus: EventBus) -> World:
     bank1 = world.component_for_entity(player1_ent, TileBank)
     bank1.owner_entity = player1_ent
     # Player 2 (adversary placeholder; reuse HumanAgent for now until AI component added)
-    abilities_p2 = make_abilities()
+    abilities_p2 = create_default_player_abilities(world)
     player2_ent = world.create_entity(
         HumanAgent(),
         AbilityListOwner(ability_entities=abilities_p2),

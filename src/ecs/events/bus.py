@@ -19,6 +19,7 @@ class EventBus:
 # Common event names (extend as needed)
 EVENT_TICK = "tick"
 EVENT_TILE_CLICK = "tile_click"       # payload: row, col
+EVENT_PLAYER_CLICK = "player_click"   # payload: player_entity=int
 EVENT_TILE_SELECTED = "tile_selected" # payload: row, col
 EVENT_TILE_DESELECTED = "tile_deselected" # payload: reason=str
 EVENT_MOUSE_PRESS = "mouse_press"     # payload: x, y, button
@@ -55,4 +56,5 @@ EVENT_EFFECT_APPLIED = "effect_applied"  # payload: effect_entity=int, owner_ent
 EVENT_EFFECT_REFRESHED = "effect_refreshed"  # payload: effect_entity=int, owner_entity=int, slug=str
 EVENT_EFFECT_EXPIRED = "effect_expired"  # payload: effect_entity=int, owner_entity=int, slug=str, reason=str
 EVENT_HEALTH_DAMAGE = "health_damage"  # payload: source_owner=int, target_entity=int, amount=int, reason=str
+EVENT_HEALTH_HEAL = "health_heal"  # payload: source_owner=int, target_entity=int, amount=int, reason=str
 EVENT_HEALTH_CHANGED = "health_changed"  # payload: entity=int, current=int, max_hp=int, delta=int

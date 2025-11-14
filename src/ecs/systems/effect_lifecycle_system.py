@@ -112,11 +112,9 @@ class EffectLifecycleSystem:
                 payload_owner_key,
             )
         try:
-            effect_comp = self.world.component_for_entity(effect_entity, Effect)
+            self.world.component_for_entity(effect_entity, Effect)
         except KeyError:
-            effect_comp = None
-        if effect_comp is not None:
-            self._apply_effect_side_effects(effect_comp, apply=True)
+            pass
         self.event_bus.emit(
             EVENT_EFFECT_APPLIED,
             effect_entity=effect_entity,
@@ -211,7 +209,6 @@ class EffectLifecycleSystem:
             effect = self.world.component_for_entity(effect_entity, Effect)
         except KeyError:
             return
-        self._apply_effect_side_effects(effect, apply=False)
         effect.metadata.clear()
         effect.metadata.update(metadata)
         effect.stacks = bool(stacks)
@@ -257,7 +254,6 @@ class EffectLifecycleSystem:
             )
         else:
             self._remove_component(effect_entity, EffectExpireOnEvents)
-        self._apply_effect_side_effects(effect, apply=True)
         self.event_bus.emit(
             EVENT_EFFECT_REFRESHED,
             effect_entity=effect_entity,
@@ -281,7 +277,6 @@ class EffectLifecycleSystem:
             except Exception:
                 pass
             return
-        self._apply_effect_side_effects(effect, apply=False)
         owner_entity = effect.owner_entity
         effect_list = self._get_effect_list(owner_entity)
         if effect_list and effect_entity in effect_list.effect_entities:
@@ -300,12 +295,6 @@ class EffectLifecycleSystem:
             slug=effect.slug,
             reason=reason,
         )
-
-    def _apply_effect_side_effects(self, effect: Effect, apply: bool) -> None:
-        # Morale boost side-effects removed with regiment system; placeholder for future focus/ward adjustments.
-        if effect.slug != "morale_boost":
-            return
-        # No-op; effect metadata retained for potential UI display.
 
     def _register_event_triggers(
         self,

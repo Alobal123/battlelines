@@ -1,6 +1,6 @@
 # Battlelines
 
-Experimental tactical / strategy game using Python, Arcade, and ECS (Esper) with an event-driven architecture.
+Experimental tactical puzzle battler built with Python, Arcade, and an event-driven ECS (Esper).
 
 ## Stack
 - Python 3.11+
@@ -11,20 +11,20 @@ Experimental tactical / strategy game using Python, Arcade, and ECS (Esper) with
 ## Setup
 ```powershell
 python -m venv .venv
-. .venv/Scripts/Activate.ps1
+. .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 ## Running
 ```powershell
-python src/main.py
+python -m src.main
 ```
-(Arcade window opens with current board/ability UI.)
+Launches the Arcade window with the current board and UI wiring.
 
 ## Tests
 ```powershell
-pytest -q
+python -m pytest
 ```
 
 ## Project Layout
@@ -35,20 +35,20 @@ src/
     world.py           # world factory
     events/bus.py      # event bus abstraction
     components/        # dataclass components (Position, etc.)
-    systems/           # systems (RenderSystem, etc.)
+  systems/           # gameplay systems (board, abilities, rendering, etc.)
 ```
 
 ## Conventions
 - Components: lightweight dataclasses in `ecs/components`; no methods beyond trivial helpers.
-- Systems: process logic + optional event subscriptions; avoid direct coupling between systems (communicate via events).
-- Events: define names centrally in `ecs/events/bus.py` or future `events/registry.py`.
+- Systems: logic lives here; most subscribe to events rather than iterating every frame. Per-effect systems sit in `ecs/systems/effects/`.
+- Events: define names centrally in `ecs/events/bus.py` and emit signals instead of direct cross-system calls.
 - No global state; pass EventBus and World explicitly.
 
 ## Next Steps
-1. Promote the scheduled `on_update` hook in `BattlelinesWindow` to emit `EVENT_TICK` and migrate systems that currently poll inside `process`.
-2. Add a movement/command system that reacts to semantic events from `InputSystem` and drives board interactions beyond swaps.
-3. Introduce entity factories (`ecs/factories.py`) for scenario setup to keep tests and future content authoring tidy.
-4. Sketch high-level architecture notes (`docs/ARCHITECTURE.md`) once additional systems land (movement/AI/battle outcome).
+1. Add a movement/command system that reacts to semantic events from `InputSystem` so the board can process orders beyond swaps.
+2. Flesh out rendering overlays (unit highlights, ability affordances) using cached sprite layout data.
+3. Introduce entity factories (`ecs/factories.py`) for deterministic scenario setup shared by tests and content creation.
+4. Capture multi-system wiring in `docs/ARCHITECTURE.md` once movement and AI layers join the build.
 
 ## Ability Flow
 Ability control now spans three lightweight systems:
@@ -58,6 +58,9 @@ Ability control now spans three lightweight systems:
 - `AbilityResolutionSystem` handles `EVENT_ABILITY_EXECUTE`, looks up the matching resolver (see `ecs/systems/abilities/`), and emits `EVENT_ABILITY_EFFECT_APPLIED` after the effect resolves.
 
 Resolvers live in `ecs/systems/abilities/` with plugin discovery consolidated in `abilities/registry.py`. Each resolver receives an `AbilityContext` containing the pending targeting data, world, and event bus.
+
+## Effect Processing
+Every active effect is a dedicated entity managed by `EffectLifecycleSystem`. Immediate payloads such as damage and healing are routed through per-effect systems in `ecs/systems/effects/` that listen for `EVENT_EFFECT_APPLIED` / `EVENT_EFFECT_REFRESHED`, emit the relevant health event, and retire the effect entity once resolved.
 
 ## Event Reference (Selected)
 Key gameplay events emitted by systems:

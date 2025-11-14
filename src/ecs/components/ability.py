@@ -9,9 +9,11 @@ class Ability:
       name: Display / reference name.
       kind: Semantic category (e.g., 'active', 'passive', 'special').
       cost: Mapping of tile type names to counts consumed when activated.
+      description: Text description of the ability effect (for UI display).
       params: Arbitrary configuration values 
     """
     name: str
     kind: str
     cost: Dict[str, int]
+    description: str = ""
     params: Dict[str, Any] = field(default_factory=dict)

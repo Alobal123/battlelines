@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 
 from esper import World
 
 from ecs.components.ability import Ability
 from ecs.components.pending_ability_target import PendingAbilityTarget
-from ecs.events.bus import EventBus
+from ecs.components.ability_effect import AbilityEffectSpec, AbilityEffects
+from ecs.events.bus import EventBus, EVENT_EFFECT_APPLY
 
 
 @dataclass(slots=True)
@@ -30,3 +31,80 @@ class AbilityResolver(Protocol):
 
     def resolve(self, ctx: AbilityContext) -> None:
         ...
+
+
+class EffectDrivenAbilityResolver:
+    """Mixin providing helpers for abilities defined via AbilityEffects."""
+
+    def _apply_declared_effects(self, ctx: AbilityContext) -> list[int]:
+        specs = self._collect_effect_specs(ctx)
+        if not specs:
+            return []
+        affected: list[int] = []
+        for spec in specs:
+            target = self._select_effect_target(ctx, spec)
+            if target is None:
+                continue
+            metadata = self._build_effect_metadata(ctx, spec)
+            payload: dict[str, Any] = {
+                "owner_entity": target,
+                "source_entity": ctx.ability_entity,
+                "slug": spec.slug,
+                "metadata": metadata,
+            }
+            if spec.turns is not None:
+                payload["turns"] = spec.turns
+            ctx.event_bus.emit(EVENT_EFFECT_APPLY, **payload)
+            affected.append(target)
+        # Deduplicate while preserving order
+        unique: list[int] = []
+        seen: set[int] = set()
+        for entity in affected:
+            if entity is None:
+                continue
+            if entity in seen:
+                continue
+            seen.add(entity)
+            unique.append(entity)
+        return unique
+
+    def _collect_effect_specs(self, ctx: AbilityContext) -> tuple[AbilityEffectSpec, ...]:
+        try:
+            component = ctx.world.component_for_entity(ctx.ability_entity, AbilityEffects)
+        except KeyError:
+            return ()
+        return component.effects
+
+    def _select_effect_target(self, ctx: AbilityContext, spec: AbilityEffectSpec) -> int | None:
+        match spec.target:
+            case "self":
+                return ctx.owner_entity
+            case "opponent":
+                return self._find_opponent_entity(ctx)
+            case "pending_target":
+                return ctx.pending.target_entity
+            case "pending_target_or_self":
+                return ctx.pending.target_entity or ctx.owner_entity
+            case _:
+                return None
+
+    def _build_effect_metadata(self, ctx: AbilityContext, spec: AbilityEffectSpec) -> dict[str, Any]:
+        metadata = dict(spec.metadata)
+        params = ctx.ability.params if isinstance(ctx.ability.params, dict) else {}
+        for key, param_key in spec.param_overrides.items():
+            if isinstance(params, dict) and param_key in params:
+                metadata[key] = params[param_key]
+        if ctx.owner_entity is not None:
+            metadata.setdefault("source_owner", ctx.owner_entity)
+        metadata.setdefault("reason", spec.slug)
+        return metadata
+
+    def _find_opponent_entity(self, ctx: AbilityContext) -> int | None:
+        if ctx.owner_entity is None:
+            return None
+        from ecs.components.ability_list_owner import AbilityListOwner
+
+        for entity, _ in ctx.world.get_component(AbilityListOwner):
+            if entity != ctx.owner_entity:
+                return entity
+        return None

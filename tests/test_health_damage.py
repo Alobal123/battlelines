@@ -1,8 +1,10 @@
-from ecs.events.bus import EventBus, EVENT_HEALTH_DAMAGE, EVENT_HEALTH_CHANGED, EVENT_MATCH_CLEARED
+from ecs.events.bus import EventBus, EVENT_HEALTH_DAMAGE, EVENT_HEALTH_CHANGED, EVENT_MATCH_CLEARED, EVENT_EFFECT_APPLY
 from ecs.world import create_world
 from ecs.components.health import Health
 from ecs.systems.health_system import HealthSystem
 from ecs.systems.tile_bank_system import TileBankSystem
+from ecs.systems.effect_lifecycle_system import EffectLifecycleSystem
+from ecs.systems.effects.damage_effect_system import DamageEffectSystem
 
 
 def test_witchfire_damage_event_flow():
@@ -10,6 +12,8 @@ def test_witchfire_damage_event_flow():
     bus = EventBus()
     world = create_world(bus)
     health_system = HealthSystem(world, bus)
+    effect_system = EffectLifecycleSystem(world, bus)
+    damage_effect_system = DamageEffectSystem(world, bus)
     tile_bank_system = TileBankSystem(world, bus)
     
     # Find the two player entities with Health
@@ -40,6 +44,8 @@ def test_damage_event_emits_health_changed():
     bus = EventBus()
     world = create_world(bus)
     health_system = HealthSystem(world, bus)
+    effect_system = EffectLifecycleSystem(world, bus)
+    damage_effect_system = DamageEffectSystem(world, bus)
     
     players = list(world.get_component(Health))
     target_ent, target_hp = players[0]
@@ -50,13 +56,18 @@ def test_damage_event_emits_health_changed():
     
     bus.subscribe(EVENT_HEALTH_CHANGED, capture_health_changed)
     
-    # Emit damage event directly
+    # Emit damage via effect application
     bus.emit(
-        EVENT_HEALTH_DAMAGE,
-        source_owner=999,
-        target_entity=target_ent,
-        amount=5,
-        reason="test",
+        EVENT_EFFECT_APPLY,
+        owner_entity=target_ent,
+        source_entity=None,
+        slug="damage",
+        turns=0,
+        metadata={
+            "amount": 5,
+            "reason": "test",
+            "source_owner": 999,
+        },
     )
     
     assert target_hp.current == 25
