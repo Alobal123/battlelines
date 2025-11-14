@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ecs.components.tile_bank import TileBank
+from ecs.components.ability_cooldown import AbilityCooldown
 from ecs.constants import (
     ABILITY_TOP_PADDING,
     BANK_BAR_HEIGHT,
@@ -32,6 +33,8 @@ class AbilityPanelRenderer:
         if not ability_comps:
             rs._ability_layout_cache = []
             return
+
+        ability_map = {ent: ability for ent, ability in ability_comps}
 
         from ecs.components.ability_list_owner import AbilityListOwner
         from ecs.ui.ability_layout import compute_ability_layout
@@ -78,7 +81,21 @@ class AbilityPanelRenderer:
                 rect_h=rect_h,
                 spacing=spacing,
             )
-            rs._ability_layout_cache.extend(layout_entries)
+            for entry in layout_entries:
+                ability_entity = entry["entity"]
+                ability = ability_map.get(ability_entity)
+                base_cooldown = ability.cooldown if ability else 0
+                entry["cooldown"] = base_cooldown
+                try:
+                    cooldown_state = rs.world.component_for_entity(ability_entity, AbilityCooldown)
+                    remaining = max(0, int(cooldown_state.remaining_turns))
+                except KeyError:
+                    remaining = 0
+                entry["cooldown_remaining"] = remaining
+                entry["resource_affordable"] = entry["affordable"]
+                entry["usable"] = entry["affordable"] and remaining <= 0
+                entry["cooldown_blocked"] = remaining > 0
+                rs._ability_layout_cache.append(entry)
 
         targeting_ability_entity = None
         try:
@@ -103,8 +120,14 @@ class AbilityPanelRenderer:
             y = entry["y"]
             w = entry["width"]
             h = entry["height"]
-            affordable = entry["affordable"]
-            base_color = (40, 100, 40) if affordable else (120, 40, 40)
+            resource_ok = entry.get("resource_affordable", True)
+            cooldown_remaining = entry.get("cooldown_remaining", 0)
+            usable = entry.get("usable", resource_ok and cooldown_remaining <= 0)
+            base_color = (40, 100, 40)
+            if not resource_ok:
+                base_color = (120, 40, 40)
+            elif cooldown_remaining > 0:
+                base_color = (80, 80, 80)
             if entry["is_active"] and not entry["is_targeting"]:
                 r, g, b = base_color
                 bg_color = (min(255, r + 30), min(255, g + 30), min(255, b + 30))
@@ -133,6 +156,16 @@ class AbilityPanelRenderer:
             arcade.draw_text(entry["name"], x + 8, name_y, arcade.color.WHITE, 14)
             cost_line = " ".join(f"{ctype}:{cval}" for ctype, cval in entry["cost"].items())
             arcade.draw_text(cost_line, x + 8, y + 8, arcade.color.WHITE, 12)
+            base_cd = entry.get("cooldown", 0)
+            remaining_cd = entry.get("cooldown_remaining", 0)
+            if base_cd > 0:
+                if remaining_cd > 0:
+                    cd_text = f"CD {remaining_cd}"
+                    cd_color = arcade.color.LIGHT_GRAY
+                else:
+                    cd_text = f"CD {base_cd}"
+                    cd_color = arcade.color.GRAY
+                arcade.draw_text(cd_text, x + w - 8, y + h - 20, cd_color, 12, anchor_x="right")
 
     def hit_test(self, x: float, y: float):
         for entry in getattr(self._rs, "_ability_layout_cache", []):

@@ -7,6 +7,7 @@ from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.ability_target import AbilityTarget
 from ecs.components.pending_ability_target import PendingAbilityTarget
 from ecs.components.targeting_state import TargetingState
+from ecs.components.ability_cooldown import AbilityCooldown
 from ecs.events.bus import (
     EventBus,
     EVENT_ABILITY_ACTIVATE_REQUEST,
@@ -40,6 +41,8 @@ class AbilityTargetingSystem:
         if not self._ability_belongs_to_owner(owner_entity, ability_entity):
             return
         if not self._is_owner_active(owner_entity):
+            return
+        if self._is_ability_on_cooldown(ability_entity):
             return
         
         # Check if ability needs targeting or can be executed immediately
@@ -150,6 +153,13 @@ class AbilityTargetingSystem:
             if ent == owner_entity and ability_entity in owner_comp.ability_entities:
                 return True
         return False
+
+    def _is_ability_on_cooldown(self, ability_entity: int) -> bool:
+        try:
+            cooldown = self.world.component_for_entity(ability_entity, AbilityCooldown)
+        except KeyError:
+            return False
+        return cooldown.remaining_turns > 0
 
     def _is_owner_active(self, owner_entity: int) -> bool:
         from ecs.components.active_turn import ActiveTurn

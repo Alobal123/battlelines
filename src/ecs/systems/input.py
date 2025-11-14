@@ -23,6 +23,11 @@ class InputSystem:
         if render_system and hasattr(render_system, 'get_ability_at_point'):
             entry = render_system.get_ability_at_point(x, y)
             if entry and self.world is not None:
+                usable = entry.get('usable')
+                if usable is None:
+                    usable = entry.get('affordable', True) and entry.get('cooldown_remaining', 0) <= 0
+                if not usable:
+                    return
                 # owner_entity now embedded in layout entry for multi-owner support
                 owner_entity = entry.get('owner_entity')
                 if owner_entity is not None:

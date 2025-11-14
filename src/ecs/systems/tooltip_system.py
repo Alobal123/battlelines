@@ -7,6 +7,7 @@ from esper import World
 
 from ecs.components.tooltip_state import TooltipState
 from ecs.components.ability import Ability
+from ecs.components.ability_cooldown import AbilityCooldown
 from ecs.components.effect_list import EffectList
 from ecs.components.effect import Effect
 from ecs.components.effect_duration import EffectDuration
@@ -159,7 +160,31 @@ class TooltipSystem:
             ability = self.world.component_for_entity(ability_entity, Ability)
         except KeyError:
             return ""
-        return ability.description or ""
+        parts: list[str] = []
+        if ability.description:
+            parts.append(ability.description)
+        cooldown_lines = self._format_cooldown_details(ability_entity, ability.cooldown)
+        if cooldown_lines:
+            parts.extend(cooldown_lines)
+        return "\n".join(parts)
+
+    def _format_cooldown_details(self, ability_entity: int, base_cooldown: int) -> list[str]:
+        details: list[str] = []
+        if base_cooldown > 0:
+            suffix = "turn" if base_cooldown == 1 else "turns"
+            details.append(f"Cooldown: {base_cooldown} {suffix}")
+        remaining = self._ability_cooldown_remaining(ability_entity)
+        if remaining > 0:
+            suffix = "turn" if remaining == 1 else "turns"
+            details.append(f"Ready in {remaining} {suffix}")
+        return details
+
+    def _ability_cooldown_remaining(self, ability_entity: int) -> int:
+        try:
+            cooldown = self.world.component_for_entity(ability_entity, AbilityCooldown)
+        except KeyError:
+            return 0
+        return max(0, int(cooldown.remaining_turns))
 
     def _player_effect_text(self, owner_entity: int) -> str:
         effect_list = self._get_effect_list(owner_entity)

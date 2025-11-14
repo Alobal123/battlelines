@@ -15,6 +15,7 @@ from ecs.components.effect_duration import EffectDuration
 from ecs.components.effect_list import EffectList
 from ecs.components.active_turn import ActiveTurn
 from ecs.components.turn_order import TurnOrder
+from ecs.components.ability_cooldown import AbilityCooldown
 from ecs.systems.ability_system import AbilitySystem
 from ecs.systems.ability_targeting_system import AbilityTargetingSystem
 from ecs.systems.effect_lifecycle_system import EffectLifecycleSystem
@@ -110,16 +111,32 @@ def test_ferality_damage_bonus_applies_and_expires(setup_world):
         lambda sender, **payload: damage_events.append(dict(payload)),
     )
     _activate_self_ability(bus, world, owner_ent, ferality_ent)
-    _force_active_owner(world, owner_ent)
+    initial_effects = _damage_bonus_effects(world, owner_ent)
+    # Wait for cooldown (2 turns) before reusing Ferality
+    owners = [ent for ent, _ in world.get_component(AbilityListOwner) if ent != owner_ent]
+    opponent_ent = owners[0] if owners else owner_ent
+    for _ in range(2):
+        bus.emit(EVENT_TURN_ADVANCED, previous_owner=owner_ent, new_owner=opponent_ent)
+        _force_active_owner(world, opponent_ent)
+        bus.emit(EVENT_TURN_ADVANCED, previous_owner=opponent_ent, new_owner=owner_ent)
+        _force_active_owner(world, owner_ent)
+    before_second = _damage_bonus_effects(world, owner_ent)
+    assert before_second == initial_effects
+    cooldown_state = world.component_for_entity(ferality_ent, AbilityCooldown)
+    assert cooldown_state.remaining_turns == 0
     _activate_self_ability(bus, world, owner_ent, ferality_ent)
+    assert cooldown_state.remaining_turns == 2
     ferality_effects = _damage_bonus_effects(world, owner_ent)
-    assert len(ferality_effects) == 2, "Ferality stacks should produce two effects"
+    assert len(ferality_effects) == 1
+    effect_entity = ferality_effects[0]
+    duration_comp = world.component_for_entity(effect_entity, EffectDuration)
+    assert duration_comp.remaining_turns == 3
     damage_events.clear()
     _force_active_owner(world, owner_ent)
     _activate_self_ability(bus, world, owner_ent, blood_bolt_ent)
     assert damage_events, "Blood Bolt did not deal damage"
     amounts = [event["amount"] for event in damage_events]
-    assert amounts == [4, 8]
+    assert amounts == [3, 7]
     for _ in range(3):
         bus.emit(EVENT_TURN_ADVANCED, previous_owner=owner_ent, new_owner=None)
     assert not _damage_bonus_effects(world, owner_ent), "Damage bonus effects should expire after three turns"

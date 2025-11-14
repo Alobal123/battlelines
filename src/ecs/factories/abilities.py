@@ -7,6 +7,7 @@ from esper import World
 from ecs.components.ability import Ability
 from ecs.components.ability_target import AbilityTarget
 from ecs.components.ability_effect import AbilityEffectSpec, AbilityEffects
+from ecs.components.ability_cooldown import AbilityCooldown
 
 
 def create_default_player_abilities(world: World) -> List[int]:
@@ -18,6 +19,7 @@ def create_default_player_abilities(world: World) -> List[int]:
             cost={"hex": 3, "nature": 2},
             description="Convert all tiles of the selected color to hex tiles.",
             params={"target_color": "hex"},
+            cooldown=1,
         ),
         AbilityTarget(target_type="tile", max_targets=1),
         AbilityEffects(
@@ -33,6 +35,7 @@ def create_default_player_abilities(world: World) -> List[int]:
                 ),
             )
         ),
+        AbilityCooldown(),
     )
     crimson_pulse = world.create_entity(
         Ability(
@@ -40,6 +43,7 @@ def create_default_player_abilities(world: World) -> List[int]:
             kind="active",
             cost={"hex": 5},
             description="Clear a 3x3 area centered on the target tile.",
+            cooldown=2,
         ),
         AbilityTarget(target_type="tile", max_targets=1),
         AbilityEffects(
@@ -56,6 +60,7 @@ def create_default_player_abilities(world: World) -> List[int]:
                 ),
             )
         ),
+        AbilityCooldown(),
     )
     ferality = world.create_entity(
         Ability(
@@ -63,6 +68,7 @@ def create_default_player_abilities(world: World) -> List[int]:
             kind="active",
             cost={"shapeshift": 3},
             description="Gain +1 damage to all attacks for three turns.",
+            cooldown=2,
         ),
         AbilityTarget(target_type="self", max_targets=0),
         AbilityEffects(
@@ -80,6 +86,7 @@ def create_default_player_abilities(world: World) -> List[int]:
                 ),
             )
         ),
+        AbilityCooldown(),
     )
     verdant_touch = world.create_entity(
         Ability(
@@ -88,6 +95,7 @@ def create_default_player_abilities(world: World) -> List[int]:
             cost={"nature": 4},
             description="Heal 4 HP.",
             params={"heal_amount": 4},
+            cooldown=1,
         ),
         AbilityTarget(target_type="self", max_targets=0),
         AbilityEffects(
@@ -104,6 +112,7 @@ def create_default_player_abilities(world: World) -> List[int]:
                 ),
             )
         ),
+        AbilityCooldown(),
     )
     blood_bolt = world.create_entity(
         Ability(
@@ -112,6 +121,7 @@ def create_default_player_abilities(world: World) -> List[int]:
             cost={"blood": 4},
             description="Deal 2 damage to yourself and 6 damage to opponent.",
             params={"self_damage": 2, "opponent_damage": 6},
+            cooldown=1,
         ),
         AbilityTarget(target_type="self", max_targets=0),
         AbilityEffects(
@@ -138,5 +148,6 @@ def create_default_player_abilities(world: World) -> List[int]:
                 ),
             )
         ),
+        AbilityCooldown(),
     )
     return [tactical_shift, crimson_pulse, ferality, verdant_touch, blood_bolt]

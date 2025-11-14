@@ -3,6 +3,7 @@ from esper import World
 from ecs.events.bus import EventBus
 from ecs.systems.ability_activation_system import AbilityActivationSystem
 from ecs.systems.ability_resolution_system import AbilityResolutionSystem
+from ecs.systems.ability_cooldown_system import AbilityCooldownSystem
 from ecs.systems.abilities.base import AbilityResolver
 
 
@@ -19,4 +20,5 @@ class AbilitySystem:
         self.event_bus = event_bus
         self.activation = AbilityActivationSystem(world, event_bus)
         self.resolution = AbilityResolutionSystem(world, event_bus, resolvers)
+        self.cooldown = AbilityCooldownSystem(world, event_bus)
 
