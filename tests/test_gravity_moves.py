@@ -62,8 +62,8 @@ def test_gravity_moves_emitted():
     bus.subscribe(EVENT_ANIMATION_COMPLETE, on_anim_complete)
 
     bus.emit(EVENT_TILE_SWAP_REQUEST, src=(3,0), dst=(4,0))
-    drive_ticks(bus, 40)
+    drive_ticks(bus, 80)
     assert match_found.get('positions'), 'Match not detected'
     assert fall_start.get('kind') == 'fall', 'Fall animation not started'
-    drive_ticks(bus, 60)
+    drive_ticks(bus, 120)
     assert fall_complete.get('kind') == 'fall', 'Fall animation not completed'

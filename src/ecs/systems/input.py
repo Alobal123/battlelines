@@ -1,6 +1,8 @@
 from ecs.events.bus import EventBus, EVENT_MOUSE_PRESS, EVENT_TILE_CLICK, EVENT_ABILITY_ACTIVATE_REQUEST
 from ecs.constants import GRID_COLS, GRID_ROWS
 from ecs.ui.layout import compute_board_geometry
+from ecs.components.active_turn import ActiveTurn
+from ecs.components.human_agent import HumanAgent
 
 class InputSystem:
     def __init__(self, event_bus: EventBus, window, world=None):
@@ -15,14 +17,19 @@ class InputSystem:
         button = kwargs.get('button')
         if x is None or y is None:
             return
+        active_owner = self._active_owner()
+        active_human_owner = active_owner if self._is_human_entity(active_owner) else None
+        input_locked = active_owner is not None and active_human_owner is None
         # Left button (1) drives activation or tile clicks. Other buttons fall through (so right-click can be handled by other systems).
         if button != 1:
+            if button == 4 and input_locked:
+                return
             return  # Do not emit tile click or ability activation for non-left buttons; Board/Ability systems listen directly to EVENT_MOUSE_PRESS
         # First, check ability buttons via render system layout cache if available
         render_system = getattr(self.window, 'render_system', None)
         if render_system and hasattr(render_system, 'get_ability_at_point'):
             entry = render_system.get_ability_at_point(x, y)
-            if entry and self.world is not None:
+            if entry and self.world is not None and not input_locked:
                 usable = entry.get('usable')
                 if usable is None:
                     usable = entry.get('affordable', True) and entry.get('cooldown_remaining', 0) <= 0
@@ -31,6 +38,11 @@ class InputSystem:
                 # owner_entity now embedded in layout entry for multi-owner support
                 owner_entity = entry.get('owner_entity')
                 if owner_entity is not None:
+                    if active_owner is not None:
+                        if owner_entity != active_human_owner:
+                            return
+                    elif not self._is_human_entity(owner_entity):
+                        return
                     self.event_bus.emit(
                         EVENT_ABILITY_ACTIVATE_REQUEST,
                         ability_entity=entry['entity'],
@@ -39,6 +51,8 @@ class InputSystem:
                     return  # Do not treat as tile click
         # (Legacy regiment click handling removed.)
         # Otherwise treat as board click if within bounds
+        if input_locked:
+            return
         if hasattr(self.window, 'render_system'):
             tile_size, start_x, start_y = compute_board_geometry(self.window.width, self.window.height)
         else:
@@ -57,3 +71,20 @@ class InputSystem:
         row = int((y - start_y) // tile_size)
         if 0 <= row < GRID_ROWS and 0 <= col < GRID_COLS:
             self.event_bus.emit(EVENT_TILE_CLICK, row=row, col=col)
+
+    def _active_owner(self):
+        if self.world is None:
+            return None
+        active = list(self.world.get_component(ActiveTurn))
+        if not active:
+            return None
+        return active[0][1].owner_entity
+
+    def _is_human_entity(self, entity):
+        if self.world is None or entity is None:
+            return False
+        try:
+            self.world.component_for_entity(entity, HumanAgent)
+            return True
+        except KeyError:
+            return False

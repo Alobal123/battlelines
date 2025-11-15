@@ -13,6 +13,7 @@ from ecs.systems.match_resolution import MatchResolutionSystem
 from ecs.components.targeting_state import TargetingState
 from ecs.components.active_turn import ActiveTurn
 from ecs.events.bus import EVENT_TILE_CLICK
+from ecs.components.human_agent import HumanAgent
 
 @pytest.fixture
 def setup_world():
@@ -28,6 +29,12 @@ def setup_world():
     ability = AbilitySystem(world, bus)
     turn = TurnSystem(world, bus)
     input_sys = InputSystem(bus, render.window, world)
+    active_turn_entries = list(world.get_component(ActiveTurn))
+    if active_turn_entries:
+        _, active_turn = active_turn_entries[0]
+        human_owner = next((ent for ent, _ in world.get_component(HumanAgent)), None)
+        if human_owner is not None:
+            active_turn.owner_entity = human_owner
     return bus, world, board, render, input_sys
 
 # Utility: capture emitted tile clicks

@@ -2,6 +2,7 @@ from esper import World
 from .events.bus import EventBus
 from ecs.components.human_agent import HumanAgent
 from ecs.components.ability_list_owner import AbilityListOwner
+from ecs.components.random_agent import RandomAgent
 from ecs.components.tile_bank import TileBank
 from ecs.components.tile_type_registry import TileTypeRegistry
 from ecs.components.tile_types import TileTypes
@@ -12,9 +13,6 @@ from ecs.factories.abilities import create_default_player_abilities
 
 def create_world(event_bus: EventBus) -> World:
     world = World()
-    # THEME: Transitioning from army combat to witch school.
-    # Previous regiment/army abstractions retained temporarily; new tile types below reflect magical faculties.
-    # Future refactor: replace Regiment/ArmyRoster with House/Circle components.
     
     # Register core effect definitions if not already present.
     if not default_effect_registry.has("damage"):
@@ -94,10 +92,9 @@ def create_world(event_bus: EventBus) -> World:
     )
     bank1 = world.component_for_entity(player1_ent, TileBank)
     bank1.owner_entity = player1_ent
-    # Player 2 (adversary placeholder; reuse HumanAgent for now until AI component added)
     abilities_p2 = create_default_player_abilities(world)
     player2_ent = world.create_entity(
-        HumanAgent(),
+        RandomAgent(decision_delay=1.2, selection_delay=0.6),
         AbilityListOwner(ability_entities=abilities_p2),
         TileBank(owner_entity=0),
         Health(current=30, max_hp=30),
@@ -105,7 +102,6 @@ def create_world(event_bus: EventBus) -> World:
     bank2 = world.component_for_entity(player2_ent, TileBank)
     bank2.owner_entity = player2_ent
 
-    # Removed regiment creation; future: create Houses/Circles here.
 
     # Create single registry entity with canonical types
     registry_entity = world.create_entity(
@@ -125,5 +121,5 @@ def create_world(event_bus: EventBus) -> World:
         registry_entity, TileTypes)
     for type_name in definitions.types.keys():
         bank1.counts[type_name] = 100
-        bank2.counts[type_name] = 100
+        bank2.counts[type_name] = 0
     return world

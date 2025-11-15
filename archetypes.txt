@@ -1,0 +1,25 @@
+Nature
+- healing
+Blood
+- life drain
+Shapeshift
+- buffs
+Spirit
+- mana manipulation
+Hex
+- debuffs
+
+Nature + Blood
+ - summon vines
+Nature + Shapeshift
+ - werewolf transformation
+Nature + Spirit
+- 
+Nature + Hex
+-
+Blood + Shapeshift	Berserker Witch
+Blood + Spirit	Pain Medium
+Blood + Hex	Malefex (blood curse nuker)
+Shapeshift + Spirit	Phantom Beast
+Shapeshift + Hex	Skinbinder (curse predator)
+Spirit + Hex	Dire Medium (long-term controller)

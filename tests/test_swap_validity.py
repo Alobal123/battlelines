@@ -1,3 +1,5 @@
+from math import ceil
+
 from ecs.events.bus import EventBus, EVENT_TILE_SWAP_REQUEST, EVENT_TILE_SWAP_DO, EVENT_TILE_SWAP_FINALIZE, EVENT_TICK
 from ecs.systems.board import BoardSystem
 from ecs.systems.render import RenderSystem
@@ -5,6 +7,7 @@ from ecs.systems.match import MatchSystem
 from ecs.systems.animation import AnimationSystem
 from ecs.components.animation_swap import SwapAnimation
 from ecs.world import create_world
+from ecs.components.duration import Duration
 from ecs.components.tile import TileType
 from ecs.components.active_switch import ActiveSwitch
 
@@ -44,9 +47,13 @@ def test_invalid_swap_reverts():
     world.component_for_entity(e01, ActiveSwitch).active = True
     world.component_for_entity(e02, ActiveSwitch).active = True
     bus.emit(EVENT_TILE_SWAP_REQUEST, src=(0,0), dst=(0,1))
-    # animate forward+reverse
-    # Initial forward phase (0.2s) then reverse (0.2s). Provide enough ticks for both (~20 total).
-    drive_ticks(bus, count=25)
+    duration_value = 0.0
+    for ent, _ in world.get_component(SwapAnimation):
+        duration_value = world.component_for_entity(ent, Duration).value
+        break
+    assert duration_value > 0.0
+    total_steps = ceil(((duration_value * 2) + 0.1) / 0.02)
+    drive_ticks(bus, count=total_steps)
     # Swap animation should have finished (animations component inactive)
     swaps = list(world.get_component(SwapAnimation))
     assert not swaps, f'Swap animation did not finish; remaining components={len(swaps)}'
@@ -81,7 +88,13 @@ def test_valid_swap_applies():
     world.component_for_entity(e01, ActiveSwitch).active = True
     world.component_for_entity(e02, ActiveSwitch).active = True
     bus.emit(EVENT_TILE_SWAP_REQUEST, src=(0,0), dst=(0,1))
-    drive_ticks(bus, 15)
+    duration_value = 0.0
+    for ent, _ in world.get_component(SwapAnimation):
+        duration_value = world.component_for_entity(ent, Duration).value
+        break
+    assert duration_value > 0.0
+    total_steps = ceil((duration_value + 0.1) / 0.02)
+    drive_ticks(bus, total_steps)
     # Valid swap should finish forward animation and clear active_swap
     swaps = list(world.get_component(SwapAnimation))
     assert not swaps

@@ -170,6 +170,77 @@ def active_tile_type_map(world: World) -> Dict[Position, str]:
     return mapping
 
 
+def _has_line_match(types: Dict[Position, str], pos: Position) -> bool:
+    """Return True if swapping created a horizontal or vertical run through pos."""
+    row, col = pos
+    tval = types.get(pos)
+    if tval is None:
+        return False
+    # Horizontal sweep
+    h_run = [(row, col)]
+    c_left = col - 1
+    while (row, c_left) in types and types[(row, c_left)] == tval:
+        h_run.append((row, c_left))
+        c_left -= 1
+    c_right = col + 1
+    while (row, c_right) in types and types[(row, c_right)] == tval:
+        h_run.append((row, c_right))
+        c_right += 1
+    if len(h_run) >= 3:
+        return True
+    # Vertical sweep
+    v_run = [(row, col)]
+    r_up = row - 1
+    while (r_up, col) in types and types[(r_up, col)] == tval:
+        v_run.append((r_up, col))
+        r_up -= 1
+    r_down = row + 1
+    while (r_down, col) in types and types[(r_down, col)] == tval:
+        v_run.append((r_down, col))
+        r_down += 1
+    return len(v_run) >= 3
+
+
+def predict_swap_creates_match(
+    world: World, src: Position, dst: Position, *, types: Dict[Position, str] | None = None
+) -> bool:
+    """Return True if swapping src/dst would create a new match."""
+
+    tile_map = types if types is not None else active_tile_type_map(world)
+    if src not in tile_map or dst not in tile_map:
+        return False
+    swapped = tile_map.copy()
+    swapped[src], swapped[dst] = swapped[dst], swapped[src]
+    return _has_line_match(swapped, src) or _has_line_match(swapped, dst)
+
+
+def find_valid_swaps(world: World) -> List[Tuple[Position, Position]]:
+    """Enumerate adjacent swaps that would produce a match."""
+
+    dims = board_dimensions(world)
+    if not dims:
+        return []
+    rows, cols = dims
+    tile_map = active_tile_type_map(world)
+    if not tile_map:
+        return []
+    swaps: List[Tuple[Position, Position]] = []
+    for row in range(rows):
+        for col in range(cols):
+            pos = (row, col)
+            if pos not in tile_map:
+                continue
+            right = (row, col + 1)
+            if col + 1 < cols and right in tile_map:
+                if predict_swap_creates_match(world, pos, right, types=tile_map):
+                    swaps.append((pos, right))
+            down = (row + 1, col)
+            if row + 1 < rows and down in tile_map:
+                if predict_swap_creates_match(world, pos, down, types=tile_map):
+                    swaps.append((pos, down))
+    return swaps
+
+
 def board_dimensions(world: World) -> Tuple[int, int] | None:
     for _, board in world.get_component(Board):
         return board.rows, board.cols

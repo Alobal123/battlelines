@@ -1,6 +1,6 @@
 import pytest
 from esper import World
-from ecs.events.bus import EventBus, EVENT_TILE_BANK_SPEND_REQUEST, EVENT_TILE_BANK_SPENT, EVENT_ABILITY_ACTIVATE_REQUEST, EVENT_ABILITY_TARGET_MODE, EVENT_TILE_CLICK
+from ecs.events.bus import EventBus, EVENT_TILE_BANK_SPENT, EVENT_ABILITY_ACTIVATE_REQUEST, EVENT_TILE_CLICK
 from ecs.components.ability import Ability
 from ecs.components.ability_target import AbilityTarget
 from ecs.components.ability_list_owner import AbilityListOwner

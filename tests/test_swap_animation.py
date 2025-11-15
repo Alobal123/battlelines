@@ -1,3 +1,5 @@
+from math import ceil
+
 from ecs.events.bus import EventBus, EVENT_TILE_SWAP_REQUEST, EVENT_TILE_SWAP_DO, EVENT_TILE_SWAP_FINALIZE, EVENT_TICK
 from ecs.systems.board import BoardSystem
 from ecs.systems.render import RenderSystem
@@ -5,6 +7,7 @@ from ecs.systems.match import MatchSystem
 from ecs.systems.animation import AnimationSystem
 from ecs.components.animation_swap import SwapAnimation
 from ecs.world import create_world
+from ecs.components.duration import Duration
 
 class DummyWindow:
     def __init__(self, width=800, height=600):
@@ -40,18 +43,21 @@ def test_swap_animation_tick_progress():
     world.component_for_entity(e00, TileType).type_name = 'hex'
     world.component_for_entity(e01, TileType).type_name = 'hex'
     bus.emit(EVENT_TILE_SWAP_REQUEST, src=(0,0), dst=(0,1))
-    # Simulate ticks until animation completes (swap_duration=0.2)
+    # Simulate ticks until animation completes using configured duration.
     progressed = False
-    for _ in range(5):
+    duration_value = 0.0
+    for ent, _ in world.get_component(SwapAnimation):
+        duration_value = world.component_for_entity(ent, Duration).value
+        break
+    assert duration_value > 0.0
+    total_steps = ceil((duration_value + 0.1) / 0.02)
+    for _ in range(total_steps):
         bus.emit(EVENT_TICK, dt=0.02)
         swaps = list(world.get_component(SwapAnimation))
         if swaps:
             _, swap = swaps[0]
             if swap.progress > 0:
                 progressed = True
-    # Continue until expected completion
-    for _ in range(10):
-        bus.emit(EVENT_TICK, dt=0.02)
     if not finalized.get('src'):
         # Fallback: force completion
         bus.emit(EVENT_TILE_SWAP_DO, src=(0,0), dst=(0,1))

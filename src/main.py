@@ -23,6 +23,7 @@ from ecs.systems.effects.heal_effect_system import HealEffectSystem
 from ecs.systems.effects.board_clear_effect_system import BoardClearEffectSystem
 from ecs.systems.effects.board_transform_effect_system import BoardTransformEffectSystem
 from ecs.systems.tooltip_system import TooltipSystem
+from ecs.systems.random_ai_system import RandomAISystem
 
 class BattlelinesWindow(Window):
     def __init__(self):
@@ -46,6 +47,7 @@ class BattlelinesWindow(Window):
         self.ability_targeting_system = AbilityTargetingSystem(self.world, self.event_bus)
         self.ability_system = AbilitySystem(self.world, self.event_bus)
         self.turn_system = TurnSystem(self.world, self.event_bus)
+        self.random_ai_system = RandomAISystem(self.world, self.event_bus)
         self.health_system = HealthSystem(self.world, self.event_bus)
         # InputSystem expects (event_bus, window)
         self.input_system = InputSystem(self.event_bus, self, self.world)
