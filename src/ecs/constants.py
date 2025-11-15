@@ -1,12 +1,12 @@
-GRID_ROWS = 7  # updated from 8 -> 7
-GRID_COLS = 9  # updated from 8 -> 9
-TILE_SIZE = 50
+GRID_ROWS = 8
+GRID_COLS = 8
+TILE_SIZE = 64
 BOTTOM_MARGIN = 20
 
 # Board maximum footprint relative to window (percentage of window width/height).
 # The render/layout code will size the board so it does not exceed either percentage.
-BOARD_MAX_WIDTH_PCT = 0.55   # 55% of window width
-BOARD_MAX_HEIGHT_PCT = 0.65  # 65% of window height (excluding bottom margin)
+BOARD_MAX_WIDTH_PCT = 0.75   # allow board to consume up to 75% of window width
+BOARD_MAX_HEIGHT_PCT = 0.90  # allow board to consume up to 90% of window height (excluding bottom margin)
 
 # Side panel geometry (panels sit left/right of board and consume remaining horizontal space)
 # Minimum width fallback when window is very narrow.
@@ -19,6 +19,9 @@ BANK_BAR_HEIGHT = 84
 BANK_BAR_EXTRA_HEIGHT = 40
 # Height of player panel above the bank bar.
 PLAYER_PANEL_HEIGHT = 46
+# Portrait block inserted between name and bank bars
+PLAYER_PORTRAIT_SIZE = 140
+PLAYER_PORTRAIT_PADDING = 16  # vertical breathing room below portrait block
 # Padding between the bottom of the bank bar and the first ability rectangle.
 ABILITY_TOP_PADDING = 8
 # Horizontal inner padding inside side panels for ability rectangles.

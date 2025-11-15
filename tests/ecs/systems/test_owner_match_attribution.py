@@ -54,8 +54,8 @@ def test_match_clear_attributed_to_active_owner(setup_world):
             break
     assert p2_bank_ent is not None
     p2_bank = world.component_for_entity(p2_bank_ent, TileBank)
-    # Started prefilled at 100; after event should be 101
-    assert p2_bank.counts.get('hex', 0) == 101
+    # Started at 0; after event should be 1
+    assert p2_bank.counts.get('hex', 0) == 1
     # Ensure p1 bank unchanged
     p1_bank_ent = None
     for ent, bank in world.get_component(TileBank):
@@ -63,4 +63,4 @@ def test_match_clear_attributed_to_active_owner(setup_world):
             p1_bank_ent = ent
             break
     p1_bank = world.component_for_entity(p1_bank_ent, TileBank)
-    assert p1_bank.counts.get('hex', 0) == 100
+    assert p1_bank.counts.get('hex', 0) == 0

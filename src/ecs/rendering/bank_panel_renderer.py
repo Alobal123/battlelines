@@ -7,6 +7,7 @@ from ecs.constants import (
     BANK_BAR_HEIGHT,
     BANK_BAR_EXTRA_HEIGHT,
     PLAYER_PANEL_HEIGHT,
+    PLAYER_PORTRAIT_PADDING,
     SIDE_GAP,
     SIDE_PANEL_MIN_WIDTH,
     SIDE_PANEL_TOP_MARGIN,
@@ -54,7 +55,8 @@ class BankPanelRenderer:
         for side, col_w in (("left", left_col_w), ("right", right_col_w)):
             x = left_panel_left if side == "left" else right_panel_left
             ability_bottom = panel_bottom
-            ability_top = panel_top - (PLAYER_PANEL_HEIGHT + bar_height)
+            portrait_height = col_w
+            ability_top = panel_top - (PLAYER_PANEL_HEIGHT + portrait_height + PLAYER_PORTRAIT_PADDING + bar_height)
             points = [
                 (x, ability_bottom), (x + col_w, ability_bottom),
                 (x + col_w, ability_top), (x, ability_top),
@@ -62,7 +64,9 @@ class BankPanelRenderer:
             arcade.draw_polygon_filled(points, panel_color)
             arcade.draw_polygon_outline(points, border_color, 2)
             # Bank bar directly below (player panel rendered separately)
-            bar_top = panel_top - PLAYER_PANEL_HEIGHT
+            portrait_top = panel_top - PLAYER_PANEL_HEIGHT
+            portrait_bottom = portrait_top - portrait_height
+            bar_top = portrait_bottom - PLAYER_PORTRAIT_PADDING
             bar_bottom = bar_top - bar_height
             bar_points = [
                 (x, bar_bottom), (x + col_w, bar_bottom),
@@ -75,9 +79,12 @@ class BankPanelRenderer:
         ordered_types = ["nature", "blood", "shapeshift", "spirit", "hex"]
         for idx, (bank_ent, bank) in enumerate(banks_sorted):
             bar_left = left_panel_left if idx == 0 else right_panel_left
-            bar_bottom = panel_top - PLAYER_PANEL_HEIGHT - bar_height
+            portrait_top = panel_top - PLAYER_PANEL_HEIGHT
+            portrait_height = left_col_w if idx == 0 else right_col_w
+            portrait_bottom = portrait_top - portrait_height
+            bar_top = portrait_bottom - PLAYER_PORTRAIT_PADDING
+            bar_bottom = bar_top - bar_height
             # Center circles vertically inside bank bar
-            bar_top = panel_top - PLAYER_PANEL_HEIGHT
             center_y = (bar_bottom + bar_top) / 2
             col_w = left_col_w if idx == 0 else right_col_w
             pad_left = bar_left + 48  # increased left gutter

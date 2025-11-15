@@ -39,7 +39,9 @@ class RenderSystem:
         self._tile_size = TILE_SIZE  # dynamic scaling; updated on resize/process
         self._last_window_size = (self.window.width, self.window.height)
         self.use_easing = True
-        self._texture_dir = Path(__file__).resolve().parents[3] / "graphics"
+        base_graphics_dir = Path(__file__).resolve().parents[3] / "graphics"
+        self._texture_dir = base_graphics_dir / "icons"
+        self._portrait_dir = base_graphics_dir / "characters"
         self.sprite_cache = SpriteCache(self._texture_dir)
         self._ability_layout_cache = []
         self._player_panel_cache: list[dict[str, Any]] = []

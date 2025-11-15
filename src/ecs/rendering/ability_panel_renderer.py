@@ -9,6 +9,7 @@ from ecs.constants import (
     BANK_BAR_HEIGHT,
     BANK_BAR_EXTRA_HEIGHT,
     PLAYER_PANEL_HEIGHT,
+    PLAYER_PORTRAIT_PADDING,
     SIDE_GAP,
     SIDE_PANEL_INNER_PAD,
     SIDE_PANEL_MIN_WIDTH,
@@ -53,8 +54,11 @@ class AbilityPanelRenderer:
         right_space = max(0, (window_w - board_right) - SIDE_GAP)
         left_col_w = max(SIDE_PANEL_MIN_WIDTH, left_space)
         right_col_w = max(SIDE_PANEL_MIN_WIDTH, right_space)
-        # Account for player panel + bank (with extra breathing room) stacked above abilities.
-        ability_panel_top = side_panel_top - (PLAYER_PANEL_HEIGHT + BANK_BAR_HEIGHT + BANK_BAR_EXTRA_HEIGHT)
+        # Account for player panel, portrait (using full column width), and bank stacked above abilities.
+        portrait_block = max(left_col_w, right_col_w) + PLAYER_PORTRAIT_PADDING
+        ability_panel_top = side_panel_top - (
+            PLAYER_PANEL_HEIGHT + portrait_block + BANK_BAR_HEIGHT + BANK_BAR_EXTRA_HEIGHT
+        )
         first_rect_bottom = ability_panel_top - ABILITY_TOP_PADDING - rect_h
         left_rect_w = max(60, left_col_w - 2 * SIDE_PANEL_INNER_PAD)
         right_rect_w = max(60, right_col_w - 2 * SIDE_PANEL_INNER_PAD)

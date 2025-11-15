@@ -16,6 +16,8 @@ class SpriteCache:
         self._bank_sprites: Any | None = None
         self._regiment_sprite_map: dict[int, Any] = {}
         self._regiment_sprites: Any | None = None
+        self._portrait_sprite_map: dict[str, Any] = {}
+        self._portrait_sprites: Any | None = None
 
     # ------------------------------------------------------------------
     # Board tile sprites
@@ -116,6 +118,35 @@ class SpriteCache:
     def draw_regiment_sprites(self) -> None:
         if self._regiment_sprites is not None:
             self._regiment_sprites.draw()
+
+    # ------------------------------------------------------------------
+    # Portrait sprites (per label)
+    # ------------------------------------------------------------------
+    def ensure_portrait_sprite(self, arcade_module, key: str, texture_path: Path):
+        portrait_list = self._portrait_sprites
+        if portrait_list is None:
+            portrait_list = arcade_module.SpriteList()
+            self._portrait_sprites = portrait_list
+        sprite = self._portrait_sprite_map.get(key)
+        if sprite is None:
+            if not texture_path.exists():
+                return None
+            try:
+                texture = arcade_module.load_texture(str(texture_path))
+            except Exception:
+                return None
+            try:
+                sprite = arcade_module.Sprite()
+                sprite.texture = texture
+            except Exception:
+                return None
+            self._portrait_sprite_map[key] = sprite
+            portrait_list.append(sprite)
+        return sprite
+
+    def draw_portrait_sprites(self) -> None:
+        if self._portrait_sprites is not None:
+            self._portrait_sprites.draw()
 
     # ------------------------------------------------------------------
     # Shared helpers

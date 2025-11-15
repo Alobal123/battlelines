@@ -6,6 +6,7 @@ from ecs.components.rule_based_agent import RuleBasedAgent
 from ecs.components.tile_bank import TileBank
 from ecs.components.tile_type_registry import TileTypeRegistry
 from ecs.components.tile_types import TileTypes
+from ecs.components.character import Character
 from ecs.effects.registry import EffectDefinition, default_effect_registry, register_effect
 from ecs.components.health import Health
 from ecs.factories.abilities import create_default_player_abilities
@@ -89,6 +90,12 @@ def create_world(event_bus: EventBus) -> World:
         AbilityListOwner(ability_entities=abilities_p1),
         TileBank(owner_entity=0),
         Health(current=30, max_hp=30),
+        Character(
+            slug="fiora",
+            name="Fiora",
+            description="A young witch mastering the arcane arts",
+            portrait_path="fiora.png"
+        ),
     )
     bank1 = world.component_for_entity(player1_ent, TileBank)
     bank1.owner_entity = player1_ent
@@ -98,6 +105,12 @@ def create_world(event_bus: EventBus) -> World:
         AbilityListOwner(ability_entities=abilities_p2),
         TileBank(owner_entity=0),
         Health(current=30, max_hp=30),
+        Character(
+            slug="undead_gardener",
+            name="Undead Gardener",
+            description="A mysterious caretaker of forgotten groves",
+            portrait_path="undead_gardener.png"
+        ),
     )
     bank2 = world.component_for_entity(player2_ent, TileBank)
     bank2.owner_entity = player2_ent
@@ -116,10 +129,4 @@ def create_world(event_bus: EventBus) -> World:
             'witchfire':   (226, 62, 160),   # #E23EA0
         })
     )
-    # TESTING: Prefill both banks generously with all type names
-    definitions: TileTypes = world.component_for_entity(
-        registry_entity, TileTypes)
-    for type_name in definitions.types.keys():
-        bank1.counts[type_name] = 100
-        bank2.counts[type_name] = 100
     return world

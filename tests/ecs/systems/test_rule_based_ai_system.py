@@ -11,6 +11,7 @@ from ecs.components.board_position import BoardPosition
 from ecs.components.health import Health
 from ecs.components.rule_based_agent import RuleBasedAgent
 from ecs.components.tile import TileType
+from ecs.components.tile_bank import TileBank
 from ecs.events.bus import EventBus
 from ecs.systems.base_ai_system import AbilityAction
 from ecs.systems.rule_based_ai_system import RuleBasedAISystem
@@ -53,6 +54,9 @@ def test_rule_based_ai_prefers_lethal_ability_over_swap():
     ability_entity = _get_ability_entity(world, ai_owner, "blood_bolt")
     owner_comp: AbilityListOwner = world.component_for_entity(ai_owner, AbilityListOwner)
     owner_comp.ability_entities = [ability_entity]
+    # Give the AI enough mana to use blood_bolt
+    bank = world.component_for_entity(ai_owner, TileBank)
+    bank.counts["blood"] = 10
     # Set opponent low enough for blood_bolt to be lethal.
     opponent_entity = next(ent for ent, _ in world.get_component(Health) if ent != ai_owner)
     opponent_health: Health = world.component_for_entity(opponent_entity, Health)
@@ -84,6 +88,9 @@ def test_rule_based_ai_prioritises_witchfire_targets():
     ability_entity = _get_ability_entity(world, ai_owner, "crimson_pulse")
     owner_comp: AbilityListOwner = world.component_for_entity(ai_owner, AbilityListOwner)
     owner_comp.ability_entities = [ability_entity]
+    # Give the AI enough mana to use crimson_pulse
+    bank = world.component_for_entity(ai_owner, TileBank)
+    bank.counts["hex"] = 10
     ai_system = RuleBasedAISystem(world, bus, rng=random.Random(0))
 
     actions = ai_system._enumerate_ability_actions(ai_owner)
@@ -112,6 +119,10 @@ def test_rule_based_ai_prefers_higher_cost_ready_ability():
     blood_bolt_entity = _get_ability_entity(world, ai_owner, "blood_bolt")
     owner_comp: AbilityListOwner = world.component_for_entity(ai_owner, AbilityListOwner)
     owner_comp.ability_entities = [ferality_entity, blood_bolt_entity]
+    # Give the AI enough mana for both abilities
+    bank = world.component_for_entity(ai_owner, TileBank)
+    bank.counts["shapeshift"] = 10
+    bank.counts["blood"] = 10
     opponent_entity = next(ent for ent, _ in world.get_component(Health) if ent != ai_owner)
     opponent_health: Health = world.component_for_entity(opponent_entity, Health)
     opponent_health.current = 20

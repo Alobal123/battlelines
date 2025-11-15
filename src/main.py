@@ -49,7 +49,6 @@ class BattlelinesWindow(Window):
         self.turn_system = TurnSystem(self.world, self.event_bus)
         self.rule_based_ai_system = RuleBasedAISystem(self.world, self.event_bus)
         self.health_system = HealthSystem(self.world, self.event_bus)
-        # InputSystem expects (event_bus, window)
         self.input_system = InputSystem(self.event_bus, self, self.world)
         set_background_color(color.BLACK)
         # Toggle fullscreen and allow dynamic scaling; width/height update after fullscreen set.

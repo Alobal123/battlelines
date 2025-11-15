@@ -34,6 +34,10 @@ def setup_world():
 def _activate_crimson_pulse(bus, world):
     owners = list(world.get_component(AbilityListOwner))
     owner_ent, owner_comp = owners[0]
+    # Give the owner enough mana to use crimson_pulse (costs 5 hex)
+    from ecs.components.tile_bank import TileBank
+    bank = world.component_for_entity(owner_ent, TileBank)
+    bank.counts["hex"] = 10
     from ecs.components.ability import Ability
     ability_ent = None
     for ent, ability in world.get_component(Ability):

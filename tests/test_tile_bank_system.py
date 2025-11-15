@@ -9,6 +9,10 @@ def test_tile_bank_increments_on_match_clear():
     bus = EventBus(); world = create_world(bus)
     TileBankSystem(world, bus)
     owner_ent = list(world.get_component(AbilityListOwner))[0][0]
+    # Set up initial mana
+    bank = world.component_for_entity(owner_ent, TileBank)
+    bank.counts['hex'] = 100
+    bank.counts['nature'] = 100
     # Use new faculty names
     types_payload = [(0,0,'hex'), (0,1,'hex'), (0,2,'nature')]
     changed = {}
@@ -16,8 +20,8 @@ def test_tile_bank_increments_on_match_clear():
     bus.emit(EVENT_MATCH_CLEARED, positions=[(0,0),(0,1),(0,2)], types=types_payload)
     assert changed.get('counts'), 'Tile bank not changed'
     counts = changed['counts']
-    assert counts.get('hex') == 102  # prefilled 100 + 2
-    assert counts.get('nature') == 101  # prefilled 100 + 1
+    assert counts.get('hex') == 102  # initial 100 + 2
+    assert counts.get('nature') == 101  # initial 100 + 1
 
 
 def test_tile_bank_spend_success_and_failure():
@@ -33,10 +37,10 @@ def test_tile_bank_spend_success_and_failure():
     # Spend valid cost
     bus.emit(EVENT_TILE_BANK_SPEND_REQUEST, entity=owner_ent, cost={'hex':2})
     assert spent.get('cost') == {'hex':2}
-    # Spend invalid cost (insufficient nature) using exaggerated requirement
+    # Spend invalid cost (insufficient nature) - bank has 1 nature, need 200
     bus.emit(EVENT_TILE_BANK_SPEND_REQUEST, entity=owner_ent, cost={'nature':200})
-    # Missing should reflect available counts after prior increment (101 nature)
-    assert insufficient.get('missing') == {'nature':99}
+    # Missing should reflect available counts after prior increment (1 nature)
+    assert insufficient.get('missing') == {'nature':199}
 
 
 def test_no_regiment_readiness_side_effects():
@@ -53,4 +57,5 @@ def test_no_regiment_readiness_side_effects():
     bus.subscribe(EVENT_TILE_BANK_CHANGED, lambda s, **k: changed.update(k))
     bus.emit(EVENT_MATCH_CLEARED, positions=[(1,0),(1,1),(1,2)], types=types_payload, owner_entity=owner_ent)
     counts = changed.get('counts')
-    assert counts and counts.get('hex') >= 106
+    # After two match clears of 3 hex each, should have 6 hex total
+    assert counts and counts.get('hex') >= 6

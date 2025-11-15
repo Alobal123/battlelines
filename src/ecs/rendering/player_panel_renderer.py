@@ -2,8 +2,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ecs.constants import PLAYER_PANEL_HEIGHT, SIDE_GAP, SIDE_PANEL_MIN_WIDTH, SIDE_PANEL_TOP_MARGIN
 from ecs.components.ability_list_owner import AbilityListOwner
+from ecs.components.character import Character
+from ecs.constants import (
+    PLAYER_PANEL_HEIGHT,
+    PLAYER_PORTRAIT_PADDING,
+    SIDE_GAP,
+    SIDE_PANEL_MIN_WIDTH,
+    SIDE_PANEL_TOP_MARGIN,
+)
 
 if TYPE_CHECKING:
     from ecs.rendering.context import RenderContext
@@ -11,17 +18,14 @@ if TYPE_CHECKING:
 
 
 class PlayerPanelRenderer:
-    """Renders a simple player header strip above the bank bar.
+    """Render the player label strip and portrait block for each side panel."""
 
-    Future extension: show dynamic player names, scores, turn indicators, icons.
-    """
     def __init__(self, render_system: RenderSystem):
         self._rs = render_system
 
-    def render(self, arcade, ctx: 'RenderContext') -> None:
+    def render(self, arcade, ctx: RenderContext) -> None:
         board_left = ctx.board_left
         board_right = ctx.board_right
-        # Extend player panel upward near top of window (small margin)
         panel_top = ctx.window_height - SIDE_PANEL_TOP_MARGIN
         window_w = ctx.window_width
         left_space = max(0, board_left - SIDE_GAP)
@@ -33,33 +37,80 @@ class PlayerPanelRenderer:
 
         panel_color = (50, 50, 50)
         border_color = (180, 180, 180)
+        portrait_bg = (30, 30, 30)
 
         rs = self._rs
         rs._player_panel_cache = []
         owners = list(rs.world.get_component(AbilityListOwner))
         owners.sort(key=lambda item: item[0])
         owner_by_side: dict[str, int] = {}
-        for idx, (entity, _owner_comp) in enumerate(owners):
-            if idx == 0:
-                owner_by_side["left"] = entity
-            elif idx == 1:
-                owner_by_side["right"] = entity
-            else:
+        character_by_side: dict[str, Character | None] = {}
+        for idx, (entity, _owner) in enumerate(owners):
+            side = "left" if idx == 0 else "right" if idx == 1 else None
+            if side:
+                owner_by_side[side] = entity
+                # Try to get Character component
+                try:
+                    character = rs.world.component_for_entity(entity, Character)
+                    character_by_side[side] = character
+                except KeyError:
+                    character_by_side[side] = None
+            if idx >= 1:
                 break
 
         for side, col_w in (("left", left_col_w), ("right", right_col_w)):
             x = left_panel_left if side == "left" else right_panel_left
+            owner_entity = owner_by_side.get(side)
+            character = character_by_side.get(side)
+            
             player_bottom = panel_top - PLAYER_PANEL_HEIGHT
             player_points = [
-                (x, player_bottom), (x + col_w, player_bottom),
-                (x + col_w, panel_top), (x, panel_top),
+                (x, player_bottom),
+                (x + col_w, player_bottom),
+                (x + col_w, panel_top),
+                (x, panel_top),
             ]
             arcade.draw_polygon_filled(player_points, panel_color)
             arcade.draw_polygon_outline(player_points, border_color, 2)
-            label = "Player 1" if side == "left" else "Player 2"
-            arcade.draw_text(label, x + col_w / 2, player_bottom + PLAYER_PANEL_HEIGHT / 2 - 8,
-                             arcade.color.WHITE, 16, anchor_x="center")
-            owner_entity = owner_by_side.get(side)
+            
+            # Use character name if available, otherwise default label
+            if character:
+                label = character.name
+            else:
+                label = "Player 1" if side == "left" else "Player 2"
+            arcade.draw_text(
+                label,
+                x + col_w / 2,
+                player_bottom + PLAYER_PANEL_HEIGHT / 2 - 8,
+                arcade.color.WHITE,
+                16,
+                anchor_x="center",
+            )
+
+            portrait_size = col_w
+            portrait_top = player_bottom
+            portrait_bottom = portrait_top - portrait_size
+            portrait_left = x
+            portrait_right = portrait_left + portrait_size
+            portrait_points = [
+                (portrait_left, portrait_bottom),
+                (portrait_right, portrait_bottom),
+                (portrait_right, portrait_top),
+                (portrait_left, portrait_top),
+            ]
+            arcade.draw_polygon_filled(portrait_points, portrait_bg)
+            arcade.draw_polygon_outline(portrait_points, border_color, 2)
+
+            # Load portrait from character component
+            if character and character.portrait_path:
+                portrait_path = rs._portrait_dir / character.portrait_path
+                sprite = rs.sprite_cache.ensure_portrait_sprite(arcade, character.portrait_path, portrait_path)
+                if sprite is not None:
+                    center_x = portrait_left + portrait_size / 2
+                    center_y = portrait_bottom + portrait_size / 2
+                    icon_size = max(0.0, portrait_size - PLAYER_PORTRAIT_PADDING * 2)
+                    rs.sprite_cache.update_sprite_visuals(sprite, center_x, center_y, icon_size, 255)
+
             if owner_entity is not None:
                 rs._player_panel_cache.append(
                     {
@@ -70,5 +121,9 @@ class PlayerPanelRenderer:
                         "width": col_w,
                         "height": PLAYER_PANEL_HEIGHT,
                         "label": label,
+                        "portrait_bottom": portrait_bottom,
+                        "portrait_size": portrait_size,
                     }
                 )
+
+        rs.sprite_cache.draw_portrait_sprites()

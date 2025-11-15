@@ -6,6 +6,7 @@ from ecs.components.active_switch import ActiveSwitch
 from ecs.components.board import Board
 from ecs.components.board_position import BoardPosition
 from ecs.components.tile import TileType
+from ecs.components.tile_bank import TileBank
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.random_agent import RandomAgent
 from ecs.components.rule_based_agent import RuleBasedAgent
@@ -106,6 +107,9 @@ def test_random_ai_triggers_self_ability_when_no_swaps():
         if world.component_for_entity(ent, Ability).name == "ferality"
     )
     owner_comp.ability_entities = [ferality_entity]
+    # Give the AI enough mana to use the ability
+    bank = world.component_for_entity(ai_owner, TileBank)
+    bank.counts["shapeshift"] = 10
     # 1x1 board ensures no valid swap actions exist.
     _build_board(world, [["nature"]], board_system)
     captured = {}
