@@ -9,6 +9,7 @@ from ecs.components.tile import TileType
 from ecs.components.board_position import BoardPosition
 from ecs.components.targeting_state import TargetingState
 from ecs.systems.turn_state_utils import get_or_create_turn_state
+from ecs.systems.board_ops import swap_tile_types
 
 # Legacy color constants removed; rendering derives colors solely from TileTypes.
 PALETTE: List[Tuple[int,int,int]] = []  # retained only if future random color generation needed for new types.
@@ -90,14 +91,8 @@ class BoardSystem:
         return (abs(ar - br) == 1 and ac == bc) or (abs(ac - bc) == 1 and ar == br)
 
     def swap_tiles(self, a: Tuple[int,int], b: Tuple[int,int]):
-        # Swap TileType data between entities at positions a and b (type + background)
-        ent_a = self._get_entity_at(*a)
-        ent_b = self._get_entity_at(*b)
-        if ent_a is None or ent_b is None:
-            return
-        type_a: TileType = self.world.component_for_entity(ent_a, TileType)
-        type_b: TileType = self.world.component_for_entity(ent_b, TileType)
-        type_a.type_name, type_b.type_name = type_b.type_name, type_a.type_name
+        # Delegate type swapping to shared board ops helper.
+        swap_tile_types(self.world, a, b)
 
     def on_mouse_press(self, sender, **kwargs):
         # Right-click always clears current selection (independent of targeting state)

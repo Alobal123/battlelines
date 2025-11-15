@@ -10,7 +10,7 @@ class AnimationFactory:
     def __init__(self, world: World):
         self.world = world
 
-    def create_swap(self, src: Tuple[int,int], dst: Tuple[int,int], duration: float = 0.2) -> int:
+    def create_swap(self, src: Tuple[int,int], dst: Tuple[int,int], duration: float = 0.15) -> int:
         ent = self.world.create_entity()
         self.world.add_component(ent, SwapAnimation(src=src, dst=dst))
         self.world.add_component(ent, Duration(duration))
@@ -34,7 +34,7 @@ class AnimationFactory:
             ents.append(ent)
         return ents
 
-    def create_refill_group(self, positions: List[Tuple[int,int]], duration: float = 0.25) -> List[int]:
+    def create_refill_group(self, positions: List[Tuple[int,int]], duration: float = 0.18) -> List[int]:
         ents = []
         for pos in positions:
             ent = self.world.create_entity()

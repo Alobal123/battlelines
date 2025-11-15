@@ -25,9 +25,10 @@ Position = Tuple[int, int]
 class BoardClearEffectSystem:
     """Resolves area-based board clear effects (e.g., crimson pulse)."""
 
-    def __init__(self, world: World, event_bus: EventBus) -> None:
+    def __init__(self, world: World, event_bus: EventBus, *, refill_cascades: bool = True) -> None:
         self.world = world
         self.event_bus = event_bus
+        self._refill_cascades = refill_cascades
         self.event_bus.subscribe(EVENT_EFFECT_APPLIED, self._on_effect_event)
         self.event_bus.subscribe(EVENT_EFFECT_REFRESHED, self._on_effect_event)
 
@@ -48,7 +49,9 @@ class BoardClearEffectSystem:
             self._remove_effect(effect_entity, reason="resolved")
             return
 
-        colored, typed, gravity_moves, cascades, new_tiles = clear_tiles_with_cascade(self.world, positions)
+        colored, typed, gravity_moves, cascades, new_tiles = clear_tiles_with_cascade(
+            self.world, positions, refill=self._refill_cascades
+        )
 
         affected_positions = [(row, col) for row, col, _ in colored]
         ability_entity = effect.source_entity

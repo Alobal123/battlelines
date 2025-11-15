@@ -60,7 +60,27 @@ def transform_tiles_to_type(world: World, row: int, col: int, target_type: str) 
     return affected
 
 
-def clear_tiles_with_cascade(world: World, positions: List[Position]):
+def swap_tile_types(world: World, src: Position, dst: Position) -> bool:
+    """Swap the TileType values for two active tile entities."""
+
+    src_entity = get_entity_at(world, src[0], src[1])
+    dst_entity = get_entity_at(world, dst[0], dst[1])
+    if src_entity is None or dst_entity is None:
+        return False
+    try:
+        src_switch: ActiveSwitch = world.component_for_entity(src_entity, ActiveSwitch)
+        dst_switch: ActiveSwitch = world.component_for_entity(dst_entity, ActiveSwitch)
+        if not (src_switch.active and dst_switch.active):
+            return False
+        src_tile: TileType = world.component_for_entity(src_entity, TileType)
+        dst_tile: TileType = world.component_for_entity(dst_entity, TileType)
+    except KeyError:
+        return False
+    src_tile.type_name, dst_tile.type_name = dst_tile.type_name, src_tile.type_name
+    return True
+
+
+def clear_tiles_with_cascade(world: World, positions: List[Position], *, refill: bool = True):
     """Clear tiles at positions, apply gravity/refill, and return board change metadata."""
     if not positions:
         return [], [], [], 0, []
@@ -82,7 +102,7 @@ def clear_tiles_with_cascade(world: World, positions: List[Position]):
     new_tiles: List[Position] = []
     if moves:
         apply_gravity_moves(world, moves)
-    else:
+    elif refill:
         new_tiles = refill_inactive_tiles(world)
     return colored, typed, moves, cascades, new_tiles
 

@@ -8,6 +8,7 @@ from ecs.components.board_position import BoardPosition
 from ecs.components.tile import TileType
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.random_agent import RandomAgent
+from ecs.components.rule_based_agent import RuleBasedAgent
 from ecs.components.ability import Ability
 from ecs.events.bus import (
     EVENT_ABILITY_ACTIVATE_REQUEST,
@@ -59,7 +60,8 @@ def test_random_ai_emits_swap_when_available():
     bus = EventBus()
     world = create_world(bus)
     board_system = BoardSystem(world, bus, rows=3, cols=3)
-    ai_owner = next(ent for ent, _ in world.get_component(RandomAgent))
+    ai_owner = next(ent for ent, _ in world.get_component(RuleBasedAgent))
+    world.add_component(ai_owner, RandomAgent())
     agent_comp: RandomAgent = world.component_for_entity(ai_owner, RandomAgent)
     agent_comp.decision_delay = 0.0
     agent_comp.selection_delay = 0.0
@@ -91,7 +93,8 @@ def test_random_ai_triggers_self_ability_when_no_swaps():
     bus = EventBus()
     world = create_world(bus)
     board_system = BoardSystem(world, bus, rows=1, cols=1)
-    ai_owner = next(ent for ent, _ in world.get_component(RandomAgent))
+    ai_owner = next(ent for ent, _ in world.get_component(RuleBasedAgent))
+    world.add_component(ai_owner, RandomAgent())
     agent_comp: RandomAgent = world.component_for_entity(ai_owner, RandomAgent)
     agent_comp.decision_delay = 0.0
     agent_comp.selection_delay = 0.0
