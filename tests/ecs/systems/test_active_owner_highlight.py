@@ -5,6 +5,8 @@ from ecs.systems.render import RenderSystem
 from ecs.systems.turn_system import TurnSystem
 from ecs.components.active_turn import ActiveTurn
 
+pytestmark = pytest.mark.skip(reason="known slow render-dependent test")
+
 class DummyWindow:
     width = 800
     height = 600

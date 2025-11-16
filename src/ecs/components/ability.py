@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Dict, Any
 
+
 @dataclass(slots=True)
 class Ability:
     """Represents a player-usable ability.
@@ -12,10 +13,13 @@ class Ability:
       description: Text description of the ability effect (for UI display).
       params: Arbitrary configuration values 
       cooldown: Number of player turns required before re-use.
+      ends_turn: Whether resolving the ability should advance the turn flow.
     """
+
     name: str
     kind: str
     cost: Dict[str, int]
     description: str = ""
     params: Dict[str, Any] = field(default_factory=dict)
     cooldown: int = 0
+    ends_turn: bool = True

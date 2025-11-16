@@ -59,6 +59,7 @@ class RenderSystem:
         self._player_panel_renderer = PlayerPanelRenderer(self)
         self._lifebar_renderer = LifebarRenderer(self.world)
         self._choice_window_renderer = ChoiceWindowRenderer(self)
+        self._bank_icon_cache: list[dict[str, Any]] = []
 
     def notify_resize(self, width: int, height: int):
         self._last_window_size = (width, height)
@@ -155,6 +156,7 @@ class RenderSystem:
         else:
             self._current_active_owner = None
             self._ability_layout_cache = []
+            self._bank_icon_cache = []
 
         self._choice_window_renderer.render(arcade, ctx, headless=headless)
 
@@ -176,6 +178,17 @@ class RenderSystem:
             width = entry.get("width", 0.0)
             height = entry.get("height", 0.0)
             if ex <= x <= ex + width and ey <= y <= ey + height:
+                return entry
+        return None
+
+    def get_bank_icon_at_point(self, x: float, y: float):
+        for entry in self._bank_icon_cache:
+            cx = float(entry.get("center_x", 0.0))
+            cy = float(entry.get("center_y", 0.0))
+            radius = float(entry.get("radius", 0.0))
+            dx = x - cx
+            dy = y - cy
+            if dx * dx + dy * dy <= radius * radius:
                 return entry
         return None
 

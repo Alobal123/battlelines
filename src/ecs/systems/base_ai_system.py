@@ -46,6 +46,7 @@ class AbilitySnapshot:
     affordable: bool
     cooldown: int
     name: str
+    ends_turn: bool
 
 
 @dataclass(slots=True)
@@ -149,7 +150,7 @@ class BaseAISystem(ABC):
         kind, payload_obj = candidate
         if kind == "swap":
             source, target = cast(Tuple[Position, Position], payload_obj)
-            engine.swap_and_resolve(source, target)
+            engine.swap_and_resolve(source, target, acting_owner=clone_owner)
         elif kind == "ability":
             ability_action = cast(AbilityAction, payload_obj)
             self._apply_ability_in_clone(clone_state, clone_owner, ability_action)
@@ -179,6 +180,9 @@ class BaseAISystem(ABC):
                 if ability is not None:
                     cost = dict(ability.cost)
                     name = ability.name
+                    ends_turn = ability.ends_turn
+                else:
+                    ends_turn = True
                 affordable = all(bank_counts.get(t, 0) >= n for t, n in cost.items())
                 cooldown = 0
                 try:
@@ -192,6 +196,7 @@ class BaseAISystem(ABC):
                     affordable=affordable,
                     cooldown=cooldown,
                     name=name,
+                    ends_turn=ends_turn,
                 )
         return OwnerSnapshot(bank_counts=bank_counts, ability_map=ability_map)
 

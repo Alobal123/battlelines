@@ -1,4 +1,10 @@
-from ecs.events.bus import EventBus, EVENT_MOUSE_PRESS, EVENT_TILE_CLICK, EVENT_ABILITY_ACTIVATE_REQUEST
+from ecs.events.bus import (
+    EventBus,
+    EVENT_MOUSE_PRESS,
+    EVENT_TILE_CLICK,
+    EVENT_ABILITY_ACTIVATE_REQUEST,
+    EVENT_TILE_BANK_GAINED,
+)
 from ecs.constants import GRID_COLS, GRID_ROWS
 from ecs.ui.layout import compute_board_geometry
 from ecs.components.active_turn import ActiveTurn
@@ -55,6 +61,28 @@ class InputSystem:
                         owner_entity=owner_entity,
                     )
                     return  # Do not treat as tile click
+        if render_system and hasattr(render_system, 'get_bank_icon_at_point'):
+            bank_entry = render_system.get_bank_icon_at_point(x, y)
+            if bank_entry:
+                owner_entity = bank_entry.get('owner_entity')
+                type_name = bank_entry.get('type_name')
+                if owner_entity is not None and isinstance(type_name, str) and type_name:
+                    amount = bank_entry.get('amount', 1)
+                    try:
+                        amount_int = int(amount)
+                    except (TypeError, ValueError):
+                        amount_int = 1
+                    if amount_int <= 0:
+                        amount_int = 1
+                    self.event_bus.emit(
+                        EVENT_TILE_BANK_GAINED,
+                        owner_entity=owner_entity,
+                        bank_entity=bank_entry.get('bank_entity'),
+                        type_name=type_name,
+                        amount=amount_int,
+                        source="bank_click",
+                    )
+                return
         # (Legacy regiment click handling removed.)
         # Otherwise treat as board click if within bounds
         if input_locked:

@@ -10,3 +10,5 @@ class TurnState:
     cascade_active: bool = False
     cascade_depth: int = 0
     cascade_observed: bool = False
+    ability_entity: Optional[int] = None
+    ability_ends_turn: bool = True

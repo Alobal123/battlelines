@@ -33,6 +33,7 @@ class BankPanelRenderer:
         side_panel_top = ctx.window_height - SIDE_PANEL_TOP_MARGIN
         board_start_y = ctx.board_bottom
         banks = list(rs.world.get_component(TileBank))
+        rs._bank_icon_cache = []
         if not banks:
             return
         banks_sorted = sorted(banks, key=lambda pair: pair[1].owner_entity)
@@ -112,5 +113,17 @@ class BankPanelRenderer:
                 # Place count just below circle bottom, remain inside bar
                 text_y = center_y - circle_radius - 6
                 arcade.draw_text(str(count), cx, text_y, arcade.color.WHITE, 16, anchor_x="center")
+                rs._bank_icon_cache.append(
+                    {
+                        "bank_entity": bank_ent,
+                        "owner_entity": bank.owner_entity,
+                        "type_name": type_name,
+                        "center_x": cx,
+                        "center_y": center_y,
+                        "radius": circle_radius,
+                        "count": count,
+                        "side": "left" if idx == 0 else "right",
+                    }
+                )
 
         self._sprites.draw_bank_sprites()

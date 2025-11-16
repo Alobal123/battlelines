@@ -4,6 +4,7 @@ from typing import Callable, Dict, List, Tuple
 
 from esper import World
 
+from ecs.components.ability import Ability
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.game_state import GameMode, GameState
 from ecs.components.human_agent import HumanAgent
@@ -12,22 +13,29 @@ from ecs.factories.choice_window import ChoiceDefinition, spawn_choice_window
 from ecs.factories.player_abilities import (
     create_ability_blood_bolt,
     create_ability_savagery,
+    create_ability_spirit_leech,
     create_ability_verdant_touch,
 )
 from ecs.factories.player_special_abilities import (
     create_ability_crimson_pulse,
     create_ability_tactical_shift,
 )
-from ecs.factories.enemy_abilities import create_ability_shovel_punch
+from ecs.factories.enemy_abilities import (
+    create_ability_shovel_punch,
+    create_ability_touch_of_undead,
+)
+from ecs.systems.ability_pool_system import available_basic_player_ability_names
 
 
 _ABILITY_BUILDERS: Dict[str, Callable[[World], int]] = {
     "tactical_shift": create_ability_tactical_shift,
     "crimson_pulse": create_ability_crimson_pulse,
     "savagery": create_ability_savagery,
+    "spirit_leech": create_ability_spirit_leech,
     "verdant_touch": create_ability_verdant_touch,
     "blood_bolt": create_ability_blood_bolt,
     "shovel_punch": create_ability_shovel_punch,
+    "touch_of_undead": create_ability_touch_of_undead,
 }
 
 _DEFAULT_ABILITY_ORDER: Tuple[str, ...] = (
@@ -36,12 +44,6 @@ _DEFAULT_ABILITY_ORDER: Tuple[str, ...] = (
     "savagery",
     "verdant_touch",
     "blood_bolt",
-)
-
-_STARTING_CHOICES: Tuple[Tuple[str, str, str], ...] = (
-    ("verdant_touch", "Verdant Touch", "Heal 4 HP."),
-    ("blood_bolt", "Blood Bolt", "Deal 2 damage to yourself and 6 damage to the opponent."),
-    ("savagery", "Savagery", "Gain +1 damage to all attacks for three turns."),
 )
 
 
@@ -59,7 +61,11 @@ def create_ability_by_name(world: World, name: str) -> int:
 
 
 def spawn_starting_ability_choice(world: World) -> int | None:
-    """Spawn a choice window that lets the human player pick a starting ability."""
+    """Spawn a choice window that lets the human player pick a starting ability.
+
+    Ability options are sourced from the dynamic ability pool to ensure future
+    abilities are automatically included without updating static metadata.
+    """
     human_entities = list(world.get_component(HumanAgent))
     if not human_entities:
         return None
@@ -72,8 +78,14 @@ def spawn_starting_ability_choice(world: World) -> int | None:
         return None
     if any(True for _ in world.get_component(StartingAbilityChoice)):
         return None
+    available_names = available_basic_player_ability_names(world, owner_entity)
+    if not available_names:
+        return None
+    selection = available_names[:3]
     definitions: List[ChoiceDefinition] = []
-    for ability_name, label, description in _STARTING_CHOICES:
+    for ability_name in selection:
+        label = _format_ability_label(ability_name)
+        description = _ability_description(world, ability_name)
         definitions.append(
             ChoiceDefinition(
                 label=label,
@@ -99,3 +111,29 @@ def spawn_starting_ability_choice(world: World) -> int | None:
         panel_height=180.0,
         panel_gap=28.0,
     )
+
+
+def _format_ability_label(ability_name: str) -> str:
+    return ability_name.replace("_", " ").title()
+
+
+_ABILITY_DESCRIPTION_CACHE: Dict[str, str] = {}
+
+
+def _ability_description(world: World, ability_name: str) -> str:
+    cached = _ABILITY_DESCRIPTION_CACHE.get(ability_name)
+    if cached is not None:
+        return cached
+    temp_entity = create_ability_by_name(world, ability_name)
+    try:
+        ability = world.component_for_entity(temp_entity, Ability)
+        description = ability.description or ""
+    except KeyError:
+        description = ""
+    finally:
+        try:
+            world.delete_entity(temp_entity, immediate=True)
+        except Exception:
+            world.delete_entity(temp_entity)
+    _ABILITY_DESCRIPTION_CACHE[ability_name] = description
+    return description

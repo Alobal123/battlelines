@@ -7,6 +7,7 @@ from ecs.events.bus import (
     EVENT_TILE_BANK_SPEND_REQUEST,
     EVENT_TILE_BANK_SPENT,
     EVENT_TILE_BANK_INSUFFICIENT,
+    EVENT_TILE_BANK_GAINED,
     EVENT_EFFECT_APPLY,
 )
 from ecs.components.tile_bank import TileBank
@@ -29,6 +30,7 @@ class TileBankSystem:
         self.event_bus = event_bus
         self.event_bus.subscribe(EVENT_MATCH_CLEARED, self.on_match_cleared)
         self.event_bus.subscribe(EVENT_TILE_BANK_SPEND_REQUEST, self.on_spend_request)
+        self.event_bus.subscribe(EVENT_TILE_BANK_GAINED, self.on_gain_request)
 
     def _get_or_create_bank(self, owner_entity: int) -> int:
         # Find existing bank for owner or create one.
@@ -90,6 +92,27 @@ class TileBankSystem:
         else:
             self.event_bus.emit(EVENT_TILE_BANK_SPENT, entity=bank_ent, cost=cost, ability_entity=ability_entity)
             self.event_bus.emit(EVENT_TILE_BANK_CHANGED, entity=bank_ent, counts=bank_obj.counts.copy())
+
+    def on_gain_request(self, sender, **kwargs):
+        owner_entity = kwargs.get('owner_entity')
+        type_name = kwargs.get('type_name')
+        amount = kwargs.get('amount', 1)
+        if owner_entity is None or not isinstance(type_name, str) or not type_name:
+            return
+        try:
+            amount_int = int(amount)
+        except (TypeError, ValueError):
+            amount_int = 1
+        if amount_int <= 0:
+            return
+        bank_ent = self._get_or_create_bank(owner_entity)
+        bank: TileBank = self.world.component_for_entity(bank_ent, TileBank)
+        bank.add(type_name, amount_int)
+        self.event_bus.emit(
+            EVENT_TILE_BANK_CHANGED,
+            entity=bank_ent,
+            counts=bank.counts.copy(),
+        )
 
     def process(self):
         # Not used per-frame currently

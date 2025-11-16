@@ -38,15 +38,19 @@ EVENT_CASCADE_COMPLETE = "cascade_complete"       # payload: depth=int
 EVENT_ANIMATION_START = "animation_start"         # payload: kind=str, items=list/positions, meta=...
 EVENT_ANIMATION_COMPLETE = "animation_complete"   # payload: kind=str, items=list/positions, meta=...
 EVENT_TILE_BANK_CHANGED = "tile_bank_changed"     # payload: entity=int, counts=dict
+EVENT_TILE_BANK_GAINED = "tile_bank_gained"       # payload: owner_entity=int, type_name=str, amount=int
 EVENT_TILE_BANK_SPEND_REQUEST = "tile_bank_spend_request"  # payload: entity=int, cost=dict[str,int]
 EVENT_TILE_BANK_SPENT = "tile_bank_spent"         # payload: entity=int, cost=dict[str,int]
 EVENT_TILE_BANK_INSUFFICIENT = "tile_bank_insufficient"  # payload: entity=int, cost=dict[str,int], missing=dict[str,int]
+EVENT_TILE_BANK_DEPLETED = "tile_bank_depleted"   # payload: entity=int, owner_entity=int, deltas=dict[str,int]
 EVENT_ABILITY_ACTIVATE_REQUEST = "ability_activate_request"  # payload: ability_entity=int, owner_entity=int
 EVENT_ABILITY_TARGET_MODE = "ability_target_mode"  # payload: ability_entity=int, owner_entity=int
 EVENT_ABILITY_TARGET_SELECTED = "ability_target_selected"  # payload: ability_entity=int, target=(r,c)
 EVENT_ABILITY_EXECUTE = "ability_execute"  # payload: ability_entity=int, owner_entity=int|None, pending=PendingAbilityTarget
 EVENT_ABILITY_EFFECT_APPLIED = "ability_effect_applied"  # payload: ability_entity=int, affected=list[(r,c)]
 EVENT_ABILITY_TARGET_CANCELLED = "ability_target_cancelled"  # payload: ability_entity=int, owner_entity=int, reason=str
+EVENT_ABILITY_POOL_REQUEST = "ability_pool_request"  # payload: owner_entity=int, count=int, request_id=Any
+EVENT_ABILITY_POOL_OFFER = "ability_pool_offer"  # payload: owner_entity=int, abilities=list[str], request_id=Any
 EVENT_BOARD_CHANGED = "board_changed"  # payload: reason=str, positions=list[(r,c)]
 EVENT_TURN_ADVANCED = "turn_advanced"  # payload: previous_owner=int|None, new_owner=int
 EVENT_TURN_ACTION_STARTED = "turn_action_started"  # payload: source=str, owner_entity=int|None, ability_entity=int|None
@@ -59,5 +63,10 @@ EVENT_EFFECT_EXPIRED = "effect_expired"  # payload: effect_entity=int, owner_ent
 EVENT_HEALTH_DAMAGE = "health_damage"  # payload: source_owner=int, target_entity=int, amount=int, reason=str
 EVENT_HEALTH_HEAL = "health_heal"  # payload: source_owner=int, target_entity=int, amount=int, reason=str
 EVENT_HEALTH_CHANGED = "health_changed"  # payload: entity=int, current=int, max_hp=int, delta=int
+EVENT_MANA_DRAIN = "mana_drain"  # payload: source_owner=int|None, target_entity=int, amount=int, reason=str, breakdown=dict, gained=dict
 EVENT_CHOICE_SELECTED = "choice_selected"  # payload: window_entity=int, choice_entity=int, payload_entity=int|None
 EVENT_CHOICE_SKIPPED = "choice_skipped"  # payload: window_entity=int
+EVENT_ENTITY_DEFEATED = "entity_defeated"  # payload: entity=int, reason=str|None, source_owner=int|None
+EVENT_PLAYER_DEFEATED = "player_defeated"  # payload: entity=int
+EVENT_ENEMY_DEFEATED = "enemy_defeated"  # payload: entity=int
+EVENT_COMBAT_RESET = "combat_reset"  # payload: reason=str|None, defeated_entity=int|None

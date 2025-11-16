@@ -36,6 +36,7 @@ from ecs.systems.board_ops import (
 )
 
 BoardPositionType = Tuple[int, int]
+TypeEntry = Tuple[int, int, str]
 DEFAULT_COMPONENTS: Tuple[type, ...] = (
     Board,
     BoardPosition,
@@ -123,16 +124,27 @@ class SimulationEngine:
         self.board_transform_effect = BoardTransformEffectSystem(world, event_bus)
         self.ability_resolution = AbilityResolutionSystem(world, event_bus)
 
-    def swap_and_resolve(self, src: BoardPositionType, dst: BoardPositionType) -> None:
+    def swap_and_resolve(
+        self,
+        src: BoardPositionType,
+        dst: BoardPositionType,
+        *,
+        acting_owner: int | None = None,
+    ) -> None:
         """Perform a swap and resolve resulting cascades."""
 
         if not predict_swap_creates_match(self.world, src, dst):
             return
         if not swap_tile_types(self.world, src, dst):
             return
-        self._resolve_cascades()
+        self._resolve_cascades(owner_hint=acting_owner)
 
-    def execute_ability(self, ability_entity: int, owner_entity: int, pending: PendingAbilityTarget | None = None) -> None:
+    def execute_ability(
+        self,
+        ability_entity: int,
+        owner_entity: int,
+        pending: PendingAbilityTarget | None = None,
+    ) -> None:
         """Run ability resolution end-to-end inside the clone."""
 
         if pending is not None:
@@ -143,12 +155,35 @@ class SimulationEngine:
             owner_entity=owner_entity,
             pending=pending,
         )
-        self._resolve_cascades()
+        self._resolve_cascades(owner_hint=owner_entity)
 
-    def _resolve_cascades(self) -> None:
+    def _resolve_cascades(self, owner_hint: int | None = None) -> None:
         while True:
             matches = find_all_matches(self.world)
             if not matches:
                 break
             positions = sorted({pos for group in matches for pos in group})
-            clear_tiles_with_cascade(self.world, positions, refill=False)
+            _, typed_before, _, _, _ = clear_tiles_with_cascade(self.world, positions, refill=False)
+            if typed_before:
+                owner_entity = self._active_owner()
+                if owner_entity is None:
+                    owner_entity = owner_hint
+                if owner_entity is not None:
+                    self._apply_match_rewards(owner_entity, typed_before)
+
+    def _active_owner(self) -> int | None:
+        active_entries = list(self.world.get_component(ActiveTurn))
+        if not active_entries:
+            return None
+        return active_entries[0][1].owner_entity
+
+    def _apply_match_rewards(self, owner_entity: int, typed_entries: list[TypeEntry]) -> None:
+        try:
+            bank: TileBank = self.world.component_for_entity(owner_entity, TileBank)
+        except KeyError:
+            return
+        gains: Dict[str, int] = {}
+        for _, _, type_name in typed_entries:
+            gains[type_name] = gains.get(type_name, 0) + 1
+        for type_name, amount in gains.items():
+            bank.add(type_name, amount)

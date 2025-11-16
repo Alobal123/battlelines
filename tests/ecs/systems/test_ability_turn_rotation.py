@@ -52,6 +52,15 @@ def _activate_first_ability(bus, world):
     bus.emit(EVENT_ABILITY_ACTIVATE_REQUEST, ability_entity=ability_ent, owner_entity=owner_ent)
     return owner_ent, ability_ent
 
+
+def _find_player_ability(world, ability_name: str) -> tuple[int, int]:
+    for owner_ent, owner in world.get_component(AbilityListOwner):
+        for ability_ent in owner.ability_entities:
+            ability = world.component_for_entity(ability_ent, Ability)
+            if ability.name == ability_name:
+                return owner_ent, ability_ent
+    raise AssertionError(f"Ability '{ability_name}' not found for any player")
+
 def test_ability_without_match_rotates_turn(setup_world):
     bus, world, turn = setup_world
     # Ensure only the targeted tile changes type so no matches are formed.
@@ -144,3 +153,29 @@ def test_tactical_shift_with_match_rotates_turn(setup_world):
     assert turn_events, 'Turn should advance once cascades resolve'
     assert turn_events[-1]['new_owner'] != initial_active
     assert len(turn_events) == 1, f'Turn advanced more than once: {turn_events}'
+
+
+def test_free_ability_cascade_does_not_rotate_turn(setup_world):
+    bus, world, _ = setup_world
+    _apply_board_pattern(world, {
+        (0, 0): 'hex',
+        (0, 1): 'nature',
+        (0, 2): 'hex',
+    })
+    initial_active = list(world.get_component(ActiveTurn))[0][1].owner_entity
+    owner_ent, ability_ent = _find_player_ability(world, "tactical_shift")
+    ability = world.component_for_entity(ability_ent, Ability)
+    ability.ends_turn = False
+    turn_events: list[dict] = []
+    cascade_events: list[dict] = []
+    bus.subscribe(EVENT_TURN_ADVANCED, lambda s, **k: turn_events.append(k))
+    bus.subscribe(EVENT_CASCADE_COMPLETE, lambda s, **k: cascade_events.append(k))
+    bus.emit(EVENT_ABILITY_ACTIVATE_REQUEST, ability_entity=ability_ent, owner_entity=owner_ent)
+    bus.emit(EVENT_TILE_CLICK, row=0, col=1)
+    bus.emit(EVENT_TILE_BANK_SPENT, entity=owner_ent, ability_entity=ability_ent, cost=ability.cost)
+    _drive_ticks(bus, until=cascade_events)
+    assert cascade_events, 'Expected cascade completion event after free tactical shift'
+    assert not turn_events, f'Turn advanced despite free ability cascade: {turn_events}'
+    active_components = list(world.get_component(ActiveTurn))
+    assert len(active_components) == 1
+    assert active_components[0][1].owner_entity == initial_active, 'Active turn should remain with original owner'

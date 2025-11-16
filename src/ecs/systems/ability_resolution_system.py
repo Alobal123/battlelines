@@ -62,6 +62,7 @@ class AbilityResolutionSystem:
             pending=pending,
             owner_entity=owner_entity,
             active_owner=self._get_active_owner(),
+            scratchpad={},
         )
 
         resolver = self._resolvers.get(ability.name)

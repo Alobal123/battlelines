@@ -25,11 +25,15 @@ from ecs.systems.ability_targeting_system import AbilityTargetingSystem
 from ecs.systems.turn_system import TurnSystem
 from ecs.systems.health_system import HealthSystem
 from ecs.systems.effects.damage_effect_system import DamageEffectSystem
+from ecs.systems.effects.deplete_effect_system import DepleteEffectSystem
 from ecs.systems.effects.heal_effect_system import HealEffectSystem
 from ecs.systems.effects.board_clear_effect_system import BoardClearEffectSystem
 from ecs.systems.effects.board_transform_effect_system import BoardTransformEffectSystem
+from ecs.systems.effects.mana_drain_effect_system import ManaDrainEffectSystem
 from ecs.systems.tooltip_system import TooltipSystem
 from ecs.systems.rule_based_ai_system import RuleBasedAISystem
+from ecs.systems.defeat_system import DefeatSystem
+from ecs.systems.ability_pool_system import AbilityPoolSystem
 
 class BattlelinesWindow(Window):
     def __init__(self):
@@ -61,14 +65,22 @@ class BattlelinesWindow(Window):
         self.tile_bank_system = TileBankSystem(self.world, self.event_bus)
         self.effect_lifecycle_system = EffectLifecycleSystem(self.world, self.event_bus)
         self.damage_effect_system = DamageEffectSystem(self.world, self.event_bus)
+        self.deplete_effect_system = DepleteEffectSystem(self.world, self.event_bus)
         self.heal_effect_system = HealEffectSystem(self.world, self.event_bus)
         self.board_clear_effect_system = BoardClearEffectSystem(self.world, self.event_bus)
         self.board_transform_effect_system = BoardTransformEffectSystem(self.world, self.event_bus)
+        self.mana_drain_effect_system = ManaDrainEffectSystem(self.world, self.event_bus)
         self.ability_targeting_system = AbilityTargetingSystem(self.world, self.event_bus)
         self.ability_system = AbilitySystem(self.world, self.event_bus)
         self.turn_system = TurnSystem(self.world, self.event_bus)
         self.rule_based_ai_system = RuleBasedAISystem(self.world, self.event_bus)
         self.health_system = HealthSystem(self.world, self.event_bus)
+        self.defeat_system = DefeatSystem(
+            self.world,
+            self.event_bus,
+            menu_size_provider=lambda: (self.width, self.height),
+        )
+        self.ability_pool_system = AbilityPoolSystem(self.world, self.event_bus)
         set_background_color(color.BLACK)
         # Toggle fullscreen and allow dynamic scaling; width/height update after fullscreen set.
         try:

@@ -1,7 +1,13 @@
 from esper import World
 
 from ecs.components.health import Health
-from ecs.events.bus import EventBus, EVENT_HEALTH_DAMAGE, EVENT_HEALTH_HEAL, EVENT_HEALTH_CHANGED
+from ecs.events.bus import (
+    EventBus,
+    EVENT_HEALTH_DAMAGE,
+    EVENT_HEALTH_HEAL,
+    EVENT_HEALTH_CHANGED,
+    EVENT_ENTITY_DEFEATED,
+)
 
 
 class HealthSystem:
@@ -32,7 +38,7 @@ class HealthSystem:
             health = self.world.component_for_entity(target_entity, Health)
         except KeyError:
             return
-        
+
         old_hp = health.current
         health.current -= amount
         health.clamp()
@@ -47,6 +53,13 @@ class HealthSystem:
             reason=reason,
             source_owner=source_owner,
         )
+        if old_hp > 0 and health.current <= 0:
+            self.event_bus.emit(
+                EVENT_ENTITY_DEFEATED,
+                entity=target_entity,
+                reason=reason,
+                source_owner=source_owner,
+            )
     
     def on_health_heal(self, sender, **kwargs):
         """Apply healing to target entity and emit health changed event."""

@@ -16,6 +16,7 @@ from ecs.events.bus import EventBus
 from ecs.factories.abilities import create_ability_by_name
 from ecs.systems.base_ai_system import AbilityAction
 from ecs.systems.board_ops import find_valid_swaps
+from ecs.ai.simulation import clone_world_state
 from ecs.systems.rule_based_ai_system import RuleBasedAISystem
 from ecs.world import create_world
 
@@ -114,7 +115,7 @@ def test_rule_based_ai_prioritises_witchfire_targets():
     assert score_witchfire > score_distant
 
 
-def test_rule_based_ai_prefers_higher_cost_ready_ability():
+def test_rule_based_ai_prefers_free_action_over_costlier_option():
     bus = EventBus()
     world = create_world(bus)
     ai_owner = next(ent for ent, _ in world.get_component(RuleBasedAgent))
@@ -142,4 +143,51 @@ def test_rule_based_ai_prefers_higher_cost_ready_ability():
     score_savagery = ai_system._score_action(ai_owner, ("ability", savagery_action))
     score_blood_bolt = ai_system._score_action(ai_owner, ("ability", blood_bolt_action))
 
-    assert score_blood_bolt > score_savagery
+    assert score_savagery > score_blood_bolt
+
+
+def test_rule_based_ai_detects_mana_gain_from_match():
+    bus = EventBus()
+    world = create_world(bus)
+    layout = [
+        ["nature", "blood", "nature"],
+        ["hex", "nature", "hex"],
+        ["blood", "hex", "blood"],
+    ]
+    _build_board(world, layout)
+    ai_owner = next(ent for ent, _ in world.get_component(RuleBasedAgent))
+    bank_entities = {ent for ent, _ in world.get_component(TileBank)}
+    assert ai_owner in bank_entities
+    bank: TileBank = world.component_for_entity(ai_owner, TileBank)
+    for type_name in ["nature", "blood", "hex", "spirit", "shapeshift", "secrets"]:
+        bank.counts[type_name] = 50
+
+    ai_system = RuleBasedAISystem(world, bus, rng=random.Random(1))
+
+    swap = ((0, 1), (1, 1))
+    assert swap in find_valid_swaps(world)
+
+    snapshot = ai_system._capture_owner_snapshot(ai_owner)
+    clone_state = clone_world_state(world)
+    clone_owner = clone_state.entity_map.get(ai_owner)
+    assert clone_owner is not None
+
+    from ecs.systems.board_ops import predict_swap_creates_match
+
+    assert predict_swap_creates_match(clone_state.world, *swap)
+
+    clone_state.engine.swap_and_resolve(*swap, acting_owner=clone_owner)
+
+    clone_counts = ai_system._clone_bank_counts(clone_state.world, clone_owner)
+    baseline_counts = snapshot.bank_counts
+    clone_bank = clone_state.world.component_for_entity(clone_owner, TileBank)
+    assert clone_bank.counts.get("nature", 0) > baseline_counts.get("nature", 0)
+    baseline_deficits = ai_system._compute_mana_deficits(baseline_counts, snapshot.ability_map)
+    other_gain, secrets_excess = ai_system._compute_bank_gains(
+        baseline_counts,
+        clone_counts,
+        baseline_deficits,
+    )
+
+    assert other_gain >= 3
+    assert secrets_excess == 0

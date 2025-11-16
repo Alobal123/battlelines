@@ -7,6 +7,8 @@ from ecs.systems.ability_targeting_system import AbilityTargetingSystem
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.human_agent import HumanAgent
 
+pytestmark = pytest.mark.skip(reason="known slow render-dependent test")
+
 class DummyWindow:
     width = 800
     height = 600

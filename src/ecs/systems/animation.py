@@ -7,7 +7,7 @@ from ecs.components.animation_fall import FallAnimation
 from ecs.components.animation_refill import RefillAnimation
 # TileType now used; color access remains via compatibility .color property when needed.
 from ecs.components.duration import Duration
-from ecs.animation_factory import AnimationFactory
+from ecs.factories.animation_factory import AnimationFactory
 from esper import World
 from typing import Tuple
 from ecs.components.duration import Duration

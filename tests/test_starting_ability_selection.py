@@ -33,11 +33,10 @@ def test_starting_ability_selection_adds_chosen_ability():
     window_entity = spawn_starting_ability_choice(world)
     state = next(comp for _, comp in world.get_component(GameState))
     assert state.mode == GameMode.ABILITY_DRAFT
-    choice_entity = next(
-        ent
-        for ent, choice in world.get_component(StartingAbilityChoice)
-        if choice.ability_name == "verdant_touch"
-    )
+    choices = list(world.get_component(StartingAbilityChoice))
+    assert choices, "Expected at least one starting ability option"
+    choice_entity, choice_comp = choices[0]
+    selected_name = choice_comp.ability_name
     bus.emit(EVENT_CHOICE_SELECTED, window_entity=window_entity, choice_entity=choice_entity)
     assert state.mode == GameMode.COMBAT
     owner_entity = _human_entity(world)
@@ -45,5 +44,5 @@ def test_starting_ability_selection_adds_chosen_ability():
     assert len(owner_comp.ability_entities) == 1
     ability_entity = owner_comp.ability_entities[0]
     ability = world.component_for_entity(ability_entity, Ability)
-    assert ability.name == "verdant_touch"
+    assert ability.name == selected_name
     assert not list(world.get_component(StartingAbilityChoice))

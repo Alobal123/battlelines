@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from esper import World
@@ -22,6 +22,7 @@ class AbilityContext:
     pending: PendingAbilityTarget
     owner_entity: int | None
     active_owner: int | None
+    scratchpad: dict[str, Any] = field(default_factory=dict)
 
 
 class AbilityResolver(Protocol):
@@ -102,6 +103,14 @@ class EffectDrivenAbilityResolver:
             metadata.setdefault("origin_row", ctx.pending.row)
         if ctx.pending.col is not None:
             metadata.setdefault("origin_col", ctx.pending.col)
+        context_reads = metadata.pop("context_read", None)
+        metadata["_ability_context"] = ctx.scratchpad
+        if isinstance(context_reads, dict):
+            for target_key, ctx_key in context_reads.items():
+                if not isinstance(target_key, str) or not isinstance(ctx_key, str):
+                    continue
+                default_value = metadata.get(target_key, 0)
+                metadata[target_key] = ctx.scratchpad.get(ctx_key, default_value)
         metadata.setdefault("reason", spec.slug)
         return metadata
 

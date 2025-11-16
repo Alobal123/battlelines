@@ -16,6 +16,7 @@ from ecs.components.active_turn import ActiveTurn
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.human_agent import HumanAgent
 from ecs.components.ability import Ability
+from ecs.components.tile_bank import TileBank
 from ecs.components.board_position import BoardPosition
 from ecs.components.tile import TileType
 
@@ -82,6 +83,27 @@ def test_turn_advanced_on_ability_no_cascade(setup_world):
     assert events, 'EVENT_TURN_ADVANCED not emitted after ability with no cascade'
     owners_ids = [ent for ent, _ in owners]
     assert events[-1]['previous_owner'] in owners_ids
+
+
+def test_turn_not_advanced_when_ability_preserves_turn(setup_world):
+    bus, world = setup_world
+    owners = _ordered_owners(world)
+    owner_ent, owner_comp = owners[0]
+    savagery_ent = next(
+        ability_ent
+        for ability_ent in owner_comp.ability_entities
+        if world.component_for_entity(ability_ent, Ability).name == "savagery"
+    )
+    bank = world.component_for_entity(owner_ent, TileBank)
+    bank.counts["shapeshift"] = 3
+    events = []
+    bus.subscribe(EVENT_TURN_ADVANCED, lambda s, **k: events.append(k))
+    active_before = list(world.get_component(ActiveTurn))[0][1].owner_entity
+    bus.emit(EVENT_ABILITY_ACTIVATE_REQUEST, ability_entity=savagery_ent, owner_entity=owner_ent)
+    active_after = list(world.get_component(ActiveTurn))[0][1].owner_entity
+    assert not events, "Turn should not advance for abilities that preserve the turn"
+    assert active_after == active_before, "Active owner should remain unchanged"
+    assert bank.counts.get("shapeshift", 0) == 0, "Ability cost should still be consumed"
 
 
 def _ordered_owner_ids(world):

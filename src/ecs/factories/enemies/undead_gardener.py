@@ -12,6 +12,7 @@ from ecs.components.tile_bank import TileBank
 from ecs.factories.abilities import create_ability_by_name
 
 DEFAULT_UNDEAD_GARDENER_LOADOUT: Sequence[str] = (
+    "touch_of_undead",
     "shovel_punch",
 )
 
@@ -24,7 +25,7 @@ def create_enemy_undead_gardener(
     world: World,
     *,
     ability_names: Iterable[str] | None = None,
-    max_hp: int = 30,
+    max_hp: int = 5,
     decision_delay: float = 1.2,
     selection_delay: float = 0.6,
 ) -> int:

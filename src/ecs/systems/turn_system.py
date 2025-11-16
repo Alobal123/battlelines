@@ -13,6 +13,7 @@ from ecs.components.active_turn import ActiveTurn
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.turn_state import TurnState
 from ecs.components.human_agent import HumanAgent
+from ecs.components.ability import Ability
 from ecs.systems.turn_state_utils import get_or_create_turn_state
 
 class TurnSystem:
@@ -57,11 +58,29 @@ class TurnSystem:
 
     def on_match_cleared(self, sender, **payload):
         # Set rotation pending (only first time in a cascade). Multiple match_cleared within cascade should not queue multiple advances.
+        state = self._turn_state()
+        if state.action_source == "ability" and not state.ability_ends_turn:
+            return
         if not self.rotation_pending:
             self.rotation_pending = True
 
     def on_ability_effect_applied(self, sender, **payload):
         # Ensure abilities always advance turn after cascade completion (even if no matches occur).
+        state = self._turn_state()
+        ability_entity = payload.get("ability_entity")
+        if (
+            state.action_source == "ability"
+            and not state.ability_ends_turn
+            and (ability_entity is None or ability_entity == state.ability_entity)
+        ):
+            return
+        if ability_entity is not None:
+            try:
+                ability = self.world.component_for_entity(ability_entity, Ability)
+            except KeyError:
+                ability = None
+            if ability is not None and not ability.ends_turn:
+                return
         if not self.rotation_pending:
             self.rotation_pending = True
 
@@ -71,6 +90,16 @@ class TurnSystem:
         state.cascade_active = False
         state.cascade_depth = 0
         state.cascade_observed = False
+        ability_entity = payload.get("ability_entity")
+        state.ability_entity = ability_entity
+        state.ability_ends_turn = True
+        if ability_entity is not None:
+            try:
+                ability = self.world.component_for_entity(ability_entity, Ability)
+            except KeyError:
+                ability = None
+            if ability is not None:
+                state.ability_ends_turn = ability.ends_turn
 
     def on_cascade_step(self, sender, **payload):
         state = self._turn_state()
@@ -84,6 +113,8 @@ class TurnSystem:
         state.cascade_depth = payload.get("depth", state.cascade_depth)
         state.cascade_observed = False
         state.action_source = None
+        state.ability_entity = None
+        state.ability_ends_turn = True
         if not self.rotation_pending:
             return
         self.rotation_pending = False
