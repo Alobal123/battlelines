@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import Callable, Dict, List, Tuple
+import importlib
+import pkgutil
+from typing import Callable, Dict, Iterable, List, Tuple
 
 from esper import World
 
@@ -10,33 +12,43 @@ from ecs.components.game_state import GameMode, GameState
 from ecs.components.human_agent import HumanAgent
 from ecs.components.starting_ability_choice import StartingAbilityChoice
 from ecs.factories.choice_window import ChoiceDefinition, spawn_choice_window
-from ecs.factories.player_abilities import (
-    create_ability_blood_bolt,
-    create_ability_savagery,
-    create_ability_spirit_leech,
-    create_ability_verdant_touch,
-)
-from ecs.factories.player_special_abilities import (
-    create_ability_crimson_pulse,
-    create_ability_tactical_shift,
-)
-from ecs.factories.enemy_abilities import (
-    create_ability_shovel_punch,
-    create_ability_touch_of_undead,
-)
 from ecs.systems.ability_pool_system import available_basic_player_ability_names
 
+ABILITY_FACTORY_PACKAGES: Tuple[str, ...] = (
+    "ecs.factories.player_abilities",
+    "ecs.factories.player_special_abilities",
+    "ecs.factories.enemy_abilities",
+)
 
-_ABILITY_BUILDERS: Dict[str, Callable[[World], int]] = {
-    "tactical_shift": create_ability_tactical_shift,
-    "crimson_pulse": create_ability_crimson_pulse,
-    "savagery": create_ability_savagery,
-    "spirit_leech": create_ability_spirit_leech,
-    "verdant_touch": create_ability_verdant_touch,
-    "blood_bolt": create_ability_blood_bolt,
-    "shovel_punch": create_ability_shovel_punch,
-    "touch_of_undead": create_ability_touch_of_undead,
-}
+
+def _discover_ability_builders() -> Dict[str, Callable[[World], int]]:
+    builders: Dict[str, Callable[[World], int]] = {}
+    for package_name in ABILITY_FACTORY_PACKAGES:
+        package = importlib.import_module(package_name)
+        for module in _iter_modules(package_name, package):
+            for attr_name in dir(module):
+                if not attr_name.startswith("create_ability_"):
+                    continue
+                factory = getattr(module, attr_name)
+                if not callable(factory):
+                    continue
+                ability_name = attr_name[len("create_ability_") :]
+                builders.setdefault(ability_name, factory)
+    return builders
+
+
+def _iter_modules(package_name: str, package) -> Iterable:
+    yield package
+    package_path = getattr(package, "__path__", None)
+    if not package_path:
+        return
+    for module_info in pkgutil.iter_modules(package_path):
+        if module_info.name.startswith("__"):
+            continue
+        yield importlib.import_module(f"{package_name}.{module_info.name}")
+
+
+_ABILITY_BUILDERS: Dict[str, Callable[[World], int]] = _discover_ability_builders()
 
 _DEFAULT_ABILITY_ORDER: Tuple[str, ...] = (
     "tactical_shift",

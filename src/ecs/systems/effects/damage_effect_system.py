@@ -43,6 +43,9 @@ class DamageEffectSystem:
         bonus = self._damage_bonus(effect.metadata.get("source_owner"))
         if bonus:
             amount += bonus
+        incoming = self._incoming_bonus(target)
+        if incoming:
+            amount += incoming
         reason = str(effect.metadata.get("reason", "damage"))
         source_owner = effect.metadata.get("source_owner")
         self.event_bus.emit(
@@ -86,3 +89,21 @@ class DamageEffectSystem:
                 continue
             bonus += self._coerce_int(active_effect.metadata.get("bonus"))
         return bonus
+
+    def _incoming_bonus(self, target_entity) -> int:
+        if target_entity is None:
+            return 0
+        try:
+            effect_list: EffectList = self.world.component_for_entity(target_entity, EffectList)
+        except KeyError:
+            return 0
+        extra = 0
+        for effect_id in list(effect_list.effect_entities):
+            try:
+                active_effect: Effect = self.world.component_for_entity(effect_id, Effect)
+            except KeyError:
+                continue
+            if active_effect.slug != "frailty":
+                continue
+            extra += self._coerce_int(active_effect.metadata.get("bonus", 1))
+        return extra

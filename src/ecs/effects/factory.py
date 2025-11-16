@@ -99,3 +99,14 @@ def ensure_default_effects_registered() -> None:
             },
         )
     )
+    _register(
+        EffectDefinition(
+            slug="frailty",
+            display_name="Frailty",
+            description="Increases damage taken by the affected entity.",
+            default_metadata={
+                "bonus": 1,
+                "reason": "frailty",
+            },
+        )
+    )
