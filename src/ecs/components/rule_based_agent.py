@@ -5,5 +5,5 @@ from dataclasses import dataclass
 class RuleBasedAgent:
     """Marker component for the rule-driven AI controller."""
 
-    decision_delay: float = 0.0
-    selection_delay: float = 0.0
+    decision_delay: float = 0.8
+    selection_delay: float = 0.4

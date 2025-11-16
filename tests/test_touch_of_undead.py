@@ -15,6 +15,7 @@ from ecs.systems.ability_resolution_system import AbilityResolutionSystem
 from ecs.systems.effect_lifecycle_system import EffectLifecycleSystem
 from ecs.systems.effects.deplete_effect_system import DepleteEffectSystem
 from ecs.systems.effects.damage_effect_system import DamageEffectSystem
+from ecs.factories.enemies import create_enemy_undead_florist
 
 
 def _find_human_entity(world):
@@ -32,6 +33,18 @@ def _find_ability(world, owner_ent: int, ability_name: str) -> int:
         if ability.name == ability_name:
             return ability_ent
     raise AssertionError(f"Ability '{ability_name}' not found for entity {owner_ent}")
+
+
+def test_undead_florist_has_touch_of_undead():
+    bus = EventBus()
+    world = create_world(bus)
+
+    florist_entity = create_enemy_undead_florist(world)
+    owner_comp = world.component_for_entity(florist_entity, AbilityListOwner)
+    ability_names = {
+        world.component_for_entity(ability_ent, Ability).name for ability_ent in owner_comp.ability_entities
+    }
+    assert {"touch_of_undead", "poisoned_flower"}.issubset(ability_names)
 
 
 def test_touch_of_undead_depletes_each_mana_type():

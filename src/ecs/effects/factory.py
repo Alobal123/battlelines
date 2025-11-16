@@ -110,3 +110,17 @@ def ensure_default_effects_registered() -> None:
             },
         )
     )
+    _register(
+        EffectDefinition(
+            slug="poison",
+            display_name="Poison",
+            description="Loses health at the start of each of its turns.",
+            default_metadata={
+                "amount": 1,
+                "reason": "poison",
+                "turns": 0,
+                "stacks": True,
+                "stack_key": "poison",
+            },
+        )
+    )

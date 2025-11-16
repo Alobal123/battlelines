@@ -30,6 +30,7 @@ from ecs.systems.effects.heal_effect_system import HealEffectSystem
 from ecs.systems.effects.board_clear_effect_system import BoardClearEffectSystem
 from ecs.systems.effects.board_transform_effect_system import BoardTransformEffectSystem
 from ecs.systems.effects.mana_drain_effect_system import ManaDrainEffectSystem
+from ecs.systems.effects.poison_effect_system import PoisonEffectSystem
 from ecs.systems.tooltip_system import TooltipSystem
 from ecs.systems.rule_based_ai_system import RuleBasedAISystem
 from ecs.systems.defeat_system import DefeatSystem
@@ -44,6 +45,7 @@ class BattlelinesWindow(Window):
             self.event_bus,
             initial_mode=GameMode.MENU,
             grant_default_player_abilities=False,
+            randomize_enemy=True,
         )
         spawn_main_menu(self.world, self.width, self.height)
         self.menu_render_system = MenuRenderSystem(self.world, self)
@@ -70,6 +72,7 @@ class BattlelinesWindow(Window):
         self.board_clear_effect_system = BoardClearEffectSystem(self.world, self.event_bus)
         self.board_transform_effect_system = BoardTransformEffectSystem(self.world, self.event_bus)
         self.mana_drain_effect_system = ManaDrainEffectSystem(self.world, self.event_bus)
+        self.poison_effect_system = PoisonEffectSystem(self.world, self.event_bus)
         self.ability_targeting_system = AbilityTargetingSystem(self.world, self.event_bus)
         self.ability_system = AbilitySystem(self.world, self.event_bus)
         self.turn_system = TurnSystem(self.world, self.event_bus)

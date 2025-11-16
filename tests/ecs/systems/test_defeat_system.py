@@ -157,7 +157,8 @@ def test_enemy_defeat_resets_combat_state():
     assert reset_payload.get("defeated_entity") == enemy
 
     human_bank = world.component_for_entity(human, TileBank)
-    enemy_bank = world.component_for_entity(enemy, TileBank)
+    new_enemy = _enemy_entity(world)
+    enemy_bank = world.component_for_entity(new_enemy, TileBank)
     assert human_bank.counts == {}
     assert enemy_bank.counts == {}
 
@@ -169,13 +170,14 @@ def test_enemy_defeat_resets_combat_state():
         world.component_for_entity(effect_entity, Effect)
 
     human_health = world.component_for_entity(human, Health)
-    enemy_health = world.component_for_entity(enemy, Health)
+    enemy_health = world.component_for_entity(new_enemy, Health)
     assert human_health.current == human_health.max_hp
     assert enemy_health.current == enemy_health.max_hp
 
     turn_order = world.component_for_entity(turn_order_entity, TurnOrder)
     assert turn_order.index == 0
     assert turn_order.owners[0] == human
+    assert turn_order.owners[1] == new_enemy
     active_turn = list(world.get_component(ActiveTurn))[0][1]
     assert active_turn.owner_entity == human
 

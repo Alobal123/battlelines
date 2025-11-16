@@ -105,6 +105,7 @@ class DefeatSystem:
 
     def _handle_enemy_defeat(self, entity: int) -> None:
         self.event_bus.emit(EVENT_ENEMY_DEFEATED, entity=entity)
+        new_enemy = self._replace_enemy(entity)
         owners = self._owner_entities()
         self._reset_full_combat_state(
             owners,
@@ -375,6 +376,41 @@ class DefeatSystem:
                 self.world.delete_entity(entity)
             except Exception:
                 pass
+
+    def _replace_enemy(self, defeated_entity: int) -> int | None:
+        self._delete_entity(defeated_entity)
+        enemy_pool = getattr(self.world, "enemy_pool", None)
+        new_enemy: int | None = None
+        if enemy_pool is not None:
+            try:
+                new_enemy = enemy_pool.spawn_random_enemy()
+            except Exception:
+                new_enemy = None
+        if new_enemy is None:
+            from ecs.factories.enemies import create_enemy_undead_gardener
+
+            new_enemy = create_enemy_undead_gardener(self.world, max_hp=30)
+        self._ensure_enemy_owner_order(new_enemy)
+        self._replace_turn_order_owner(defeated_entity, new_enemy)
+        self._replace_active_turn_owner(defeated_entity, new_enemy)
+        return new_enemy
+
+    def _ensure_enemy_owner_order(self, enemy_entity: int) -> None:
+        try:
+            abilities = self.world.component_for_entity(enemy_entity, AbilityListOwner)
+        except (KeyError, ValueError):
+            return
+        self.world.remove_component(enemy_entity, AbilityListOwner)
+        self.world.add_component(enemy_entity, abilities)
+
+    def _replace_turn_order_owner(self, old_entity: int, new_entity: int) -> None:
+        for _, order in self.world.get_component(TurnOrder):
+            order.owners = [new_entity if ent == old_entity else ent for ent in order.owners]
+
+    def _replace_active_turn_owner(self, old_entity: int, new_entity: int) -> None:
+        for _, active in self.world.get_component(ActiveTurn):
+            if active.owner_entity == old_entity:
+                active.owner_entity = new_entity
 
     def _has_component(self, entity: int, component_type) -> bool:
         try:

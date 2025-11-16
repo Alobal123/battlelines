@@ -43,6 +43,8 @@ EVENT_TILE_BANK_SPEND_REQUEST = "tile_bank_spend_request"  # payload: entity=int
 EVENT_TILE_BANK_SPENT = "tile_bank_spent"         # payload: entity=int, cost=dict[str,int]
 EVENT_TILE_BANK_INSUFFICIENT = "tile_bank_insufficient"  # payload: entity=int, cost=dict[str,int], missing=dict[str,int]
 EVENT_TILE_BANK_DEPLETED = "tile_bank_depleted"   # payload: entity=int, owner_entity=int, deltas=dict[str,int]
+EVENT_ENEMY_POOL_REQUEST = "enemy_pool_request"   # payload: count=int, request_id=Any
+EVENT_ENEMY_POOL_OFFER = "enemy_pool_offer"       # payload: enemies=list[str], request_id=Any
 EVENT_ABILITY_ACTIVATE_REQUEST = "ability_activate_request"  # payload: ability_entity=int, owner_entity=int
 EVENT_ABILITY_TARGET_MODE = "ability_target_mode"  # payload: ability_entity=int, owner_entity=int
 EVENT_ABILITY_TARGET_SELECTED = "ability_target_selected"  # payload: ability_entity=int, target=(r,c)

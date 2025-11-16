@@ -19,6 +19,7 @@ def create_world(
     initial_mode: GameMode = GameMode.COMBAT,
     *,
     grant_default_player_abilities: bool = True,
+    randomize_enemy: bool = False,
 ) -> World:
     world = World()
 
@@ -45,7 +46,20 @@ def create_world(
     )
     bank1 = world.component_for_entity(player1_ent, TileBank)
     bank1.owner_entity = player1_ent
-    player2_ent = create_enemy_undead_gardener(world, max_hp=30)
+    from ecs.systems.enemy_pool_system import EnemyPoolSystem
+
+    enemy_pool = EnemyPoolSystem(world, event_bus)
+    world.enemy_pool = enemy_pool
+    player2_ent: int | None
+    if randomize_enemy:
+        player2_ent = enemy_pool.spawn_random_enemy()
+    else:
+        try:
+            player2_ent = enemy_pool.create_enemy("undead_gardener")
+        except ValueError:
+            player2_ent = enemy_pool.spawn_random_enemy()
+    if player2_ent is None:
+        player2_ent = create_enemy_undead_gardener(world, max_hp=30)
 
     # Ensure the enemy ability component is processed after the player's so tests and
     # systems that iterate owners meet the human abilities first.
