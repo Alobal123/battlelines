@@ -7,13 +7,24 @@ from ecs.components.tile_bank import TileBank
 from ecs.components.tile_type_registry import TileTypeRegistry
 from ecs.components.tile_types import TileTypes
 from ecs.components.character import Character
+from ecs.components.game_state import GameState, GameMode
 from ecs.effects.registry import EffectDefinition, default_effect_registry, register_effect
 from ecs.components.health import Health
 from ecs.factories.abilities import create_default_player_abilities
+from ecs.factories.enemies import create_enemy_undead_gardener
 
 
-def create_world(event_bus: EventBus) -> World:
+def create_world(
+    event_bus: EventBus,
+    initial_mode: GameMode = GameMode.COMBAT,
+    *,
+    grant_default_player_abilities: bool = True,
+) -> World:
     world = World()
+
+    # Register or update the global game state resource.
+    state_entity = world.create_entity()
+    world.add_component(state_entity, GameState(mode=initial_mode))
     
     # Register core effect definitions if not already present.
     if not default_effect_registry.has("damage"):
@@ -84,7 +95,7 @@ def create_world(event_bus: EventBus) -> World:
         )
 
     # Player 1 (human)
-    abilities_p1 = create_default_player_abilities(world)
+    abilities_p1 = create_default_player_abilities(world) if grant_default_player_abilities else []
     player1_ent = world.create_entity(
         HumanAgent(),
         AbilityListOwner(ability_entities=abilities_p1),
@@ -99,21 +110,13 @@ def create_world(event_bus: EventBus) -> World:
     )
     bank1 = world.component_for_entity(player1_ent, TileBank)
     bank1.owner_entity = player1_ent
-    abilities_p2 = create_default_player_abilities(world)
-    player2_ent = world.create_entity(
-        RuleBasedAgent(decision_delay=1.2, selection_delay=0.6),
-        AbilityListOwner(ability_entities=abilities_p2),
-        TileBank(owner_entity=0),
-        Health(current=30, max_hp=30),
-        Character(
-            slug="undead_gardener",
-            name="Undead Gardener",
-            description="A mysterious caretaker of forgotten groves",
-            portrait_path="undead_gardener.png"
-        ),
-    )
-    bank2 = world.component_for_entity(player2_ent, TileBank)
-    bank2.owner_entity = player2_ent
+    player2_ent = create_enemy_undead_gardener(world)
+
+    # Ensure the enemy ability component is processed after the player's so tests and
+    # systems that iterate owners meet the human abilities first.
+    enemy_abilities = world.component_for_entity(player2_ent, AbilityListOwner)
+    world.remove_component(player2_ent, AbilityListOwner)
+    world.add_component(player2_ent, enemy_abilities)
 
 
     # Create single registry entity with canonical types
@@ -130,3 +133,16 @@ def create_world(event_bus: EventBus) -> World:
         })
     )
     return world
+
+
+def initialize_combat_entities(world: World) -> tuple[int, int]:
+    """Compatibility helper returning the player entity ids.
+
+    Historical tests expect this function, so we look up the primary player
+    entities that were created during ``create_world`` and return them.
+    """
+    human_entities = [entity for entity, _ in world.get_component(HumanAgent)]
+    ai_entities = [entity for entity, _ in world.get_component(RuleBasedAgent)]
+    if not human_entities or not ai_entities:
+        return tuple()
+    return human_entities[0], ai_entities[0]

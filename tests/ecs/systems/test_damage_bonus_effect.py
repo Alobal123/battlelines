@@ -90,29 +90,29 @@ def _damage_bonus_effects(world, owner_ent: int) -> list[int]:
     return ids
 
 
-def test_ferality_applies_damage_bonus_effect(setup_world):
+def test_savagery_applies_damage_bonus_effect(setup_world):
     bus, world = setup_world
-    owner_ent, ability_ent = _find_player_ability(world, "ferality")
+    owner_ent, ability_ent = _find_player_ability(world, "savagery")
     _activate_self_ability(bus, world, owner_ent, ability_ent)
     effect_ids = _damage_bonus_effects(world, owner_ent)
-    assert effect_ids, "Ferality did not apply damage bonus effect"
+    assert effect_ids, "Savagery did not apply damage bonus effect"
     effect_entity = effect_ids[0]
     duration = world.component_for_entity(effect_entity, EffectDuration)
     assert duration.remaining_turns == 3
 
 
-def test_ferality_damage_bonus_applies_and_expires(setup_world):
+def test_savagery_damage_bonus_applies_and_expires(setup_world):
     bus, world = setup_world
-    owner_ent, ferality_ent = _find_player_ability(world, "ferality")
+    owner_ent, savagery_ent = _find_player_ability(world, "savagery")
     _, blood_bolt_ent = _find_player_ability(world, "blood_bolt")
     damage_events: list[dict] = []
     bus.subscribe(
         EVENT_HEALTH_DAMAGE,
         lambda sender, **payload: damage_events.append(dict(payload)),
     )
-    _activate_self_ability(bus, world, owner_ent, ferality_ent)
+    _activate_self_ability(bus, world, owner_ent, savagery_ent)
     initial_effects = _damage_bonus_effects(world, owner_ent)
-    # Wait for cooldown (2 turns) before reusing Ferality
+    # Wait for cooldown (2 turns) before reusing Savagery
     owners = [ent for ent, _ in world.get_component(AbilityListOwner) if ent != owner_ent]
     opponent_ent = owners[0] if owners else owner_ent
     for _ in range(2):
@@ -122,13 +122,13 @@ def test_ferality_damage_bonus_applies_and_expires(setup_world):
         _force_active_owner(world, owner_ent)
     before_second = _damage_bonus_effects(world, owner_ent)
     assert before_second == initial_effects
-    cooldown_state = world.component_for_entity(ferality_ent, AbilityCooldown)
+    cooldown_state = world.component_for_entity(savagery_ent, AbilityCooldown)
     assert cooldown_state.remaining_turns == 0
-    _activate_self_ability(bus, world, owner_ent, ferality_ent)
+    _activate_self_ability(bus, world, owner_ent, savagery_ent)
     assert cooldown_state.remaining_turns == 2
-    ferality_effects = _damage_bonus_effects(world, owner_ent)
-    assert len(ferality_effects) == 1
-    effect_entity = ferality_effects[0]
+    savagery_effects = _damage_bonus_effects(world, owner_ent)
+    assert len(savagery_effects) == 1
+    effect_entity = savagery_effects[0]
     duration_comp = world.component_for_entity(effect_entity, EffectDuration)
     assert duration_comp.remaining_turns == 3
     damage_events.clear()

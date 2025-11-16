@@ -5,6 +5,7 @@ from ecs.systems.turn_system import TurnSystem
 from ecs.components.turn_order import TurnOrder
 from ecs.components.active_turn import ActiveTurn
 from ecs.components.ability_list_owner import AbilityListOwner
+from ecs.components.human_agent import HumanAgent
 
 @pytest.fixture
 def setup_world():
@@ -16,7 +17,7 @@ def setup_world():
 
 def test_initial_active_owner(setup_world):
     bus, world, turn_system = setup_world
-    owners = [ent for ent,_ in world.get_component(AbilityListOwner)]
+    owners = _ordered_owner_ids(world)
     active_list = list(world.get_component(ActiveTurn))
     assert active_list, 'ActiveTurn should be initialized'
     assert active_list[0][1].owner_entity == owners[0]
@@ -24,7 +25,7 @@ def test_initial_active_owner(setup_world):
 
 def test_rotation_after_cascade_complete(setup_world):
     bus, world, turn_system = setup_world
-    owners = [ent for ent,_ in world.get_component(AbilityListOwner)]
+    owners = _ordered_owner_ids(world)
     assert len(owners) >= 2
     active_before = list(world.get_component(ActiveTurn))[0][1].owner_entity
     # Emit match cleared (simulate part of cascade) -> should NOT rotate yet
@@ -40,3 +41,10 @@ def test_rotation_after_cascade_complete(setup_world):
     bus.emit(EVENT_CASCADE_COMPLETE)
     active_wrap = list(world.get_component(ActiveTurn))[0][1].owner_entity
     assert active_wrap == owners[0], 'Rotation should wrap to first owner after second cascade'
+
+
+def _ordered_owner_ids(world):
+    owners = list(world.get_component(AbilityListOwner))
+    human_entities = {ent for ent, _ in world.get_component(HumanAgent)}
+    owners.sort(key=lambda pair: (pair[0] not in human_entities, pair[0]))
+    return [ent for ent, _ in owners]

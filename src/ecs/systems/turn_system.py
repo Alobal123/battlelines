@@ -12,6 +12,7 @@ from ecs.components.turn_order import TurnOrder
 from ecs.components.active_turn import ActiveTurn
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.turn_state import TurnState
+from ecs.components.human_agent import HumanAgent
 from ecs.systems.turn_state_utils import get_or_create_turn_state
 
 class TurnSystem:
@@ -40,6 +41,9 @@ class TurnSystem:
         if existing:
             return
         owners = [ent for ent, comp in self.world.get_component(AbilityListOwner)]
+        if owners:
+            human_entities = {ent for ent, _ in self.world.get_component(HumanAgent)}
+            owners.sort(key=lambda entity: (entity not in human_entities, entity))
         ent = self.world.create_entity(TurnOrder(owners=owners, index=0))
         # Initialize ActiveTurn if missing
         if not list(self.world.get_component(ActiveTurn)) and owners:

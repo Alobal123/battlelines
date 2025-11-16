@@ -3,6 +3,8 @@ from ecs.constants import GRID_COLS, GRID_ROWS
 from ecs.ui.layout import compute_board_geometry
 from ecs.components.active_turn import ActiveTurn
 from ecs.components.human_agent import HumanAgent
+from ecs.components.choice_window import ChoiceWindow
+from ecs.components.game_state import GameMode, GameState
 
 class InputSystem:
     def __init__(self, event_bus: EventBus, window, world=None):
@@ -16,6 +18,10 @@ class InputSystem:
         y = kwargs.get('y')
         button = kwargs.get('button')
         if x is None or y is None:
+            return
+        if not self._combat_mode_active():
+            return
+        if self._choice_window_active():
             return
         active_owner = self._active_owner()
         active_human_owner = active_owner if self._is_human_entity(active_owner) else None
@@ -71,6 +77,19 @@ class InputSystem:
         row = int((y - start_y) // tile_size)
         if 0 <= row < GRID_ROWS and 0 <= col < GRID_COLS:
             self.event_bus.emit(EVENT_TILE_CLICK, row=row, col=col)
+
+    def _choice_window_active(self) -> bool:
+        if self.world is None:
+            return False
+        return any(True for _ in self.world.get_component(ChoiceWindow))
+
+    def _combat_mode_active(self) -> bool:
+        if self.world is None:
+            return True
+        states = list(self.world.get_component(GameState))
+        if not states:
+            return True
+        return states[0][1].mode == GameMode.COMBAT
 
     def _active_owner(self):
         if self.world is None:

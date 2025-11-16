@@ -15,6 +15,8 @@ from ecs.rendering.player_panel_renderer import PlayerPanelRenderer
 from ecs.rendering.lifebar_renderer import LifebarRenderer
 from ecs.components.tooltip_state import TooltipState
 from ecs.rendering.sprite_cache import SpriteCache
+from ecs.rendering.choice_window_renderer import ChoiceWindowRenderer
+from ecs.components.game_state import GameMode, GameState
 from ecs.constants import (
     GRID_ROWS, GRID_COLS, TILE_SIZE, BOTTOM_MARGIN,
     BOARD_MAX_WIDTH_PCT, BOARD_MAX_HEIGHT_PCT,
@@ -56,6 +58,7 @@ class RenderSystem:
         self._bank_panel_renderer = BankPanelRenderer(self, self.sprite_cache)
         self._player_panel_renderer = PlayerPanelRenderer(self)
         self._lifebar_renderer = LifebarRenderer(self.world)
+        self._choice_window_renderer = ChoiceWindowRenderer(self)
 
     def notify_resize(self, width: int, height: int):
         self._last_window_size = (width, height)
@@ -127,26 +130,35 @@ class RenderSystem:
         )
         self._render_ctx = ctx
 
-        registry = self._registry()
-        try:
-            active_turn_entries = list(self.world.get_component(ActiveTurn))
-            if active_turn_entries:
-                self._current_active_owner = active_turn_entries[0][1].owner_entity
-            else:
+        mode = self._current_mode()
+        combat_active = mode == GameMode.COMBAT
+
+        if combat_active:
+            registry = self._registry()
+            try:
+                active_turn_entries = list(self.world.get_component(ActiveTurn))
+                if active_turn_entries:
+                    self._current_active_owner = active_turn_entries[0][1].owner_entity
+                else:
+                    self._current_active_owner = None
+            except Exception:
                 self._current_active_owner = None
-        except Exception:
+            self._board_renderer.render(arcade, ctx, registry, headless=headless)
+
+            if not headless:
+                # Draw panel bases; then lifebars; then ability rectangles.
+                self._player_panel_renderer.render(arcade, ctx)
+                self._lifebar_renderer.render(arcade, ctx)
+                self._bank_panel_renderer.render(arcade, ctx, registry)
+
+            self._ability_panel_renderer.render(arcade, ctx, headless=headless)
+        else:
             self._current_active_owner = None
-        self._board_renderer.render(arcade, ctx, registry, headless=headless)
+            self._ability_layout_cache = []
 
-        if not headless:
-            # Draw panel bases; then lifebars; then ability rectangles.
-            self._player_panel_renderer.render(arcade, ctx)
-            self._lifebar_renderer.render(arcade, ctx)
-            self._bank_panel_renderer.render(arcade, ctx, registry)
+        self._choice_window_renderer.render(arcade, ctx, headless=headless)
 
-        self._ability_panel_renderer.render(arcade, ctx, headless=headless)
-
-        if not headless:
+        if combat_active and not headless:
             self._render_tooltip(arcade)
 
 
@@ -194,6 +206,12 @@ class RenderSystem:
         if not entries:
             return None
         return entries[0][1]
+
+    def _current_mode(self) -> GameMode:
+        states = list(self.world.get_component(GameState))
+        if not states:
+            return GameMode.COMBAT
+        return states[0][1].mode
 
     def _render_tooltip(self, arcade) -> None:
         tooltip = self._current_tooltip()

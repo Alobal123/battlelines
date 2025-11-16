@@ -6,7 +6,8 @@ Data Structure:
   Each ability layout entry is a dict:
     {
       'entity': int,
-      'name': str,
+      'slug': str,  # canonical identifier used for lookup/testing
+      'name': str,  # human-friendly text for UI
       'cost': Dict[str,int],
       'affordable': bool,
       'x': float,  # left
@@ -26,7 +27,15 @@ Inputs:
 The function is deterministic given identical inputs.
 """
 from typing import Dict, Iterable, List, Tuple
+
 from ecs.components.ability import Ability
+
+
+def _format_label(name: str) -> str:
+  parts = name.replace("_", " ").split()
+  if not parts:
+    return name
+  return " ".join(part.capitalize() for part in parts)
 
 
 def compute_ability_layout(
@@ -48,7 +57,8 @@ def compute_ability_layout(
     layout.append({
       'entity': ent,
       'owner_entity': owner_entity,
-      'name': ability.name,
+      'slug': ability.name,
+      'name': _format_label(ability.name),
       'cost': dict(ability.cost),
   'description': ability.description,
       'affordable': affordable,

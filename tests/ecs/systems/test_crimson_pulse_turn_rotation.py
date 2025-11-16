@@ -12,8 +12,9 @@ from ecs.systems.animation import AnimationSystem
 from ecs.systems.effect_lifecycle_system import EffectLifecycleSystem
 from ecs.systems.effects.board_clear_effect_system import BoardClearEffectSystem
 from ecs.systems.effects.board_transform_effect_system import BoardTransformEffectSystem
-from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.active_turn import ActiveTurn
+from ecs.components.ability_list_owner import AbilityListOwner
+from ecs.components.human_agent import HumanAgent
 
 @pytest.fixture
 def setup_world():
@@ -32,8 +33,10 @@ def setup_world():
     return bus, world
 
 def _activate_crimson_pulse(bus, world):
-    owners = list(world.get_component(AbilityListOwner))
-    owner_ent, owner_comp = owners[0]
+    human_entities = list(world.get_component(HumanAgent))
+    assert human_entities, 'No human agent found'
+    owner_ent = human_entities[0][0]
+    owner_comp = world.component_for_entity(owner_ent, AbilityListOwner)
     # Give the owner enough mana to use crimson_pulse (costs 5 hex)
     from ecs.components.tile_bank import TileBank
     bank = world.component_for_entity(owner_ent, TileBank)

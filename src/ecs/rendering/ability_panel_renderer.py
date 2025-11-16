@@ -157,7 +157,8 @@ class AbilityPanelRenderer:
                 arcade.draw_circle_filled(x + w / 2, y + h / 2, w / 2, bg_color)
                 arcade.draw_circle_outline(x + w / 2, y + h / 2, w / 2, border_color, 2)
             name_y = y + h - 16
-            arcade.draw_text(entry["name"], x + 8, name_y, arcade.color.WHITE, 14)
+            label = entry.get("name") or entry.get("slug", "")
+            arcade.draw_text(label, x + 8, name_y, arcade.color.WHITE, 14)
             cost_line = " ".join(f"{ctype}:{cval}" for ctype, cval in entry["cost"].items())
             arcade.draw_text(cost_line, x + 8, y + 8, arcade.color.WHITE, 12)
             base_cd = entry.get("cooldown", 0)

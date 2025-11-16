@@ -13,9 +13,10 @@ from ecs.components.rule_based_agent import RuleBasedAgent
 from ecs.components.tile import TileType
 from ecs.components.tile_bank import TileBank
 from ecs.events.bus import EventBus
+from ecs.factories.abilities import create_ability_by_name
 from ecs.systems.base_ai_system import AbilityAction
-from ecs.systems.rule_based_ai_system import RuleBasedAISystem
 from ecs.systems.board_ops import find_valid_swaps
+from ecs.systems.rule_based_ai_system import RuleBasedAISystem
 from ecs.world import create_world
 
 
@@ -38,7 +39,9 @@ def _get_ability_entity(world: World, owner: int, ability_name: str) -> int:
         ability = world.component_for_entity(ability_entity, Ability)
         if ability.name == ability_name:
             return ability_entity
-    raise AssertionError(f"Ability {ability_name} not found for owner {owner}")
+    ability_entity = create_ability_by_name(world, ability_name)
+    owner_comp.ability_entities.append(ability_entity)
+    return ability_entity
 
 
 def test_rule_based_ai_prefers_lethal_ability_over_swap():
@@ -115,10 +118,10 @@ def test_rule_based_ai_prefers_higher_cost_ready_ability():
     bus = EventBus()
     world = create_world(bus)
     ai_owner = next(ent for ent, _ in world.get_component(RuleBasedAgent))
-    ferality_entity = _get_ability_entity(world, ai_owner, "ferality")
+    savagery_entity = _get_ability_entity(world, ai_owner, "savagery")
     blood_bolt_entity = _get_ability_entity(world, ai_owner, "blood_bolt")
     owner_comp: AbilityListOwner = world.component_for_entity(ai_owner, AbilityListOwner)
-    owner_comp.ability_entities = [ferality_entity, blood_bolt_entity]
+    owner_comp.ability_entities = [savagery_entity, blood_bolt_entity]
     # Give the AI enough mana for both abilities
     bank = world.component_for_entity(ai_owner, TileBank)
     bank.counts["shapeshift"] = 10
@@ -129,14 +132,14 @@ def test_rule_based_ai_prefers_higher_cost_ready_ability():
     ai_system = RuleBasedAISystem(world, bus, rng=random.Random(0))
 
     actions = ai_system._enumerate_ability_actions(ai_owner)
-    ferality_action = next(
-        action for action in actions if action.ability_entity == ferality_entity
+    savagery_action = next(
+        action for action in actions if action.ability_entity == savagery_entity
     )
     blood_bolt_action = next(
         action for action in actions if action.ability_entity == blood_bolt_entity
     )
 
-    score_ferality = ai_system._score_action(ai_owner, ("ability", ferality_action))
+    score_savagery = ai_system._score_action(ai_owner, ("ability", savagery_action))
     score_blood_bolt = ai_system._score_action(ai_owner, ("ability", blood_bolt_action))
 
-    assert score_blood_bolt > score_ferality
+    assert score_blood_bolt > score_savagery

@@ -59,3 +59,5 @@ EVENT_EFFECT_EXPIRED = "effect_expired"  # payload: effect_entity=int, owner_ent
 EVENT_HEALTH_DAMAGE = "health_damage"  # payload: source_owner=int, target_entity=int, amount=int, reason=str
 EVENT_HEALTH_HEAL = "health_heal"  # payload: source_owner=int, target_entity=int, amount=int, reason=str
 EVENT_HEALTH_CHANGED = "health_changed"  # payload: entity=int, current=int, max_hp=int, delta=int
+EVENT_CHOICE_SELECTED = "choice_selected"  # payload: window_entity=int, choice_entity=int, payload_entity=int|None
+EVENT_CHOICE_SKIPPED = "choice_skipped"  # payload: window_entity=int

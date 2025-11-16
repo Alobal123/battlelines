@@ -15,6 +15,7 @@ from ecs.systems.effects.board_transform_effect_system import BoardTransformEffe
 from ecs.components.active_turn import ActiveTurn
 from ecs.components.turn_order import TurnOrder
 from ecs.components.ability_list_owner import AbilityListOwner
+from ecs.components.human_agent import HumanAgent
 from ecs.components.ability import Ability
 from ecs.components.pending_ability_target import PendingAbilityTarget
 from ecs.components.targeting_state import TargetingState
@@ -42,8 +43,10 @@ def setup_world():
     return bus, world, turn
 
 def _activate_first_ability(bus, world):
-    owners = list(world.get_component(AbilityListOwner))
-    owner_ent, owner_comp = owners[0]
+    human_entities = list(world.get_component(HumanAgent))
+    assert human_entities, 'No human agent found'
+    owner_ent = human_entities[0][0]
+    owner_comp = world.component_for_entity(owner_ent, AbilityListOwner)
     ability_ent = owner_comp.ability_entities[0]  # tactical_shift
     # Enter targeting; spend will occur after tile click (simulated)
     bus.emit(EVENT_ABILITY_ACTIVATE_REQUEST, ability_entity=ability_ent, owner_entity=owner_ent)

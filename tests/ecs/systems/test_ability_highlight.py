@@ -5,6 +5,7 @@ from ecs.systems.render import RenderSystem
 from ecs.systems.ability_system import AbilitySystem
 from ecs.systems.ability_targeting_system import AbilityTargetingSystem
 from ecs.components.ability_list_owner import AbilityListOwner
+from ecs.components.human_agent import HumanAgent
 
 class DummyWindow:
     width = 800
@@ -23,9 +24,10 @@ def setup_world():
 
 def test_ability_highlight_flag(setup_world):
     bus, world, render, ability_system = setup_world
-    owners = list(world.get_component(AbilityListOwner))
-    assert owners, 'No ability owner found'
-    owner_ent, owner_comp = owners[0]
+    human_entities = list(world.get_component(HumanAgent))
+    assert human_entities, 'No human agent found'
+    owner_ent = human_entities[0][0]
+    owner_comp = world.component_for_entity(owner_ent, AbilityListOwner)
     ability_entity = owner_comp.ability_entities[0]
     # Activate ability (enter targeting)
     bus.emit(EVENT_ABILITY_ACTIVATE_REQUEST, ability_entity=ability_entity, owner_entity=owner_ent)

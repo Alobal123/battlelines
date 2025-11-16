@@ -6,6 +6,7 @@ from ecs.systems.ability_system import AbilitySystem
 from ecs.systems.ability_targeting_system import AbilityTargetingSystem
 from ecs.systems.turn_system import TurnSystem
 from ecs.components.ability_list_owner import AbilityListOwner
+from ecs.components.human_agent import HumanAgent
 
 @pytest.fixture
 def setup_world():
@@ -17,8 +18,11 @@ def setup_world():
     return bus, world, board
 
 def _first_player(world):
-    owners = list(world.get_component(AbilityListOwner))
-    return owners[0]
+    human_entities = list(world.get_component(HumanAgent))
+    assert human_entities, 'No human agent found'
+    owner_ent = human_entities[0][0]
+    owner_comp = world.component_for_entity(owner_ent, AbilityListOwner)
+    return owner_ent, owner_comp
 
 def test_selection_clears_on_target_mode(setup_world):
     bus, world, board = setup_world

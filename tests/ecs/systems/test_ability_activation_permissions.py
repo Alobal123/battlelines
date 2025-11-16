@@ -8,6 +8,8 @@ from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.targeting_state import TargetingState
 from ecs.components.active_turn import ActiveTurn
 from ecs.components.ability import Ability
+from ecs.components.pending_ability_target import PendingAbilityTarget
+from ecs.components.human_agent import HumanAgent
 
 @pytest.fixture
 def setup_world():
@@ -18,7 +20,10 @@ def setup_world():
     return bus, world
 
 def _get_players(world):
-    return [ (ent, comp) for ent, comp in world.get_component(AbilityListOwner) ]
+    owners = [(ent, comp) for ent, comp in world.get_component(AbilityListOwner)]
+    human_entities = {ent for ent, _ in world.get_component(HumanAgent)}
+    owners.sort(key=lambda pair: (pair[0] not in human_entities, pair[0]))
+    return owners
 
 def test_cannot_activate_other_players_ability(setup_world):
     bus, world = setup_world
@@ -52,4 +57,6 @@ def test_inactive_turn_cannot_activate_own_ability(setup_world):
     # Now player2 should be able to activate
     bus.emit(EVENT_ABILITY_ACTIVATE_REQUEST, ability_entity=p2_ability, owner_entity=p2_ent)
     targeting_states = [ent for ent,_ in world.get_component(TargetingState)]
-    assert p2_ent in targeting_states, 'Active player should enter targeting for own ability'
+    assert p2_ent not in targeting_states, 'Self-target abilities should execute without targeting'
+    pending = world.component_for_entity(p2_ability, PendingAbilityTarget)
+    assert pending.owner_entity == p2_ent

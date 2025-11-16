@@ -3,6 +3,7 @@ from ecs.world import create_world
 from ecs.components.ability import Ability
 from ecs.components.ability_target import AbilityTarget
 from ecs.components.ability_list_owner import AbilityListOwner
+from ecs.components.human_agent import HumanAgent
 
 
 def test_ability_entity_created():
@@ -11,7 +12,11 @@ def test_ability_entity_created():
     # Find ability entity via Ability component
     ability_entities = list(world.get_component(Ability))
     assert ability_entities, "Ability entity not created"
-    ent, ability = ability_entities[0]
+    ent, ability = next(
+        (entity, ability)
+        for entity, ability in ability_entities
+        if ability.name == "tactical_shift"
+    )
     assert ability.name == "tactical_shift"
     assert ability.kind == "active"
     assert ability.cost == {"hex": 3, "nature": 2}
@@ -24,9 +29,10 @@ def test_ability_entity_created():
 def test_player_has_ability_list_owner():
     bus = EventBus()
     world = create_world(bus)
-    owners = list(world.get_component(AbilityListOwner))
-    assert owners, "Player AbilityListOwner not found"
-    player_ent, owner = owners[0]
+    human_entities = list(world.get_component(HumanAgent))
+    assert human_entities, "Player AbilityListOwner not found"
+    player_ent = human_entities[0][0]
+    owner = world.component_for_entity(player_ent, AbilityListOwner)
     assert owner.ability_entities, "No abilities referenced"
     first_ability_ent = owner.ability_entities[0]
     ability = world.component_for_entity(first_ability_ent, Ability)

@@ -14,6 +14,7 @@ from ecs.systems.effects.board_clear_effect_system import BoardClearEffectSystem
 from ecs.systems.effects.board_transform_effect_system import BoardTransformEffectSystem
 from ecs.components.active_turn import ActiveTurn
 from ecs.components.ability_list_owner import AbilityListOwner
+from ecs.components.human_agent import HumanAgent
 from ecs.components.ability import Ability
 from ecs.components.board_position import BoardPosition
 from ecs.components.tile import TileType
@@ -36,7 +37,7 @@ def setup_world():
 
 def test_turn_advanced_on_cascade_complete(setup_world):
     bus, world = setup_world
-    owners = [ent for ent,_ in world.get_component(AbilityListOwner)]
+    owners = _ordered_owner_ids(world)
     assert len(owners) >= 2
     events = []
     bus.subscribe(EVENT_TURN_ADVANCED, lambda s, **k: events.append(k))
@@ -66,7 +67,7 @@ def test_turn_advanced_on_ability_no_cascade(setup_world):
     bus, world = setup_world
     events = []
     bus.subscribe(EVENT_TURN_ADVANCED, lambda s, **k: events.append(k))
-    owners = list(world.get_component(AbilityListOwner))
+    owners = _ordered_owners(world)
     owner_ent, owner_comp = owners[0]
     initial_active = list(world.get_component(ActiveTurn))[0][1].owner_entity
     ability_ent = owner_comp.ability_entities[0]
@@ -79,5 +80,17 @@ def test_turn_advanced_on_ability_no_cascade(setup_world):
     bus.emit(EVENT_TILE_BANK_SPENT, entity=owner_ent, ability_entity=ability_ent, cost=ability.cost)
     # Ability system will apply effect and TurnSystem should rotate (no matches guaranteed not asserting here)
     assert events, 'EVENT_TURN_ADVANCED not emitted after ability with no cascade'
-    owners_ids = [ent for ent,_ in owners]
+    owners_ids = [ent for ent, _ in owners]
     assert events[-1]['previous_owner'] in owners_ids
+
+
+def _ordered_owner_ids(world):
+    owners = _ordered_owners(world)
+    return [ent for ent, _ in owners]
+
+
+def _ordered_owners(world):
+    owners = list(world.get_component(AbilityListOwner))
+    human_entities = {ent for ent, _ in world.get_component(HumanAgent)}
+    owners.sort(key=lambda pair: (pair[0] not in human_entities, pair[0]))
+    return owners

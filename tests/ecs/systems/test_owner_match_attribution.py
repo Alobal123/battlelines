@@ -6,6 +6,7 @@ from ecs.systems.tile_bank_system import TileBankSystem
 from ecs.systems.turn_system import TurnSystem
 from ecs.components.tile_bank import TileBank
 from ecs.components.ability_list_owner import AbilityListOwner
+from ecs.components.human_agent import HumanAgent
 from ecs.components.active_turn import ActiveTurn
 
 class DummyEventCollector:
@@ -24,9 +25,16 @@ def setup_world():
     return bus, world, board, bank_sys
 
 
+def _ordered_owners(world):
+    owners = list(world.get_component(AbilityListOwner))
+    human_entities = {ent for ent, _ in world.get_component(HumanAgent)}
+    owners.sort(key=lambda pair: (pair[0] not in human_entities, pair[0]))
+    return owners
+
+
 def test_active_turn_changes_owner(setup_world):
     bus, world, board, bank_sys = setup_world
-    owners = list(world.get_component(AbilityListOwner))
+    owners = _ordered_owners(world)
     assert len(owners) >= 2
     # Initial clicks set active turn to first owner (by current simplified logic)
     # ActiveTurn should be initialized by TurnSystem; verify owner
@@ -38,7 +46,7 @@ def test_active_turn_changes_owner(setup_world):
 
 def test_match_clear_attributed_to_active_owner(setup_world):
     bus, world, board, bank_sys = setup_world
-    owners = list(world.get_component(AbilityListOwner))
+    owners = _ordered_owners(world)
     p1, p2 = owners[0][0], owners[1][0]
     # Force active turn to p2
     world.create_entity(ActiveTurn(owner_entity=p2))

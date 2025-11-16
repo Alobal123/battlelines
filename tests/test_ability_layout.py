@@ -23,5 +23,8 @@ def test_compute_ability_layout_stacking_and_affordability():
     assert layout[2]['affordable'] is True  # empty cost always affordable
     # Geometry fields present
     for entry in layout:
-        for key in ('entity','name','cost','affordable','x','y','width','height','index'):
+        for key in ('entity','slug','name','cost','affordable','x','y','width','height','index'):
             assert key in entry
+    # Labels formatted while slugs preserved
+    assert layout[0]['slug'] == 'a1'
+    assert layout[0]['name'] == 'A1'

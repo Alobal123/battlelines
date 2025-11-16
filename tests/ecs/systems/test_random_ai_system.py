@@ -100,16 +100,17 @@ def test_random_ai_triggers_self_ability_when_no_swaps():
     agent_comp.decision_delay = 0.0
     agent_comp.selection_delay = 0.0
     owner_comp: AbilityListOwner = world.component_for_entity(ai_owner, AbilityListOwner)
-    # Limit to ferality (self-target ability) for determinism.
-    ferality_entity = next(
+    # Limit to shovel_punch (self-target ability) for determinism.
+    shovel_punch_entity = next(
         ent
         for ent in owner_comp.ability_entities
-        if world.component_for_entity(ent, Ability).name == "ferality"
+        if world.component_for_entity(ent, Ability).name == "shovel_punch"
     )
-    owner_comp.ability_entities = [ferality_entity]
+    owner_comp.ability_entities = [shovel_punch_entity]
     # Give the AI enough mana to use the ability
     bank = world.component_for_entity(ai_owner, TileBank)
     bank.counts["shapeshift"] = 10
+    bank.counts["nature"] = 10
     # 1x1 board ensures no valid swap actions exist.
     _build_board(world, [["nature"]], board_system)
     captured = {}
@@ -124,5 +125,5 @@ def test_random_ai_triggers_self_ability_when_no_swaps():
     bus.emit(EVENT_TICK, dt=1 / 60)
 
     assert "ability" in captured
-    assert captured["ability"]["ability_entity"] == ferality_entity
+    assert captured["ability"]["ability_entity"] == shovel_punch_entity
     assert captured["ability"]["owner_entity"] == ai_owner

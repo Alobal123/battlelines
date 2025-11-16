@@ -3,6 +3,7 @@ from ecs.world import create_world
 from ecs.components.health import Health
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.ability import Ability
+from ecs.components.human_agent import HumanAgent
 from ecs.systems.health_system import HealthSystem
 from ecs.systems.ability_resolution_system import AbilityResolutionSystem
 from ecs.systems.effect_lifecycle_system import EffectLifecycleSystem
@@ -22,9 +23,9 @@ def test_verdant_touch_heals_caster():
     resolution_system = AbilityResolutionSystem(world, bus)
     
     # Find player 1 and their verdant_touch ability
-    player_entities = [ent for ent in world.get_component(AbilityListOwner)]
-    assert len(player_entities) >= 1, "Expected at least one player"
-    player1 = player_entities[0][0]
+    human_entities = list(world.get_component(HumanAgent))
+    assert human_entities, "Expected at least one player"
+    player1 = human_entities[0][0]
     
     # Get player's abilities
     ability_owner = world.component_for_entity(player1, AbilityListOwner)
@@ -88,8 +89,9 @@ def test_verdant_touch_caps_at_max_hp():
     resolution_system = AbilityResolutionSystem(world, bus)
     
     # Find player 1
-    player_entities = [ent for ent in world.get_component(AbilityListOwner)]
-    player1 = player_entities[0][0]
+    human_entities = list(world.get_component(HumanAgent))
+    assert human_entities, "Expected at least one player"
+    player1 = human_entities[0][0]
     
     # Get verdant_touch ability
     ability_owner = world.component_for_entity(player1, AbilityListOwner)

@@ -7,6 +7,7 @@ from ecs.systems.ability_targeting_system import AbilityTargetingSystem
 from ecs.systems.tile_bank_system import TileBankSystem
 from ecs.systems.turn_system import TurnSystem
 from ecs.components.targeting_state import TargetingState
+from ecs.components.human_agent import HumanAgent
 
 @pytest.fixture
 def setup_env():
@@ -31,10 +32,12 @@ def test_tile_click_ignored_during_cascade(setup_env):
 def test_ability_activation_blocked_during_cascade(setup_env):
     bus, world, board = setup_env
     owners = list(world.get_component(type(board)))  # bogus retrieval to ensure variable unused
-    # Acquire first owner ability
+    # Acquire human owner's ability
     from ecs.components.ability_list_owner import AbilityListOwner
-    owners = list(world.get_component(AbilityListOwner))
-    owner_ent, owner_comp = owners[0]
+    human_entities = list(world.get_component(HumanAgent))
+    assert human_entities, 'No human agent found'
+    owner_ent = human_entities[0][0]
+    owner_comp = world.component_for_entity(owner_ent, AbilityListOwner)
     ability_ent = owner_comp.ability_entities[0]
     bus.emit(EVENT_CASCADE_STEP, depth=1, positions=[(0,0)])
     bus.emit(EVENT_ABILITY_ACTIVATE_REQUEST, ability_entity=ability_ent, owner_entity=owner_ent)
