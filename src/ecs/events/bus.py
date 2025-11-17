@@ -57,6 +57,7 @@ EVENT_BOARD_CHANGED = "board_changed"  # payload: reason=str, positions=list[(r,
 EVENT_GAME_MODE_CHANGED = "game_mode_changed"  # payload: previous_mode=GameMode|None, new_mode=GameMode
 EVENT_TURN_ADVANCED = "turn_advanced"  # payload: previous_owner=int|None, new_owner=int
 EVENT_TURN_ACTION_STARTED = "turn_action_started"  # payload: source=str, owner_entity=int|None, ability_entity=int|None
+EVENT_EXTRA_TURN_GRANTED = "extra_turn_granted"  # payload: owner_entity=int
 EVENT_BATTLE_RESOLVED = "battle_resolved"  # payload: attacker_owner=int, defender_owner=int, forward=dict, counter=dict
 EVENT_EFFECT_APPLY = "effect_apply"  # payload: owner_entity=int, slug=str, metadata=dict, duration=float|None, ...
 EVENT_EFFECT_REMOVE = "effect_remove"  # payload: effect_entity=int|None, owner_entity=int|None, slug=str|None

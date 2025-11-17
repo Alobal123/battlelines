@@ -21,6 +21,7 @@ from ecs.events.bus import (
     EVENT_TICK,
     EVENT_TURN_ACTION_STARTED,
     EVENT_TURN_ADVANCED,
+    EVENT_EXTRA_TURN_GRANTED,
 )
 from ecs.systems.board_ops import active_tile_type_map, find_valid_swaps
 from ecs.systems.turn_state_utils import get_or_create_turn_state
@@ -76,6 +77,7 @@ class BaseAISystem(ABC):
         self.action_phase: Optional[str] = None
         event_bus.subscribe(EVENT_TURN_ADVANCED, self.on_turn_advanced)
         event_bus.subscribe(EVENT_TURN_ACTION_STARTED, self.on_turn_action_started)
+        event_bus.subscribe(EVENT_EXTRA_TURN_GRANTED, self.on_extra_turn_granted)
         event_bus.subscribe(EVENT_TICK, self.on_tick)
         self._prime_initial_owner()
 
@@ -103,6 +105,16 @@ class BaseAISystem(ABC):
             self.delay_remaining = 0.0
             self.current_action = None
             self.action_phase = None
+
+    def on_extra_turn_granted(self, sender, **payload) -> None:
+        owner_entity = payload.get("owner_entity")
+        if owner_entity is None or not self._is_ai_owner(owner_entity):
+            return
+        self.pending_owner = owner_entity
+        self.has_dispatched_action = False
+        self.delay_remaining = self._decision_delay_for(owner_entity)
+        self.current_action = None
+        self.action_phase = None
 
     def on_tick(self, sender, **payload) -> None:
         if self.pending_owner is None or self.has_dispatched_action:

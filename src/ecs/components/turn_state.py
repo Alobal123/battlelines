@@ -12,3 +12,4 @@ class TurnState:
     cascade_observed: bool = False
     ability_entity: Optional[int] = None
     ability_ends_turn: bool = True
+    extra_turn_pending: bool = False

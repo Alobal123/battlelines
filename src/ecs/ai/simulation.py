@@ -123,6 +123,7 @@ class SimulationEngine:
         self.board_clear_effect = BoardClearEffectSystem(world, event_bus, refill_cascades=False)
         self.board_transform_effect = BoardTransformEffectSystem(world, event_bus)
         self.ability_resolution = AbilityResolutionSystem(world, event_bus)
+        self.last_action_generated_extra_turn: bool = False
 
     def swap_and_resolve(
         self,
@@ -137,7 +138,8 @@ class SimulationEngine:
             return
         if not swap_tile_types(self.world, src, dst):
             return
-        self._resolve_cascades(owner_hint=acting_owner)
+        self.last_action_generated_extra_turn = False
+        self._resolve_cascades(owner_hint=acting_owner, allow_extra_turn=True)
 
     def execute_ability(
         self,
@@ -155,13 +157,17 @@ class SimulationEngine:
             owner_entity=owner_entity,
             pending=pending,
         )
-        self._resolve_cascades(owner_hint=owner_entity)
+        self.last_action_generated_extra_turn = False
+        self._resolve_cascades(owner_hint=owner_entity, allow_extra_turn=False)
 
-    def _resolve_cascades(self, owner_hint: int | None = None) -> None:
+    def _resolve_cascades(self, owner_hint: int | None = None, *, allow_extra_turn: bool) -> None:
         while True:
             matches = find_all_matches(self.world)
             if not matches:
                 break
+            if allow_extra_turn and not self.last_action_generated_extra_turn:
+                if any(len(group) >= 4 for group in matches):
+                    self.last_action_generated_extra_turn = True
             positions = sorted({pos for group in matches for pos in group})
             _, typed_before, _, _, _ = clear_tiles_with_cascade(self.world, positions, refill=False)
             if typed_before:

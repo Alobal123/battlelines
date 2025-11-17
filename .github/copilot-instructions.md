@@ -53,6 +53,12 @@ Create docs/ARCHITECTURE.md once >3 systems exist (render, movement, AI, spawn, 
 Type hints everywhere. Dataclasses for components. Avoid circular imports by keeping cross-cutting constants (events) isolated.
 No hidden globals; pass EventBus explicitly.
 
+## Tooling Notes
+- Always invoke Python scripts and test commands via the project's virtual environment located at `.venv/` (e.g. `& .\.venv\Scripts\python.exe -m pytest`).
+- When running ad-hoc snippets, ensure the venv interpreter is used instead of the global Python installation.
+- Avoid here-document shell syntax like `python - <<'PY'` in PowerShell; use `python -c "..."` or activate the REPL instead.
+- Arcade version is **3.3.3**; stick to drawing helpers that exist in this release (e.g. `arcade.draw_text`, `arcade.draw_lbwh_rectangle_filled`, `arcade.draw_lrbt_rectangle_filled`, `arcade.draw_rect_filled`, `arcade.draw_polygon_filled`, `arcade.draw_circle_filled`). Double-check new calls against the 3.3.3 API docs before using them.
+
 
 ## Ability System Notes
 Single-ability ownership has been upgraded to multi-ability via `AbilityListOwner(ability_entities=[...])`. Each ability is its own entity with `Ability` + `AbilityTarget`. Activation uses precise hitboxes derived from `RenderSystem` layout cache and checks affordability through the TileBank spend request event before entering targeting mode. The flow is now split across:

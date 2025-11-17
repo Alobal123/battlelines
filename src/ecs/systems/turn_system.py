@@ -7,6 +7,7 @@ from ecs.events.bus import (
     EVENT_MATCH_CLEARED,
     EVENT_TURN_ACTION_STARTED,
     EVENT_TURN_ADVANCED,
+    EVENT_EXTRA_TURN_GRANTED,
 )
 from ecs.components.turn_order import TurnOrder
 from ecs.components.active_turn import ActiveTurn
@@ -115,9 +116,20 @@ class TurnSystem:
         state.action_source = None
         state.ability_entity = None
         state.ability_ends_turn = True
-        if not self.rotation_pending:
-            return
+        owner_entity = self._current_owner()
+        extra_turn = state.extra_turn_pending
+        state.extra_turn_pending = False
+        should_rotate = self.rotation_pending
         self.rotation_pending = False
+        if extra_turn:
+            if owner_entity is not None:
+                self.event_bus.emit(
+                    EVENT_EXTRA_TURN_GRANTED,
+                    owner_entity=owner_entity,
+                )
+            return
+        if not should_rotate:
+            return
         self._advance_turn()
         
     def _advance_turn(self):
@@ -139,3 +151,9 @@ class TurnSystem:
             previous_owner = comp_active.owner_entity
             comp_active.owner_entity = new_owner
         self.event_bus.emit(EVENT_TURN_ADVANCED, previous_owner=previous_owner, new_owner=new_owner)
+
+    def _current_owner(self) -> int | None:
+        active_list = list(self.world.get_component(ActiveTurn))
+        if not active_list:
+            return None
+        return active_list[0][1].owner_entity

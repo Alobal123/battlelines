@@ -48,6 +48,7 @@ class MatchResolutionSystem:
             if state.cascade_active:
                 self.event_bus.emit(EVENT_CASCADE_COMPLETE, depth=state.cascade_depth)
             return
+        self._flag_extra_turn(matches)
         flat_positions = sorted({pos for group in matches for pos in group})
         self.pending_match_positions = flat_positions
         self.event_bus.emit(EVENT_MATCH_FOUND, positions=flat_positions, size=len(flat_positions), reason=reason)
@@ -114,8 +115,6 @@ class MatchResolutionSystem:
             if state.cascade_active:
                 self.event_bus.emit(EVENT_CASCADE_COMPLETE, depth=state.cascade_depth)
             return
-        flat_positions = sorted({pos for group in matches for pos in group})
-        self.pending_match_positions = flat_positions
         if state.cascade_active:
             depth = state.cascade_depth + 1
         else:
@@ -125,6 +124,9 @@ class MatchResolutionSystem:
                 source="cascade",
                 owner_entity=self._active_owner(),
             )
+        self._flag_extra_turn(matches)
+        flat_positions = sorted({pos for group in matches for pos in group})
+        self.pending_match_positions = flat_positions
         self.event_bus.emit(EVENT_CASCADE_STEP, depth=depth, positions=flat_positions)
         self.event_bus.emit(EVENT_MATCH_FOUND, positions=flat_positions, size=len(flat_positions))
         self.event_bus.emit(EVENT_ANIMATION_START, kind='fade', items=flat_positions)
@@ -135,3 +137,52 @@ class MatchResolutionSystem:
         if not active:
             return None
         return active[0][1].owner_entity
+
+    def _flag_extra_turn(self, matches: list[list[tuple[int, int]]]) -> None:
+        if not matches:
+            return
+        state = get_or_create_turn_state(self.world)
+        if state.extra_turn_pending:
+            return
+        if state.action_source not in {"swap", "cascade"}:
+            return
+        owner = self._active_owner()
+        if owner is None:
+            return
+        if not any(self._is_linear_match(group) for group in matches):
+            return
+        state.extra_turn_pending = True
+
+    def _is_linear_match(self, group: list[tuple[int, int]]) -> bool:
+        if len(group) < 4:
+            return False
+        # Check for any horizontal contiguous run of length >= 4 within the group.
+        by_row: dict[int, list[int]] = {}
+        for row, col in group:
+            by_row.setdefault(row, []).append(col)
+        for cols in by_row.values():
+            if self._has_contiguous_run(cols, threshold=4):
+                return True
+        # Check for any vertical contiguous run of length >= 4 within the group.
+        by_col: dict[int, list[int]] = {}
+        for row, col in group:
+            by_col.setdefault(col, []).append(row)
+        for rows in by_col.values():
+            if self._has_contiguous_run(rows, threshold=4):
+                return True
+        return False
+
+    @staticmethod
+    def _has_contiguous_run(values: list[int], *, threshold: int) -> bool:
+        if len(values) < threshold:
+            return False
+        sorted_vals = sorted(values)
+        run_length = 1
+        for idx in range(1, len(sorted_vals)):
+            if sorted_vals[idx] == sorted_vals[idx - 1] + 1:
+                run_length += 1
+                if run_length >= threshold:
+                    return True
+            elif sorted_vals[idx] != sorted_vals[idx - 1]:
+                run_length = 1
+        return False

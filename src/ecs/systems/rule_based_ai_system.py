@@ -49,12 +49,15 @@ class RuleBasedAISystem(BaseAISystem):
         ability_usage_flag = 1 if candidate[0] == "ability" else 0
         ability_cost_total = 0
         free_action_bonus = 0
+        extra_turn_bonus = 0
         if candidate[0] == "ability":
             ability_action = cast(AbilityAction, candidate[1])
             ability_cost_total = self._ability_cost_total(snapshot, ability_action)
             ability_snapshot = snapshot.ability_map.get(ability_action.ability_entity)
             if ability_snapshot is not None and not ability_snapshot.ends_turn:
                 free_action_bonus = 500_000
+        if candidate[0] == "swap" and clone_state.engine.last_action_generated_extra_turn:
+            extra_turn_bonus = 100_000_000
         clone_bank_counts = self._clone_bank_counts(clone_world, owner_entity)
         baseline_deficits = self._compute_mana_deficits(snapshot.bank_counts, snapshot.ability_map)
         clone_deficits = self._compute_mana_deficits(clone_bank_counts, snapshot.ability_map, clone_state)
@@ -68,6 +71,7 @@ class RuleBasedAISystem(BaseAISystem):
         score = (
             kill_flag * 1_000_000_000
             + witchfire_cleared * 1_000_000
+            + extra_turn_bonus
             + ability_usage_flag * 100_000
             + free_action_bonus
             + ability_cost_total * 10_000
