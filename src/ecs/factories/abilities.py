@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
-from typing import Callable, Dict, Iterable, List, Tuple
+from typing import Callable, Dict, Iterable, List, Tuple, cast
 
 from esper import World
 
@@ -11,8 +11,10 @@ from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.game_state import GameMode, GameState
 from ecs.components.human_agent import HumanAgent
 from ecs.components.starting_ability_choice import StartingAbilityChoice
+from ecs.events.bus import EventBus
 from ecs.factories.choice_window import ChoiceDefinition, spawn_choice_window
 from ecs.systems.ability_pool_system import available_basic_player_ability_names
+from ecs.utils.game_state import set_game_mode
 
 ABILITY_FACTORY_PACKAGES: Tuple[str, ...] = (
     "ecs.factories.player_abilities",
@@ -33,7 +35,7 @@ def _discover_ability_builders() -> Dict[str, Callable[[World], int]]:
                 if not callable(factory):
                     continue
                 ability_name = attr_name[len("create_ability_") :]
-                builders.setdefault(ability_name, factory)
+                builders.setdefault(ability_name, cast(Callable[[World], int], factory))
     return builders
 
 
@@ -72,7 +74,7 @@ def create_ability_by_name(world: World, name: str) -> int:
     return builder(world)
 
 
-def spawn_starting_ability_choice(world: World) -> int | None:
+def spawn_starting_ability_choice(world: World, event_bus: EventBus | None = None) -> int | None:
     """Spawn a choice window that lets the human player pick a starting ability.
 
     Ability options are sourced from the dynamic ability pool to ensure future
@@ -111,9 +113,12 @@ def spawn_starting_ability_choice(world: World) -> int | None:
         )
     if not definitions:
         return None
-    state_entries = list(world.get_component(GameState))
-    if state_entries:
-        state_entries[0][1].mode = GameMode.ABILITY_DRAFT
+    if event_bus is not None:
+        set_game_mode(world, event_bus, GameMode.ABILITY_DRAFT)
+    else:
+        state_entries = list(world.get_component(GameState))
+        if state_entries:
+            state_entries[0][1].mode = GameMode.ABILITY_DRAFT
     return spawn_choice_window(
         world,
         definitions,

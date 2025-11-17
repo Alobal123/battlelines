@@ -142,11 +142,33 @@ class SpriteCache:
                 return None
             self._portrait_sprite_map[key] = sprite
             portrait_list.append(sprite)
+        else:
+            # If this sprite was previously removed from sprite lists, re-attach it.
+            try:
+                sprite_lists = getattr(sprite, "sprite_lists", None)
+            except Exception:
+                sprite_lists = None
+            if (
+                portrait_list is not None
+                and sprite is not None
+                and (not sprite_lists or portrait_list not in sprite_lists)
+            ):
+                portrait_list.append(sprite)
         return sprite
 
     def draw_portrait_sprites(self) -> None:
         if self._portrait_sprites is not None:
             self._portrait_sprites.draw()
+
+    def cleanup_portrait_sprites(self, active_keys: set[str]) -> None:
+        if not self._portrait_sprite_map:
+            return
+        for key, sprite in list(self._portrait_sprite_map.items()):
+            if key not in active_keys and sprite is not None:
+                try:
+                    sprite.remove_from_sprite_lists()
+                except Exception:
+                    pass
 
     # ------------------------------------------------------------------
     # Shared helpers

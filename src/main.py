@@ -35,6 +35,7 @@ from ecs.systems.tooltip_system import TooltipSystem
 from ecs.systems.rule_based_ai_system import RuleBasedAISystem
 from ecs.systems.defeat_system import DefeatSystem
 from ecs.systems.ability_pool_system import AbilityPoolSystem
+from ecs.systems.story_progress_system import StoryProgressSystem
 
 class BattlelinesWindow(Window):
     def __init__(self):
@@ -47,43 +48,62 @@ class BattlelinesWindow(Window):
             grant_default_player_abilities=False,
             randomize_enemy=True,
         )
-        spawn_main_menu(self.world, self.width, self.height)
-        self.menu_render_system = MenuRenderSystem(self.world, self)
-        self.menu_input_system = MenuInputSystem(self.world, self.event_bus)
-        self.choice_input_system = ChoiceInputSystem(self.world, self.event_bus)
-        self.ability_starting_system = AbilityStartingSystem(
+        # Progression systems
+        self.story_progress_system = StoryProgressSystem(self.world, self.event_bus)
+
+        spawn_main_menu(
             self.world,
-            self.event_bus,
+            self.width,
+            self.height,
+            enable_continue=self.story_progress_system.has_progress,
         )
+        # Menu systems
+        self.menu_input_system = MenuInputSystem(self.world, self.event_bus)
+        self.menu_render_system = MenuRenderSystem(self.world, self)
+
+        # Interface systems
+        self.choice_input_system = ChoiceInputSystem(self.world, self.event_bus)
         self.render_system = RenderSystem(self.world, self.event_bus, self)
         self.tooltip_system = TooltipSystem(self.world, self.event_bus, self, self.render_system)
+
+        # Input systems
         self.input_system = InputSystem(self.event_bus, self, self.world)
 
-        # Combat systems exist up front but self-regulate based on GameMode.
-        self.board_system = BoardSystem(self.world, self.event_bus, rows=GRID_ROWS, cols=GRID_COLS)
-        self.match_system = MatchSystem(self.world, self.event_bus)
+        # Ability systems
+        self.ability_pool_system = AbilityPoolSystem(self.world, self.event_bus)
+        self.ability_starting_system = AbilityStartingSystem(self.world, self.event_bus)
+        self.ability_system = AbilitySystem(self.world, self.event_bus)
+        self.ability_targeting_system = AbilityTargetingSystem(self.world, self.event_bus)
+
+        # Board and animation systems
         self.animation_system = AnimationSystem(self.world, self.event_bus)
+        self.board_system = BoardSystem(self.world, self.event_bus, rows=GRID_ROWS, cols=GRID_COLS)
         self.match_resolution_system = MatchResolutionSystem(self.world, self.event_bus)
-        self.tile_bank_system = TileBankSystem(self.world, self.event_bus)
-        self.effect_lifecycle_system = EffectLifecycleSystem(self.world, self.event_bus)
-        self.damage_effect_system = DamageEffectSystem(self.world, self.event_bus)
-        self.deplete_effect_system = DepleteEffectSystem(self.world, self.event_bus)
-        self.heal_effect_system = HealEffectSystem(self.world, self.event_bus)
+        self.match_system = MatchSystem(self.world, self.event_bus)
+
+        # Resource and effect systems
         self.board_clear_effect_system = BoardClearEffectSystem(self.world, self.event_bus)
         self.board_transform_effect_system = BoardTransformEffectSystem(self.world, self.event_bus)
+        self.damage_effect_system = DamageEffectSystem(self.world, self.event_bus)
+        self.deplete_effect_system = DepleteEffectSystem(self.world, self.event_bus)
+        self.effect_lifecycle_system = EffectLifecycleSystem(self.world, self.event_bus)
+        self.heal_effect_system = HealEffectSystem(self.world, self.event_bus)
         self.mana_drain_effect_system = ManaDrainEffectSystem(self.world, self.event_bus)
         self.poison_effect_system = PoisonEffectSystem(self.world, self.event_bus)
-        self.ability_targeting_system = AbilityTargetingSystem(self.world, self.event_bus)
-        self.ability_system = AbilitySystem(self.world, self.event_bus)
-        self.turn_system = TurnSystem(self.world, self.event_bus)
-        self.rule_based_ai_system = RuleBasedAISystem(self.world, self.event_bus)
-        self.health_system = HealthSystem(self.world, self.event_bus)
+        self.tile_bank_system = TileBankSystem(self.world, self.event_bus)
+
+        # Turn and AI systems
         self.defeat_system = DefeatSystem(
             self.world,
             self.event_bus,
             menu_size_provider=lambda: (self.width, self.height),
         )
-        self.ability_pool_system = AbilityPoolSystem(self.world, self.event_bus)
+        self.health_system = HealthSystem(self.world, self.event_bus)
+        self.rule_based_ai_system = RuleBasedAISystem(self.world, self.event_bus)
+        self.turn_system = TurnSystem(self.world, self.event_bus)
+        
+        
+        
         set_background_color(color.BLACK)
         # Toggle fullscreen and allow dynamic scaling; width/height update after fullscreen set.
         try:

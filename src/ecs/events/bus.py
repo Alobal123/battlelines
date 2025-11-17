@@ -54,6 +54,7 @@ EVENT_ABILITY_TARGET_CANCELLED = "ability_target_cancelled"  # payload: ability_
 EVENT_ABILITY_POOL_REQUEST = "ability_pool_request"  # payload: owner_entity=int, count=int, request_id=Any
 EVENT_ABILITY_POOL_OFFER = "ability_pool_offer"  # payload: owner_entity=int, abilities=list[str], request_id=Any
 EVENT_BOARD_CHANGED = "board_changed"  # payload: reason=str, positions=list[(r,c)]
+EVENT_GAME_MODE_CHANGED = "game_mode_changed"  # payload: previous_mode=GameMode|None, new_mode=GameMode
 EVENT_TURN_ADVANCED = "turn_advanced"  # payload: previous_owner=int|None, new_owner=int
 EVENT_TURN_ACTION_STARTED = "turn_action_started"  # payload: source=str, owner_entity=int|None, ability_entity=int|None
 EVENT_BATTLE_RESOLVED = "battle_resolved"  # payload: attacker_owner=int, defender_owner=int, forward=dict, counter=dict
@@ -72,3 +73,5 @@ EVENT_ENTITY_DEFEATED = "entity_defeated"  # payload: entity=int, reason=str|Non
 EVENT_PLAYER_DEFEATED = "player_defeated"  # payload: entity=int
 EVENT_ENEMY_DEFEATED = "enemy_defeated"  # payload: entity=int
 EVENT_COMBAT_RESET = "combat_reset"  # payload: reason=str|None, defeated_entity=int|None
+EVENT_MENU_NEW_GAME_SELECTED = "menu_new_game_selected"  # payload: None
+EVENT_MENU_CONTINUE_SELECTED = "menu_continue_selected"  # payload: None

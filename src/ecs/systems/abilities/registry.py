@@ -4,6 +4,7 @@ from importlib import metadata
 from typing import Dict, Iterable
 
 from ecs.systems.abilities.base import AbilityResolver
+from ecs.systems.abilities.bee_sting_resolver import BeeStingResolver
 
 _PLUGIN_GROUP = "battlelines.ability_resolvers"
 _plugin_loaded = False
@@ -67,7 +68,9 @@ def _register_from_object(obj):
 
 
 def _builtin_resolvers() -> Dict[str, AbilityResolver]:
-    return {}
+    return {
+        "bee_sting": BeeStingResolver(),
+    }
 
 
 def create_resolver_registry(overrides: Dict[str, AbilityResolver] | None = None) -> Dict[str, AbilityResolver]:

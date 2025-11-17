@@ -11,19 +11,19 @@ from ecs.components.rule_based_agent import RuleBasedAgent
 from ecs.components.tile_bank import TileBank
 from .common import resolve_enemy_abilities
 
-DEFAULT_UNDEAD_FLORIST_LOADOUT: Sequence[str] = (
+DEFAULT_UNDEAD_BEEKEEPER_LOADOUT: Sequence[str] = (
     "touch_of_undead",
-    "poisoned_flower",
+    "bee_sting",
 )
-def create_enemy_undead_florist(
+def create_enemy_undead_beekeeper(
     world: World,
     *,
     ability_names: Iterable[str] | None = None,
     max_hp: int = 30,
 ) -> int:
-    """Spawn the Undead Florist enemy."""
+    """Spawn the Undead Beekeeper enemy."""
 
-    loadout = tuple(ability_names) if ability_names is not None else DEFAULT_UNDEAD_FLORIST_LOADOUT
+    loadout = tuple(ability_names) if ability_names is not None else DEFAULT_UNDEAD_BEEKEEPER_LOADOUT
     ability_entities = resolve_enemy_abilities(world, loadout)
     enemy_entity = world.create_entity(
         RuleBasedAgent(),
@@ -31,10 +31,10 @@ def create_enemy_undead_florist(
         TileBank(owner_entity=0),
         Health(current=max_hp, max_hp=max_hp),
         Character(
-            slug="undead_florist",
-            name="Undead Florist",
-            description="A spectral florist who tends to crimson blooms.",
-            portrait_path="undead_florist.png",
+            slug="undead_beekeeper",
+            name="Undead Beekeeper",
+            description="A revenant tending hives of venomous spirits.",
+            portrait_path="undead_beekeeper.png",
         ),
     )
     bank = world.component_for_entity(enemy_entity, TileBank)

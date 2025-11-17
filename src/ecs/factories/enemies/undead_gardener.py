@@ -9,16 +9,12 @@ from ecs.components.character import Character
 from ecs.components.health import Health
 from ecs.components.rule_based_agent import RuleBasedAgent
 from ecs.components.tile_bank import TileBank
-from ecs.factories.abilities import create_ability_by_name
+from .common import resolve_enemy_abilities
 
 DEFAULT_UNDEAD_GARDENER_LOADOUT: Sequence[str] = (
     "touch_of_undead",
     "shovel_punch",
 )
-
-
-def _resolve_abilities(world: World, ability_names: Iterable[str]) -> list[int]:
-    return [create_ability_by_name(world, name) for name in ability_names]
 
 
 def create_enemy_undead_gardener(
@@ -30,7 +26,7 @@ def create_enemy_undead_gardener(
     """Spawn the Undead Gardener enemy."""
 
     loadout = tuple(ability_names) if ability_names is not None else DEFAULT_UNDEAD_GARDENER_LOADOUT
-    ability_entities = _resolve_abilities(world, loadout)
+    ability_entities = resolve_enemy_abilities(world, loadout)
     enemy_entity = world.create_entity(
         RuleBasedAgent(),
         AbilityListOwner(ability_entities=ability_entities),

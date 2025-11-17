@@ -32,26 +32,29 @@ class MenuRenderSystem:
         for _, button in self.world.get_component(MenuButton):
             left = button.x - button.width / 2
             bottom = button.y - button.height / 2
+            fill_color = arcade.color.DARK_SLATE_BLUE if button.enabled else arcade.color.GRAY_BLUE
+            outline_color = arcade.color.WHITE if button.enabled else arcade.color.SILVER
+            text_color = arcade.color.WHITE if button.enabled else arcade.color.SILVER
             arcade.draw_lbwh_rectangle_filled(
                 left,
                 bottom,
                 button.width,
                 button.height,
-                arcade.color.DARK_SLATE_BLUE,
+                fill_color,
             )
             arcade.draw_lbwh_rectangle_outline(
                 left,
                 bottom,
                 button.width,
                 button.height,
-                arcade.color.WHITE,
+                outline_color,
                 border_width=2,
             )
             arcade.draw_text(
                 button.label,
                 button.x,
                 button.y,
-                arcade.color.WHITE,
+                text_color,
                 24,
                 anchor_x="center",
                 anchor_y="center",

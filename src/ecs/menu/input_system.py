@@ -2,9 +2,15 @@
 from esper import World
 
 from ecs.components.game_state import GameMode, GameState
-from ecs.events.bus import EVENT_MOUSE_PRESS, EventBus
+from ecs.events.bus import (
+    EVENT_MENU_CONTINUE_SELECTED,
+    EVENT_MENU_NEW_GAME_SELECTED,
+    EVENT_MOUSE_PRESS,
+    EventBus,
+)
 from ecs.menu.components import MenuAction, MenuBackground, MenuButton, MenuTag
 from ecs.factories.abilities import spawn_starting_ability_choice
+from ecs.utils.game_state import set_game_mode
 
 
 class MenuInputSystem:
@@ -30,12 +36,11 @@ class MenuInputSystem:
         if not state or state.mode != GameMode.MENU:
             return
 
-        for entity, menu_button in self.world.get_component(MenuButton):
+        for _, menu_button in self.world.get_component(MenuButton):
+            if not menu_button.enabled:
+                continue
             if self._point_inside_button(x, y, menu_button):
-                if menu_button.action == MenuAction.NEW_GAME:
-                    state.mode = GameMode.ABILITY_DRAFT
-                    self._clear_menu_entities()
-                    spawn_starting_ability_choice(self.world)
+                self._activate_action(menu_button.action)
                 return
 
     def handle_key_press(self, symbol: int, modifiers: int) -> None:
@@ -45,9 +50,13 @@ class MenuInputSystem:
             return
         # arcade.key.ENTER == 65293, but we avoid direct import to keep loose coupling.
         if symbol in (65293, 13):
-            state.mode = GameMode.ABILITY_DRAFT
-            self._clear_menu_entities()
-            spawn_starting_ability_choice(self.world)
+            self._activate_action(MenuAction.NEW_GAME)
+
+    def _activate_action(self, action: MenuAction) -> None:
+        if action == MenuAction.NEW_GAME:
+            self._handle_new_game_selection()
+        elif action == MenuAction.CONTINUE:
+            self._handle_continue_selection()
 
     def _clear_menu_entities(self) -> None:
         """Remove all entities that are part of the menu UI."""
@@ -65,6 +74,32 @@ class MenuInputSystem:
         for _, state in self.world.get_component(GameState):
             return state
         return None
+
+    def _handle_new_game_selection(self) -> None:
+        state = self._get_game_state()
+        if state and state.mode == GameMode.MENU:
+            self._emit(EVENT_MENU_NEW_GAME_SELECTED)
+            if self._event_bus is not None:
+                set_game_mode(self.world, self._event_bus, GameMode.ABILITY_DRAFT)
+            else:
+                state.mode = GameMode.ABILITY_DRAFT
+            self._clear_menu_entities()
+            spawn_starting_ability_choice(self.world, self._event_bus)
+
+    def _handle_continue_selection(self) -> None:
+        state = self._get_game_state()
+        if state and state.mode == GameMode.MENU:
+            self._emit(EVENT_MENU_CONTINUE_SELECTED)
+            if self._event_bus is not None:
+                set_game_mode(self.world, self._event_bus, GameMode.ABILITY_DRAFT)
+            else:
+                state.mode = GameMode.ABILITY_DRAFT
+            self._clear_menu_entities()
+            spawn_starting_ability_choice(self.world, self._event_bus)
+
+    def _emit(self, name: str) -> None:
+        if self._event_bus is not None:
+            self._event_bus.emit(name)
 
     @staticmethod
     def _point_inside_button(x: float, y: float, button: MenuButton) -> bool:

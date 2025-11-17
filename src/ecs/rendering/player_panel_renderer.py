@@ -58,6 +58,13 @@ class PlayerPanelRenderer:
             if idx >= 1:
                 break
 
+        active_portrait_keys = {
+            character.portrait_path
+            for character in character_by_side.values()
+            if character and character.portrait_path
+        }
+        rs.sprite_cache.cleanup_portrait_sprites(active_portrait_keys)
+
         for side, col_w in (("left", left_col_w), ("right", right_col_w)):
             x = left_panel_left if side == "left" else right_panel_left
             owner_entity = owner_by_side.get(side)

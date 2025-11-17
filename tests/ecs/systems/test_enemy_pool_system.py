@@ -15,7 +15,8 @@ def test_enemy_pool_offers_unique_names():
     world = create_world(bus, grant_default_player_abilities=False)
     rng = random.Random(1)
     pool = EnemyPoolSystem(world, bus, rng=rng)
-    assert "undead_florist" in pool.known_enemy_names()
+    names = set(pool.known_enemy_names())
+    assert {"undead_florist", "undead_beekeeper"}.issubset(names)
     captured = {}
     bus.subscribe(EVENT_ENEMY_POOL_OFFER, lambda s, **p: captured.update(p))
 
@@ -46,3 +47,39 @@ def test_enemy_pool_spawn_random_enemy():
         assert any(ent == enemy_entity for ent, _ in world.get_component(RuleBasedAgent))
     else:
         assert enemy_entity is None
+
+
+def test_enemy_pool_avoids_immediate_repeat():
+    class StaticRandom(random.Random):
+        def __init__(self):
+            super().__init__()
+
+        def choice(self, seq):
+            # Always return the lexicographically highest value to stress the fallback path.
+            return seq[-1]
+
+        def shuffle(self, seq):
+            # Leave sequence order intact.
+            return None
+
+    bus = EventBus()
+    world = create_world(bus, grant_default_player_abilities=False)
+    pool = EnemyPoolSystem(world, bus, rng=StaticRandom())
+
+    from ecs.components.rule_based_agent import RuleBasedAgent
+    from ecs.components.character import Character
+
+    # Remove default enemy for clean slate.
+    for entity, _ in list(world.get_component(RuleBasedAgent)):
+        world.delete_entity(entity)
+
+    first_enemy = pool.spawn_random_enemy()
+    first_slug = world.component_for_entity(first_enemy, Character).slug if first_enemy is not None else None
+
+    second_enemy = pool.spawn_random_enemy()
+    second_slug = world.component_for_entity(second_enemy, Character).slug if second_enemy is not None else None
+
+    if len(pool.known_enemy_names()) > 1:
+        assert first_slug is not None
+        assert second_slug is not None
+        assert first_slug != second_slug

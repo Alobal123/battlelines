@@ -38,6 +38,7 @@ from ecs.menu.components import MenuBackground, MenuButton, MenuTag
 from ecs.menu.factory import spawn_main_menu
 from ecs.systems.board_ops import get_tile_registry
 from ecs.systems.turn_state_utils import get_or_create_turn_state
+from ecs.utils.game_state import set_game_mode
 
 
 class DefeatSystem:
@@ -337,11 +338,7 @@ class DefeatSystem:
                 self._delete_entity(ability_entity)
 
     def _set_game_mode(self, mode: GameMode) -> None:
-        for _, state in self.world.get_component(GameState):
-            state.mode = mode
-            return
-        state_entity = self.world.create_entity()
-        self.world.add_component(state_entity, GameState(mode=mode))
+        set_game_mode(self.world, self.event_bus, mode)
 
     def _clear_menu_entities(self) -> None:
         targets = {

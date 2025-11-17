@@ -49,6 +49,7 @@ class EnemyPoolSystem:
         self._rng: random.Random = rng or random.SystemRandom()
         self._factories: Dict[str, callable] = _discover_enemy_factories()
         self._names: Sequence[str] = tuple(sorted(self._factories.keys()))
+        self._last_enemy_name: str | None = None
         self.event_bus.subscribe(EVENT_ENEMY_POOL_REQUEST, self._on_request)
 
     def known_enemy_names(self) -> Sequence[str]:
@@ -58,12 +59,32 @@ class EnemyPoolSystem:
         factory = self._factories.get(name)
         if factory is None:
             raise ValueError(f"Unknown enemy '{name}'")
-        return factory(self.world)
+        enemy = factory(self.world)
+        self._last_enemy_name = name
+        return enemy
 
     def random_enemy_name(self) -> str | None:
         if not self._names:
             return None
-        return self._rng.choice(self._names)
+        if len(self._names) == 1:
+            choice = self._names[0]
+        else:
+            choice = self._rng.choice(self._names)
+            if choice == self._last_enemy_name:
+                # Try to avoid repeating the same enemy consecutively when alternatives exist.
+                for _ in range(len(self._names) - 1):
+                    new_choice = self._rng.choice(self._names)
+                    if new_choice != self._last_enemy_name:
+                        choice = new_choice
+                        break
+                else:
+                    # Deterministic fallback to the next available name.
+                    for candidate in self._names:
+                        if candidate != self._last_enemy_name:
+                            choice = candidate
+                            break
+        self._last_enemy_name = choice
+        return choice
 
     def spawn_random_enemy(self) -> int | None:
         name = self.random_enemy_name()

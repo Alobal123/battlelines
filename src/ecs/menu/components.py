@@ -6,6 +6,7 @@ from enum import Enum, auto
 class MenuAction(Enum):
     """Actions that a menu button can trigger."""
     NEW_GAME = auto()
+    CONTINUE = auto()
 
 
 @dataclass
@@ -17,6 +18,7 @@ class MenuButton:
     y: float
     width: float = 240.0
     height: float = 64.0
+    enabled: bool = True
 
 
 @dataclass
