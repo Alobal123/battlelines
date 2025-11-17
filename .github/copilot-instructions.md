@@ -53,11 +53,6 @@ Create docs/ARCHITECTURE.md once >3 systems exist (render, movement, AI, spawn, 
 Type hints everywhere. Dataclasses for components. Avoid circular imports by keeping cross-cutting constants (events) isolated.
 No hidden globals; pass EventBus explicitly.
 
-## Next Recommended Steps (for agents)
-Implement window `on_update` to emit `EVENT_TICK` and migrate systems off ad-hoc polling.
-Add Movement/Command systems reacting to semantic events from InputSystem.
-Extend RenderSystem visuals (unit overlays, ability affordance) using SpriteCache where possible.
-Introduce factories module for deterministic scenario creation (tests & content).
 
 ## Ability System Notes
 Single-ability ownership has been upgraded to multi-ability via `AbilityListOwner(ability_entities=[...])`. Each ability is its own entity with `Ability` + `AbilityTarget`. Activation uses precise hitboxes derived from `RenderSystem` layout cache and checks affordability through the TileBank spend request event before entering targeting mode. The flow is now split across:

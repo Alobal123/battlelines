@@ -2,7 +2,7 @@
 
 Sets up ECS world, event bus, systems, and Arcade window.
 """
-from arcade import Window, run, set_background_color, color, key
+from arcade import Window, run, set_background_color, color
 from ecs.world import create_world
 from ecs.constants import GRID_ROWS, GRID_COLS
 from ecs.events.bus import EVENT_TICK, EventBus, EVENT_MOUSE_PRESS, EVENT_MOUSE_MOVE
@@ -35,7 +35,9 @@ from ecs.systems.tooltip_system import TooltipSystem
 from ecs.systems.rule_based_ai_system import RuleBasedAISystem
 from ecs.systems.defeat_system import DefeatSystem
 from ecs.systems.ability_pool_system import AbilityPoolSystem
+from ecs.systems.dialogue_system import DialogueSystem
 from ecs.systems.story_progress_system import StoryProgressSystem
+from ecs.rendering.dialogue_render_system import DialogueRenderSystem
 
 class BattlelinesWindow(Window):
     def __init__(self):
@@ -65,6 +67,10 @@ class BattlelinesWindow(Window):
         self.choice_input_system = ChoiceInputSystem(self.world, self.event_bus)
         self.render_system = RenderSystem(self.world, self.event_bus, self)
         self.tooltip_system = TooltipSystem(self.world, self.event_bus, self, self.render_system)
+
+        # Narrative systems
+        self.dialogue_system = DialogueSystem(self.world, self.event_bus)
+        self.dialogue_render_system = DialogueRenderSystem(self.world, self, self.render_system)
 
         # Input systems
         self.input_system = InputSystem(self.event_bus, self, self.world)
@@ -121,10 +127,14 @@ class BattlelinesWindow(Window):
     def on_draw(self):
         self.clear()
         state = self._get_game_state()
-        if state and state.mode == GameMode.MENU:
-            self.menu_render_system.process()
-        else:
-            self.render_system.process()
+        if state:
+            if state.mode == GameMode.MENU:
+                self.menu_render_system.process()
+                return
+            if state.mode == GameMode.DIALOGUE:
+                self.dialogue_render_system.process()
+                return
+        self.render_system.process()
 
     def on_update(self, delta_time: float):
         state = self._get_game_state()
@@ -141,8 +151,12 @@ class BattlelinesWindow(Window):
 
     def on_key_press(self, symbol: int, modifiers: int):
         state = self._get_game_state()
-        if state and state.mode == GameMode.MENU:
+        if not state:
+            return
+        if state.mode == GameMode.MENU:
             self.menu_input_system.handle_key_press(symbol, modifiers)
+        elif state.mode == GameMode.DIALOGUE:
+            self.dialogue_system.handle_key_press(symbol, modifiers)
 
     def _get_game_state(self) -> GameState | None:
         for _, state in self.world.get_component(GameState):

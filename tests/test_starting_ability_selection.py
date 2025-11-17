@@ -38,7 +38,7 @@ def test_starting_ability_selection_adds_chosen_ability():
     choice_entity, choice_comp = choices[0]
     selected_name = choice_comp.ability_name
     bus.emit(EVENT_CHOICE_SELECTED, window_entity=window_entity, choice_entity=choice_entity)
-    assert state.mode == GameMode.COMBAT
+    assert state.mode == GameMode.DIALOGUE
     owner_entity = _human_entity(world)
     owner_comp: AbilityListOwner = world.component_for_entity(owner_entity, AbilityListOwner)
     assert len(owner_comp.ability_entities) == 1

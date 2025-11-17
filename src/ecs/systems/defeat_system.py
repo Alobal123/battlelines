@@ -27,6 +27,7 @@ from ecs.events.bus import (
     EventBus,
     EVENT_CHOICE_SELECTED,
     EVENT_COMBAT_RESET,
+    EVENT_DIALOGUE_START,
     EVENT_ENEMY_DEFEATED,
     EVENT_ENTITY_DEFEATED,
     EVENT_EFFECT_REMOVE,
@@ -113,6 +114,8 @@ class DefeatSystem:
             defeated_entity=entity,
             reason="enemy_defeated",
         )
+        if new_enemy is not None:
+            self._start_enemy_dialogue(new_enemy)
 
     def _resolve_return_to_menu(self) -> None:
         owners = self._owner_entities()
@@ -339,6 +342,18 @@ class DefeatSystem:
 
     def _set_game_mode(self, mode: GameMode) -> None:
         set_game_mode(self.world, self.event_bus, mode)
+
+    def _start_enemy_dialogue(self, enemy_entity: int) -> None:
+        player_entities = [ent for ent, _ in self.world.get_component(HumanAgent)]
+        if not player_entities:
+            return
+        player_entity = player_entities[0]
+        self.event_bus.emit(
+            EVENT_DIALOGUE_START,
+            left_entity=player_entity,
+            right_entity=enemy_entity,
+            resume_mode=GameMode.COMBAT,
+        )
 
     def _clear_menu_entities(self) -> None:
         targets = {

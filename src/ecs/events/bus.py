@@ -75,3 +75,6 @@ EVENT_ENEMY_DEFEATED = "enemy_defeated"  # payload: entity=int
 EVENT_COMBAT_RESET = "combat_reset"  # payload: reason=str|None, defeated_entity=int|None
 EVENT_MENU_NEW_GAME_SELECTED = "menu_new_game_selected"  # payload: None
 EVENT_MENU_CONTINUE_SELECTED = "menu_continue_selected"  # payload: None
+EVENT_DIALOGUE_START = "dialogue_start"  # payload: left_entity=int, right_entity=int, lines=Iterable[dict]|None, resume_mode=GameMode
+EVENT_DIALOGUE_ADVANCE = "dialogue_advance"  # payload: None
+EVENT_DIALOGUE_COMPLETED = "dialogue_completed"  # payload: left_entity=int, right_entity=int
