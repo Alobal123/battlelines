@@ -11,6 +11,12 @@ from ecs.constants import (
     SIDE_PANEL_MIN_WIDTH,
     SIDE_PANEL_TOP_MARGIN,
 )
+from ecs.rendering.highlight_profiles import (
+    ACTIVE_PORTRAIT_ALPHA,
+    ACTIVE_PORTRAIT_TINT,
+    INACTIVE_PORTRAIT_ALPHA,
+    INACTIVE_PORTRAIT_TINT,
+)
 
 if TYPE_CHECKING:
     from ecs.rendering.context import RenderContext
@@ -34,10 +40,6 @@ class PlayerPanelRenderer:
         right_col_w = max(SIDE_PANEL_MIN_WIDTH, right_space)
         left_panel_left = board_left - SIDE_GAP - left_col_w
         right_panel_left = board_right + SIDE_GAP
-
-        panel_color = (50, 50, 50)
-        border_color = (180, 180, 180)
-        portrait_bg = (30, 30, 30)
 
         rs = self._rs
         rs._player_panel_cache = []
@@ -65,10 +67,33 @@ class PlayerPanelRenderer:
         }
         rs.sprite_cache.cleanup_portrait_sprites(active_portrait_keys)
 
+        active_owner = getattr(rs, "_current_active_owner", None)
+
+        def _colors_for(highlight: bool):
+            if highlight:
+                return {
+                    "panel": (70, 70, 100),
+                    "border": (230, 230, 230),
+                    "portrait_bg": (45, 45, 70),
+                    "label": arcade.color.ANTIQUE_WHITE,
+                    "alpha": ACTIVE_PORTRAIT_ALPHA,
+                    "tint": ACTIVE_PORTRAIT_TINT,
+                }
+            return {
+                "panel": (40, 40, 40),
+                "border": (130, 130, 130),
+                "portrait_bg": (25, 25, 25),
+                "label": (170, 170, 170),
+                "alpha": INACTIVE_PORTRAIT_ALPHA,
+                "tint": INACTIVE_PORTRAIT_TINT,
+            }
+
         for side, col_w in (("left", left_col_w), ("right", right_col_w)):
             x = left_panel_left if side == "left" else right_panel_left
             owner_entity = owner_by_side.get(side)
             character = character_by_side.get(side)
+            highlight = owner_entity is not None and owner_entity == active_owner
+            colors = _colors_for(highlight)
             
             player_bottom = panel_top - PLAYER_PANEL_HEIGHT
             player_points = [
@@ -77,8 +102,8 @@ class PlayerPanelRenderer:
                 (x + col_w, panel_top),
                 (x, panel_top),
             ]
-            arcade.draw_polygon_filled(player_points, panel_color)
-            arcade.draw_polygon_outline(player_points, border_color, 2)
+            arcade.draw_polygon_filled(player_points, colors["panel"])
+            arcade.draw_polygon_outline(player_points, colors["border"], 2)
             
             # Use character name if available, otherwise default label
             if character:
@@ -89,7 +114,7 @@ class PlayerPanelRenderer:
                 label,
                 x + col_w / 2,
                 player_bottom + PLAYER_PANEL_HEIGHT / 2 - 8,
-                arcade.color.WHITE,
+                colors["label"],
                 16,
                 anchor_x="center",
             )
@@ -105,8 +130,8 @@ class PlayerPanelRenderer:
                 (portrait_right, portrait_top),
                 (portrait_left, portrait_top),
             ]
-            arcade.draw_polygon_filled(portrait_points, portrait_bg)
-            arcade.draw_polygon_outline(portrait_points, border_color, 2)
+            arcade.draw_polygon_filled(portrait_points, colors["portrait_bg"])
+            arcade.draw_polygon_outline(portrait_points, colors["border"], 2)
 
             # Load portrait from character component
             if character and character.portrait_path:
@@ -116,7 +141,14 @@ class PlayerPanelRenderer:
                     center_x = portrait_left + portrait_size / 2
                     center_y = portrait_bottom + portrait_size / 2
                     icon_size = max(0.0, portrait_size - PLAYER_PORTRAIT_PADDING * 2)
-                    rs.sprite_cache.update_sprite_visuals(sprite, center_x, center_y, icon_size, 255)
+                    rs.sprite_cache.update_sprite_visuals(
+                        sprite,
+                        center_x,
+                        center_y,
+                        icon_size,
+                        colors["alpha"],
+                        colors["tint"],
+                    )
 
             if owner_entity is not None:
                 rs._player_panel_cache.append(
@@ -130,6 +162,7 @@ class PlayerPanelRenderer:
                         "label": label,
                         "portrait_bottom": portrait_bottom,
                         "portrait_size": portrait_size,
+                        "active": highlight,
                     }
                 )
 

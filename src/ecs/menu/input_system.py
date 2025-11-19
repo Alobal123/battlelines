@@ -9,8 +9,6 @@ from ecs.events.bus import (
     EventBus,
 )
 from ecs.menu.components import MenuAction, MenuBackground, MenuButton, MenuTag
-from ecs.factories.abilities import spawn_starting_ability_choice
-from ecs.utils.game_state import set_game_mode
 
 
 class MenuInputSystem:
@@ -28,9 +26,20 @@ class MenuInputSystem:
         button = payload.get("button")
         if x is None or y is None or button is None:
             return
-        self.handle_mouse_press(float(x), float(y), int(button))
+        press_id = payload.get("press_id")
+        try:
+            press_id_int = int(press_id) if press_id is not None else None
+        except (TypeError, ValueError):
+            press_id_int = None
+        self.handle_mouse_press(float(x), float(y), int(button), press_id_int)
 
-    def handle_mouse_press(self, x: float, y: float, button: int) -> None:
+    def handle_mouse_press(
+        self,
+        x: float,
+        y: float,
+        button: int,
+        press_id: int | None = None,
+    ) -> None:
         """Handle mouse clicks; start game if the button is activated."""
         state = self._get_game_state()
         if not state or state.mode != GameMode.MENU:
@@ -40,7 +49,7 @@ class MenuInputSystem:
             if not menu_button.enabled:
                 continue
             if self._point_inside_button(x, y, menu_button):
-                self._activate_action(menu_button.action)
+                self._activate_action(menu_button.action, press_id=press_id)
                 return
 
     def handle_key_press(self, symbol: int, modifiers: int) -> None:
@@ -52,11 +61,11 @@ class MenuInputSystem:
         if symbol in (65293, 13):
             self._activate_action(MenuAction.NEW_GAME)
 
-    def _activate_action(self, action: MenuAction) -> None:
+    def _activate_action(self, action: MenuAction, *, press_id: int | None = None) -> None:
         if action == MenuAction.NEW_GAME:
-            self._handle_new_game_selection()
+            self._handle_new_game_selection(press_id=press_id)
         elif action == MenuAction.CONTINUE:
-            self._handle_continue_selection()
+            self._handle_continue_selection(press_id=press_id)
 
     def _clear_menu_entities(self) -> None:
         """Remove all entities that are part of the menu UI."""
@@ -75,31 +84,48 @@ class MenuInputSystem:
             return state
         return None
 
-    def _handle_new_game_selection(self) -> None:
+    def _handle_new_game_selection(self, *, press_id: int | None = None) -> None:
         state = self._get_game_state()
         if state and state.mode == GameMode.MENU:
-            self._emit(EVENT_MENU_NEW_GAME_SELECTED)
-            if self._event_bus is not None:
-                set_game_mode(self.world, self._event_bus, GameMode.ABILITY_DRAFT)
-            else:
-                state.mode = GameMode.ABILITY_DRAFT
+            self._emit(EVENT_MENU_NEW_GAME_SELECTED, press_id=press_id)
             self._clear_menu_entities()
-            spawn_starting_ability_choice(self.world, self._event_bus)
+            if self._event_bus is None:
+                state.mode = GameMode.ABILITY_DRAFT
+                state.input_guard_press_id = press_id
+                from ecs.factories.abilities import spawn_player_ability_choice
 
-    def _handle_continue_selection(self) -> None:
+                spawn_player_ability_choice(
+                    self.world,
+                    event_bus=None,
+                    require_empty_owner=True,
+                    title="Choose Your First Ability",
+                    press_id=press_id,
+                )
+
+    def _handle_continue_selection(self, *, press_id: int | None = None) -> None:
         state = self._get_game_state()
         if state and state.mode == GameMode.MENU:
-            self._emit(EVENT_MENU_CONTINUE_SELECTED)
-            if self._event_bus is not None:
-                set_game_mode(self.world, self._event_bus, GameMode.ABILITY_DRAFT)
-            else:
-                state.mode = GameMode.ABILITY_DRAFT
+            self._emit(EVENT_MENU_CONTINUE_SELECTED, press_id=press_id)
             self._clear_menu_entities()
-            spawn_starting_ability_choice(self.world, self._event_bus)
+            if self._event_bus is None:
+                state.mode = GameMode.ABILITY_DRAFT
+                state.input_guard_press_id = press_id
+                from ecs.factories.abilities import spawn_player_ability_choice
 
-    def _emit(self, name: str) -> None:
+                spawn_player_ability_choice(
+                    self.world,
+                    event_bus=None,
+                    require_empty_owner=True,
+                    title="Choose Your First Ability",
+                    press_id=press_id,
+                )
+
+    def _emit(self, name: str, *, press_id: int | None = None) -> None:
         if self._event_bus is not None:
-            self._event_bus.emit(name)
+            if press_id is not None:
+                self._event_bus.emit(name, press_id=press_id)
+            else:
+                self._event_bus.emit(name)
 
     @staticmethod
     def _point_inside_button(x: float, y: float, button: MenuButton) -> bool:

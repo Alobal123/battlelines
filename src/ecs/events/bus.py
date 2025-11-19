@@ -22,6 +22,7 @@ EVENT_TILE_CLICK = "tile_click"       # payload: row, col
 EVENT_PLAYER_CLICK = "player_click"   # payload: player_entity=int
 EVENT_TILE_SELECTED = "tile_selected" # payload: row, col
 EVENT_TILE_DESELECTED = "tile_deselected" # payload: reason=str
+EVENT_MOUSE_PRESS_RAW = "mouse_press_raw"  # payload: x, y, button, modifiers
 EVENT_MOUSE_PRESS = "mouse_press"     # payload: x, y, button
 EVENT_MOUSE_MOVE = "mouse_move"       # payload: x, y, dx, dy
 EVENT_TILE_SWAP_REQUEST = "tile_swap_request"  # payload: src=(r,c), dst=(r,c)
@@ -43,6 +44,7 @@ EVENT_TILE_BANK_SPEND_REQUEST = "tile_bank_spend_request"  # payload: entity=int
 EVENT_TILE_BANK_SPENT = "tile_bank_spent"         # payload: entity=int, cost=dict[str,int]
 EVENT_TILE_BANK_INSUFFICIENT = "tile_bank_insufficient"  # payload: entity=int, cost=dict[str,int], missing=dict[str,int]
 EVENT_TILE_BANK_DEPLETED = "tile_bank_depleted"   # payload: entity=int, owner_entity=int, deltas=dict[str,int]
+EVENT_FORBIDDEN_KNOWLEDGE_CHANGED = "forbidden_knowledge_changed"  # payload: entity=int, value=int, max_value=int, delta=int
 EVENT_ENEMY_POOL_REQUEST = "enemy_pool_request"   # payload: count=int, request_id=Any
 EVENT_ENEMY_POOL_OFFER = "enemy_pool_offer"       # payload: enemies=list[str], request_id=Any
 EVENT_ABILITY_ACTIVATE_REQUEST = "ability_activate_request"  # payload: ability_entity=int, owner_entity=int
@@ -53,6 +55,7 @@ EVENT_ABILITY_EFFECT_APPLIED = "ability_effect_applied"  # payload: ability_enti
 EVENT_ABILITY_TARGET_CANCELLED = "ability_target_cancelled"  # payload: ability_entity=int, owner_entity=int, reason=str
 EVENT_ABILITY_POOL_REQUEST = "ability_pool_request"  # payload: owner_entity=int, count=int, request_id=Any
 EVENT_ABILITY_POOL_OFFER = "ability_pool_offer"  # payload: owner_entity=int, abilities=list[str], request_id=Any
+EVENT_ABILITY_CHOICE_GRANTED = "ability_choice_granted"  # payload: owner_entity=int, ability_entity=int, ability_name=str
 EVENT_BOARD_CHANGED = "board_changed"  # payload: reason=str, positions=list[(r,c)]
 EVENT_GAME_MODE_CHANGED = "game_mode_changed"  # payload: previous_mode=GameMode|None, new_mode=GameMode
 EVENT_TURN_ADVANCED = "turn_advanced"  # payload: previous_owner=int|None, new_owner=int
@@ -79,3 +82,4 @@ EVENT_MENU_CONTINUE_SELECTED = "menu_continue_selected"  # payload: None
 EVENT_DIALOGUE_START = "dialogue_start"  # payload: left_entity=int, right_entity=int, lines=Iterable[dict]|None, resume_mode=GameMode
 EVENT_DIALOGUE_ADVANCE = "dialogue_advance"  # payload: None
 EVENT_DIALOGUE_COMPLETED = "dialogue_completed"  # payload: left_entity=int, right_entity=int
+EVENT_MATCH_SETUP_REQUEST = "match_setup_request"  # payload: owner_entity=int|None, enemy_entity=int|None, reason=str|None

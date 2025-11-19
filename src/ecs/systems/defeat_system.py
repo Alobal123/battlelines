@@ -113,9 +113,8 @@ class DefeatSystem:
             owners,
             defeated_entity=entity,
             reason="enemy_defeated",
+            next_enemy=new_enemy,
         )
-        if new_enemy is not None:
-            self._start_enemy_dialogue(new_enemy)
 
     def _resolve_return_to_menu(self) -> None:
         owners = self._owner_entities()
@@ -138,6 +137,7 @@ class DefeatSystem:
         *,
         defeated_entity: int | None,
         reason: str,
+        next_enemy: int | None = None,
     ) -> None:
         self._clear_transient_combat_state()
         self._reset_tile_banks(owners)
@@ -153,6 +153,7 @@ class DefeatSystem:
             EVENT_COMBAT_RESET,
             reason=reason,
             defeated_entity=defeated_entity,
+            next_enemy=next_enemy,
         )
 
     def _clear_transient_combat_state(self) -> None:
@@ -342,18 +343,6 @@ class DefeatSystem:
 
     def _set_game_mode(self, mode: GameMode) -> None:
         set_game_mode(self.world, self.event_bus, mode)
-
-    def _start_enemy_dialogue(self, enemy_entity: int) -> None:
-        player_entities = [ent for ent, _ in self.world.get_component(HumanAgent)]
-        if not player_entities:
-            return
-        player_entity = player_entities[0]
-        self.event_bus.emit(
-            EVENT_DIALOGUE_START,
-            left_entity=player_entity,
-            right_entity=enemy_entity,
-            resume_mode=GameMode.COMBAT,
-        )
 
     def _clear_menu_entities(self) -> None:
         targets = {

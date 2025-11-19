@@ -1,8 +1,17 @@
-from ecs.events.bus import EventBus, EVENT_MATCH_CLEARED, EVENT_TILE_BANK_SPEND_REQUEST, EVENT_TILE_BANK_SPENT, EVENT_TILE_BANK_INSUFFICIENT, EVENT_TILE_BANK_CHANGED
+from ecs.events.bus import (
+    EventBus,
+    EVENT_MATCH_CLEARED,
+    EVENT_TILE_BANK_SPEND_REQUEST,
+    EVENT_TILE_BANK_SPENT,
+    EVENT_TILE_BANK_INSUFFICIENT,
+    EVENT_TILE_BANK_CHANGED,
+    EVENT_EFFECT_APPLY,
+)
 from ecs.world import create_world
 from ecs.systems.tile_bank_system import TileBankSystem
 from ecs.components.tile_bank import TileBank
 from ecs.components.ability_list_owner import AbilityListOwner
+from ecs.components.human_agent import HumanAgent
 
 
 def test_tile_bank_increments_on_match_clear():
@@ -59,3 +68,29 @@ def test_no_regiment_readiness_side_effects():
     counts = changed.get('counts')
     # After two match clears of 3 hex each, should have 6 hex total
     assert counts and counts.get('hex') >= 6
+
+
+def test_chaos_match_always_damages_human():
+    bus = EventBus(); world = create_world(bus)
+    TileBankSystem(world, bus)
+    owners = list(world.get_component(AbilityListOwner))
+    assert owners and len(owners) >= 1
+    human_owner = next(ent for ent, _ in world.get_component(HumanAgent))
+    # Choose an owner that is not the human (if available) to verify friendly fire.
+    clearing_owner = next((ent for ent, _ in owners if ent != human_owner), human_owner)
+
+    applied = []
+    bus.subscribe(EVENT_EFFECT_APPLY, lambda sender, **payload: applied.append(payload))
+
+    bus.emit(
+        EVENT_MATCH_CLEARED,
+        positions=[(0, 0), (0, 1)],
+        types=[(0, 0, 'chaos'), (0, 1, 'chaos')],
+        owner_entity=clearing_owner,
+    )
+
+    assert applied, "Chaos clears should emit damage"
+    target = applied[-1]
+    assert target['owner_entity'] == human_owner
+    assert target['metadata']['amount'] == 2
+    assert target['metadata']['reason'] == 'chaos'

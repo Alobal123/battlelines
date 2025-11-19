@@ -13,6 +13,7 @@ from ecs.rendering.ability_panel_renderer import AbilityPanelRenderer
 from ecs.rendering.bank_panel_renderer import BankPanelRenderer
 from ecs.rendering.player_panel_renderer import PlayerPanelRenderer
 from ecs.rendering.lifebar_renderer import LifebarRenderer
+from ecs.rendering.forbidden_knowledge_renderer import ForbiddenKnowledgeRenderer
 from ecs.components.tooltip_state import TooltipState
 from ecs.rendering.sprite_cache import SpriteCache
 from ecs.rendering.choice_window_renderer import ChoiceWindowRenderer
@@ -58,6 +59,7 @@ class RenderSystem:
         self._bank_panel_renderer = BankPanelRenderer(self, self.sprite_cache)
         self._player_panel_renderer = PlayerPanelRenderer(self)
         self._lifebar_renderer = LifebarRenderer(self.world)
+        self._forbidden_knowledge_renderer = ForbiddenKnowledgeRenderer(self.world)
         self._choice_window_renderer = ChoiceWindowRenderer(self)
         self._bank_icon_cache: list[dict[str, Any]] = []
 
@@ -150,6 +152,7 @@ class RenderSystem:
                 # Draw panel bases; then lifebars; then ability rectangles.
                 self._player_panel_renderer.render(arcade, ctx)
                 self._lifebar_renderer.render(arcade, ctx)
+                self._forbidden_knowledge_renderer.render(arcade, ctx)
                 self._bank_panel_renderer.render(arcade, ctx, registry)
 
             self._ability_panel_renderer.render(arcade, ctx, headless=headless)
@@ -180,6 +183,11 @@ class RenderSystem:
             if ex <= x <= ex + width and ey <= y <= ey + height:
                 return entry
         return None
+
+    def get_forbidden_knowledge_at_point(self, x: float, y: float):
+        if not hasattr(self, "_forbidden_knowledge_renderer"):
+            return None
+        return self._forbidden_knowledge_renderer.hit_test(x, y)
 
     def get_bank_icon_at_point(self, x: float, y: float):
         for entry in self._bank_icon_cache:

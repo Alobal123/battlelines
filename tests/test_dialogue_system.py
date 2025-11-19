@@ -69,14 +69,14 @@ def test_dialogue_system_advances_and_completes() -> None:
     bus.subscribe(EVENT_DIALOGUE_COMPLETED, _on_completed)
 
     # First click advances to the second line.
-    bus.emit(EVENT_MOUSE_PRESS, x=0, y=0, button=1)
+    bus.emit(EVENT_MOUSE_PRESS, x=0, y=0, button=1, press_id=10)
     session_entry = _get_dialogue_session(world)
     assert session_entry is not None
     session_entity, session = session_entry
     assert session.current_index == 1
 
     # Second click finishes the dialogue.
-    bus.emit(EVENT_MOUSE_PRESS, x=0, y=0, button=1)
+    bus.emit(EVENT_MOUSE_PRESS, x=0, y=0, button=1, press_id=11)
     assert completed["fired"] is True
     state = _get_state(world)
     assert state.mode == GameMode.COMBAT
@@ -100,3 +100,43 @@ def test_dialogue_system_default_lines() -> None:
     _, session = session_entry
     assert len(session.lines) >= 2
     assert session.current_line is not None
+
+
+def test_dialogue_system_ignores_originating_press() -> None:
+    bus = EventBus()
+    world = create_world(bus, grant_default_player_abilities=False)
+    DialogueSystem(world, bus)
+
+    player_entity = _get_human_entity(world)
+    enemy_entity = _get_enemy_entity(world)
+
+    bus.emit(
+        EVENT_DIALOGUE_START,
+        left_entity=player_entity,
+        right_entity=enemy_entity,
+        lines=(
+            {"speaker": player_entity, "text": "Line one."},
+            {"speaker": enemy_entity, "text": "Line two."},
+        ),
+        resume_mode=GameMode.COMBAT,
+        originating_press_id=314,
+    )
+
+    session_entry = _get_dialogue_session(world)
+    assert session_entry is not None
+    _, session = session_entry
+    assert session.current_index == 0
+
+    bus.emit(EVENT_MOUSE_PRESS, x=0, y=0, button=1, press_id=314)
+
+    session_entry = _get_dialogue_session(world)
+    assert session_entry is not None
+    _, session = session_entry
+    assert session.current_index == 0
+
+    bus.emit(EVENT_MOUSE_PRESS, x=0, y=0, button=1, press_id=315)
+
+    session_entry = _get_dialogue_session(world)
+    assert session_entry is not None
+    _, session = session_entry
+    assert session.current_index == 1

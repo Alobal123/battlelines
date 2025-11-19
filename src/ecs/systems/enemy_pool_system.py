@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib
 import pkgutil
 import random
-from typing import Dict, Iterable, Sequence
+from typing import Callable, Dict, Iterable, Sequence, cast
 
 from esper import World
 
@@ -14,8 +14,8 @@ from ecs.events.bus import (
 )
 
 
-def _discover_enemy_factories() -> Dict[str, callable]:
-    builders: Dict[str, callable] = {}
+def _discover_enemy_factories() -> Dict[str, Callable[[World], int]]:
+    builders: Dict[str, Callable[[World], int]] = {}
     package_name = "ecs.factories.enemies"
     package = importlib.import_module(package_name)
     for module in _iter_modules(package_name, package):
@@ -25,7 +25,7 @@ def _discover_enemy_factories() -> Dict[str, callable]:
             factory = getattr(module, attr_name)
             if callable(factory):
                 enemy_name = attr_name[len("create_enemy_") :]
-                builders.setdefault(enemy_name, factory)
+                builders.setdefault(enemy_name, cast(Callable[[World], int], factory))
     return builders
 
 
@@ -46,8 +46,9 @@ class EnemyPoolSystem:
     def __init__(self, world: World, event_bus: EventBus, *, rng: random.Random | None = None) -> None:
         self.world = world
         self.event_bus = event_bus
-        self._rng: random.Random = rng or random.SystemRandom()
-        self._factories: Dict[str, callable] = _discover_enemy_factories()
+        candidate_rng = rng or getattr(world, "random", None)
+        self._rng: random.Random = candidate_rng or random.SystemRandom()
+        self._factories: Dict[str, Callable[[World], int]] = _discover_enemy_factories()
         self._names: Sequence[str] = tuple(sorted(self._factories.keys()))
         self._last_enemy_name: str | None = None
         self.event_bus.subscribe(EVENT_ENEMY_POOL_REQUEST, self._on_request)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import random
 from pathlib import Path
 
 from esper import World
@@ -16,7 +17,9 @@ from ecs.events.bus import (
 from ecs.menu.components import MenuAction, MenuButton
 from ecs.menu.factory import spawn_main_menu
 from ecs.menu.input_system import MenuInputSystem
+from ecs.systems.game_flow_system import GameFlowSystem
 from ecs.systems.story_progress_system import StoryProgressSystem
+from ecs.world import create_world
 
 
 def _get_tracker(world: World) -> StoryProgressTracker:
@@ -120,7 +123,7 @@ def test_menu_continue_button_ignored_when_disabled(tmp_path) -> None:
     # Find the disabled continue button and simulate a click on it.
     for _, button in world.get_component(MenuButton):
         if button.action == MenuAction.CONTINUE:
-            system.handle_mouse_press(button.x, button.y, 1)
+            system.handle_mouse_press(button.x, button.y, 1, press_id=501)
             break
 
     state_entries = list(world.get_component(GameState))
@@ -131,10 +134,15 @@ def test_menu_continue_button_ignored_when_disabled(tmp_path) -> None:
 
 
 def test_menu_new_game_emits_event_and_changes_mode(tmp_path) -> None:
-    world = World()
     bus = EventBus()
-    world.create_entity(GameState(mode=GameMode.MENU))
+    world = create_world(
+        bus,
+        initial_mode=GameMode.MENU,
+        grant_default_player_abilities=False,
+        randomize_enemy=False,
+    )
     spawn_main_menu(world, 800, 600, enable_continue=False)
+    GameFlowSystem(world, bus, rng=random.Random(0))
     system = MenuInputSystem(world, bus)
 
     fired = {"new_game": False}
@@ -142,7 +150,7 @@ def test_menu_new_game_emits_event_and_changes_mode(tmp_path) -> None:
 
     for _, button in world.get_component(MenuButton):
         if button.action == MenuAction.NEW_GAME:
-            system.handle_mouse_press(button.x, button.y, 1)
+            system.handle_mouse_press(button.x, button.y, 1, press_id=601)
             break
 
     state_entries = list(world.get_component(GameState))

@@ -1,6 +1,7 @@
 """Game state resource describing the active high-level mode."""
 from dataclasses import dataclass
 from enum import Enum, auto
+from typing import Optional
 
 
 class GameMode(Enum):
@@ -15,3 +16,4 @@ class GameMode(Enum):
 class GameState:
     """Singleton component storing the currently active game mode."""
     mode: GameMode = GameMode.COMBAT
+    input_guard_press_id: Optional[int] = None

@@ -1,3 +1,5 @@
+import random
+
 from esper import World
 from .events.bus import EventBus
 from ecs.components.human_agent import HumanAgent
@@ -8,6 +10,7 @@ from ecs.components.tile_type_registry import TileTypeRegistry
 from ecs.components.tile_types import TileTypes
 from ecs.components.character import Character
 from ecs.components.game_state import GameState, GameMode
+from ecs.components.forbidden_knowledge import ForbiddenKnowledge
 from ecs.effects.factory import ensure_default_effects_registered
 from ecs.components.health import Health
 from ecs.factories.abilities import create_default_player_abilities
@@ -20,12 +23,15 @@ def create_world(
     *,
     grant_default_player_abilities: bool = True,
     randomize_enemy: bool = False,
+    rng: random.Random | None = None,
 ) -> World:
     world = World()
+    setattr(world, "random", rng or random.Random())
 
     # Register or update the global game state resource.
     state_entity = world.create_entity()
     world.add_component(state_entity, GameState(mode=initial_mode))
+    world.add_component(state_entity, ForbiddenKnowledge())
     
     # Register core effect definitions if not already present.
     ensure_default_effects_registered()
@@ -48,7 +54,7 @@ def create_world(
     bank1.owner_entity = player1_ent
     from ecs.systems.enemy_pool_system import EnemyPoolSystem
 
-    enemy_pool = EnemyPoolSystem(world, event_bus)
+    enemy_pool = EnemyPoolSystem(world, event_bus, rng=getattr(world, "random", None))
     world.enemy_pool = enemy_pool
     player2_ent: int | None
     if randomize_enemy:
@@ -71,15 +77,21 @@ def create_world(
     # Create single registry entity with canonical types
     registry_entity = world.create_entity(
         TileTypeRegistry(),
-        TileTypes(types={
-            'nature':      (63, 127, 59),    # #3F7F3B
-            'blood':       (179, 18, 42),    # #B3122A
-            'shapeshift':  (216, 155, 38),   # #D89B26
-            'spirit':      (165, 139, 234),  # #A58BEA
-            'hex':         (123, 62, 133),   # #7B3E85
-            'secrets':     (232, 215, 161),  # #E8D7A1
-            'witchfire':   (226, 62, 160),   # #E23EA0
-        })
+        TileTypes(
+            types={
+                'nature':      (63, 127, 59),    # #3F7F3B
+                'blood':       (179, 18, 42),    # #B3122A
+                'shapeshift':  (216, 155, 38),   # #D89B26
+                'spirit':      (165, 139, 234),  # #A58BEA
+                'hex':         (123, 62, 133),   # #7B3E85
+                'secrets':     (232, 215, 161),  # #E8D7A1
+                'witchfire':   (226, 62, 160),   # #E23EA0
+                'chaos':       (64, 196, 112),   # poisonous green tint for chaos
+            },
+            spawnable=[
+                'nature', 'blood', 'shapeshift', 'spirit', 'hex', 'secrets', 'witchfire'
+            ],
+        ),
     )
     return world
 

@@ -195,7 +195,12 @@ class SpriteCache:
             sprite.color = (r, g, b)
 
     def _create_tile_sprite(self, arcade_module, type_name: str):
-        texture_path = self._texture_dir / f"{type_name}.png"
+        preferred_name = type_name
+        texture_path = self._texture_dir / f"{preferred_name}.png"
+        if not texture_path.exists() and type_name == "chaos":
+            # Chaos shares the Secrets icon until a bespoke asset is added.
+            preferred_name = "secrets"
+            texture_path = self._texture_dir / f"{preferred_name}.png"
         if not texture_path.exists():
             return None
         tex = self._load_smoothed_texture(arcade_module, texture_path, max_dim=96)

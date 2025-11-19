@@ -12,6 +12,7 @@ from ecs.events.bus import (
     EVENT_DIALOGUE_ADVANCE,
     EVENT_DIALOGUE_COMPLETED,
     EVENT_DIALOGUE_START,
+    EVENT_GAME_MODE_CHANGED,
     EVENT_MOUSE_PRESS,
     EventBus,
 )
@@ -34,6 +35,8 @@ class DialogueSystem:
         self.event_bus.subscribe(EVENT_DIALOGUE_START, self._on_start_dialogue)
         self.event_bus.subscribe(EVENT_DIALOGUE_ADVANCE, self._on_advance_requested)
         self.event_bus.subscribe(EVENT_MOUSE_PRESS, self._on_mouse_press)
+        self.event_bus.subscribe(EVENT_GAME_MODE_CHANGED, self._on_mode_changed)
+        self._press_guard: int | None = None
 
     # ------------------------------------------------------------------
     # Event handlers
@@ -49,7 +52,12 @@ class DialogueSystem:
         if not lines:
             return
         self._create_or_update_session(left_entity, right_entity, lines, resume_mode)
-        set_game_mode(self.world, self.event_bus, GameMode.DIALOGUE)
+        set_game_mode(
+            self.world,
+            self.event_bus,
+            GameMode.DIALOGUE,
+            input_guard_press_id=payload.get("originating_press_id"),
+        )
 
     def _on_mouse_press(self, sender, **payload) -> None:
         button = payload.get("button")
@@ -57,12 +65,22 @@ class DialogueSystem:
             return
         if not self._is_dialogue_active():
             return
-        self._advance_dialogue()
+        press_id = payload.get("press_id")
+        try:
+            press_id_int = int(press_id) if press_id is not None else None
+        except (TypeError, ValueError):
+            press_id_int = None
+        if self._press_guard is not None:
+            if press_id_int == self._press_guard:
+                self._press_guard = None
+                return
+            self._press_guard = None
+        self._advance_dialogue(press_id_int)
 
     def _on_advance_requested(self, sender, **payload) -> None:
         if not self._is_dialogue_active():
             return
-        self._advance_dialogue()
+        self._advance_dialogue(None)
 
     # ------------------------------------------------------------------
     # Public input helpers (for key presses)
@@ -72,7 +90,7 @@ class DialogueSystem:
             return
         # Enter (13) and Space (32) advance the conversation.
         if symbol in (13, 32, 65293):
-            self._advance_dialogue()
+            self._advance_dialogue(None)
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -127,7 +145,8 @@ class DialogueSystem:
         # Ensure entity keeps the component updated (already stored via reference).
         return None
 
-    def _advance_dialogue(self) -> None:
+    def _advance_dialogue(self, press_id: int | None) -> None:
+        self._press_guard = None
         session_entity = self._current_session_entity()
         if session_entity is None:
             return
@@ -139,13 +158,29 @@ class DialogueSystem:
         left_entity = session.left_entity
         right_entity = session.right_entity
         self.world.delete_entity(session_entity)
-        set_game_mode(self.world, self.event_bus, resume_mode)
+        set_game_mode(
+            self.world,
+            self.event_bus,
+            resume_mode,
+            input_guard_press_id=press_id,
+        )
         self.event_bus.emit(
             EVENT_DIALOGUE_COMPLETED,
             left_entity=left_entity,
             right_entity=right_entity,
             resume_mode=resume_mode,
         )
+
+    def _on_mode_changed(self, sender, **payload) -> None:
+        new_mode = payload.get("new_mode")
+        guard = payload.get("input_guard_press_id")
+        if new_mode != GameMode.DIALOGUE:
+            self._press_guard = None
+            return
+        try:
+            self._press_guard = int(guard) if guard is not None else None
+        except (TypeError, ValueError):
+            self._press_guard = None
 
     def _build_lines(
         self,

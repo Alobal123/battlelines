@@ -66,6 +66,9 @@ class TileBankSystem:
         witchfire_cleared = readiness_gains.get('witchfire', 0)
         if witchfire_cleared:
             self._apply_witchfire_damage(owner_entity, witchfire_cleared)
+        chaos_cleared = readiness_gains.get('chaos', 0)
+        if chaos_cleared:
+            self._apply_chaos_damage(owner_entity, chaos_cleared)
 
     def on_spend_request(self, sender, **kwargs):
         owner_entity = kwargs.get('entity')
@@ -147,3 +150,26 @@ class TileBankSystem:
                     "source_owner": clearing_owner,
                 },
             )
+
+    def _apply_chaos_damage(self, clearing_owner: int, amount: int) -> None:
+        """Chaos backlash always targets the human player regardless of who matched it."""
+        from ecs.components.human_agent import HumanAgent
+
+        human_owner = None
+        for ent, _ in self.world.get_component(HumanAgent):
+            human_owner = ent
+            break
+        if human_owner is None:
+            return
+        self.event_bus.emit(
+            EVENT_EFFECT_APPLY,
+            owner_entity=human_owner,
+            source_entity=None,
+            slug="damage",
+            turns=0,
+            metadata={
+                "amount": amount,
+                "reason": "chaos",
+                "source_owner": clearing_owner,
+            },
+        )

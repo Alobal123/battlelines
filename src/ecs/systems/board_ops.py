@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
-from typing import Dict, List, Set, Tuple
+from typing import Dict, Iterable, List, Set, Tuple
 
 from esper import World
 
@@ -29,6 +29,12 @@ def get_tile_registry(world: World) -> TileTypes:
     for entity, _ in world.get_component(TileTypeRegistry):
         return world.component_for_entity(entity, TileTypes)
     raise RuntimeError("TileTypes definitions not found")
+
+
+def set_spawnable_tile_types(world: World, type_names: Iterable[str], *, allow_empty: bool = False) -> List[str]:
+    registry = get_tile_registry(world)
+    registry.set_spawnable(type_names, allow_empty=allow_empty)
+    return registry.spawnable_types()
 
 
 def get_entity_at(world: World, row: int, col: int) -> int | None:

@@ -7,6 +7,12 @@ from ecs.components.character import Character
 from ecs.components.dialogue_session import DialogueSession
 from ecs.components.game_state import GameMode, GameState
 from ecs.systems.render import RenderSystem
+from ecs.rendering.highlight_profiles import (
+    ACTIVE_PORTRAIT_ALPHA,
+    ACTIVE_PORTRAIT_TINT,
+    INACTIVE_PORTRAIT_ALPHA,
+    INACTIVE_PORTRAIT_TINT,
+)
 
 
 class DialogueRenderSystem:
@@ -142,8 +148,8 @@ class DialogueRenderSystem:
     def _prepare_portrait(self, info, center_x: float, center_y: float, size: float, highlight: bool) -> None:
         if info is None:
             return
-        tint = (255, 255, 255) if highlight else (160, 160, 160)
-        alpha = 255 if highlight else 180
+        tint = ACTIVE_PORTRAIT_TINT if highlight else INACTIVE_PORTRAIT_TINT
+        alpha = ACTIVE_PORTRAIT_ALPHA if highlight else INACTIVE_PORTRAIT_ALPHA
         sprite_cache = self.render_system.sprite_cache
         if not info.portrait_path:
             return

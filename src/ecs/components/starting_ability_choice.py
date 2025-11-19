@@ -5,8 +5,8 @@ from dataclasses import dataclass
 
 
 @dataclass(slots=True)
-class StartingAbilityChoice:
-    """Marks a choice window option as a starting ability pick."""
+class AbilityChoice:
+    """Marks a choice window option as an ability pick."""
 
     owner_entity: int
     ability_name: str

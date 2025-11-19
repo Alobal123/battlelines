@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
+import random
 from typing import List, Sequence, Set
 
 from esper import World
@@ -78,10 +79,12 @@ def available_basic_player_ability_names(world: World, owner_entity: int) -> Lis
 class AbilityPoolSystem:
     """Serves ability offers based on the pool of basic player abilities."""
 
-    def __init__(self, world: World, event_bus: EventBus) -> None:
+    def __init__(self, world: World, event_bus: EventBus, *, rng: random.Random | None = None) -> None:
         self.world = world
         self.event_bus = event_bus
         self._ability_names: Sequence[str] = discover_basic_player_ability_names()
+        candidate_rng = rng or getattr(world, "random", None)
+        self._rng: random.Random = candidate_rng or random.SystemRandom()
         self.event_bus.subscribe(EVENT_ABILITY_POOL_REQUEST, self._on_pool_request)
 
     def _on_pool_request(self, sender, **payload) -> None:
@@ -90,6 +93,8 @@ class AbilityPoolSystem:
         request_id = payload.get("request_id")
         if owner_entity is None:
             return
+        if count is None:
+            return
         try:
             count_int = int(count)
         except (TypeError, ValueError):
@@ -97,7 +102,9 @@ class AbilityPoolSystem:
         if count_int <= 0:
             return
         available = available_basic_player_ability_names(self.world, owner_entity)
-        offers = list(available[:count_int])
+        pool = list(available)
+        self._rng.shuffle(pool)
+        offers = pool[: min(count_int, len(pool))]
         self.event_bus.emit(
             EVENT_ABILITY_POOL_OFFER,
             owner_entity=owner_entity,
