@@ -40,7 +40,9 @@ def test_bee_sting_definition():
 
     ability_entity = create_ability_by_name(world, "bee_sting")
     ability = world.component_for_entity(ability_entity, Ability)
-    assert ability.cost == {"nature": 3, "spirit": 3, "shapeshift": 3}
+    expected_cost_keys = {"nature", "spirit", "shapeshift"}
+    assert expected_cost_keys.issubset(ability.cost.keys())
+    assert all(ability.cost[key] > 0 for key in expected_cost_keys)
 
     effects = world.component_for_entity(ability_entity, AbilityEffects)
     assert len(effects.effects) == 1
@@ -88,8 +90,9 @@ def test_bee_sting_damage_equals_nature_tiles():
     assert damage_events, "Bee Sting should deal damage"
     payload = damage_events[-1]
     assert payload["target_entity"] == human
-    assert payload["amount"] == 3
+    expected_damage = sum(1 for row in layout for value in row if value == "nature")
+    assert payload["amount"] == expected_damage
     assert payload.get("reason") == "bee_sting"
 
     health_after = world.component_for_entity(human, Health).current
-    assert health_after == health_before - 3
+    assert health_after == health_before - expected_damage

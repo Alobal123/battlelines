@@ -56,6 +56,9 @@ EVENT_ABILITY_TARGET_CANCELLED = "ability_target_cancelled"  # payload: ability_
 EVENT_ABILITY_POOL_REQUEST = "ability_pool_request"  # payload: owner_entity=int, count=int, request_id=Any
 EVENT_ABILITY_POOL_OFFER = "ability_pool_offer"  # payload: owner_entity=int, abilities=list[str], request_id=Any
 EVENT_ABILITY_CHOICE_GRANTED = "ability_choice_granted"  # payload: owner_entity=int, ability_entity=int, ability_name=str
+EVENT_SKILL_POOL_REQUEST = "skill_pool_request"  # payload: owner_entity=int, count=int, request_id=Any
+EVENT_SKILL_POOL_OFFER = "skill_pool_offer"  # payload: owner_entity=int, skills=list[str], request_id=Any
+EVENT_SKILL_CHOICE_GRANTED = "skill_choice_granted"  # payload: owner_entity=int, skill_entity=int, skill_name=str
 EVENT_BOARD_CHANGED = "board_changed"  # payload: reason=str, positions=list[(r,c)]
 EVENT_GAME_MODE_CHANGED = "game_mode_changed"  # payload: previous_mode=GameMode|None, new_mode=GameMode
 EVENT_TURN_ADVANCED = "turn_advanced"  # payload: previous_owner=int|None, new_owner=int

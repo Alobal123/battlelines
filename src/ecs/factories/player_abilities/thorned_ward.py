@@ -8,28 +8,30 @@ from ecs.components.ability_effect import AbilityEffectSpec, AbilityEffects
 from ecs.components.ability_cooldown import AbilityCooldown
 
 
-def create_ability_verdant_touch(world: World) -> int:
+def create_ability_thorned_ward(world: World) -> int:
+    """Grant the caster a retaliatory thorns aura for several turns."""
+
     return world.create_entity(
         Ability(
-            name="verdant_touch",
+            name="thorned_ward",
             kind="active",
-            cost={"nature": 6},
-            description="Heal 4 HP.",
-            params={"heal_amount": 4},
+            cost={"nature": 4},
+            description="Gain thorns for three turns, returning 2 damage to attackers hit via abilities or witchfire.",
             cooldown=1,
+            ends_turn=False,
         ),
         AbilityTarget(target_type="self", max_targets=0),
         AbilityEffects(
             effects=(
                 AbilityEffectSpec(
-                    slug="heal",
+                    slug="thorns",
                     target="pending_target_or_self",
-                    turns=0,
+                    turns=3,
                     metadata={
-                        "amount": 4,
-                        "reason": "verdant_touch",
+                        "amount": 2,
+                        "reason": "thorns",
+                        "stack_key": "thorns",
                     },
-                    param_overrides={"amount": "heal_amount"},
                 ),
             )
         ),

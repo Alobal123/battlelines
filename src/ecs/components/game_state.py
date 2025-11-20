@@ -8,6 +8,7 @@ class GameMode(Enum):
     """High-level game modes that drive which systems run."""
     MENU = auto()
     ABILITY_DRAFT = auto()
+    SKILL_DRAFT = auto()
     DIALOGUE = auto()
     COMBAT = auto()
 

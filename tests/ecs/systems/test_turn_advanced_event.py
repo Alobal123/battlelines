@@ -94,8 +94,12 @@ def test_turn_not_advanced_when_ability_preserves_turn(setup_world):
         for ability_ent in owner_comp.ability_entities
         if world.component_for_entity(ability_ent, Ability).name == "savagery"
     )
+    savagery_ability = world.component_for_entity(savagery_ent, Ability)
     bank = world.component_for_entity(owner_ent, TileBank)
-    bank.counts["shapeshift"] = 3
+    initial_cost = {}
+    for type_name, amount in savagery_ability.cost.items():
+        bank.counts[type_name] = max(bank.counts.get(type_name, 0), amount)
+        initial_cost[type_name] = bank.counts[type_name]
     events = []
     bus.subscribe(EVENT_TURN_ADVANCED, lambda s, **k: events.append(k))
     active_before = list(world.get_component(ActiveTurn))[0][1].owner_entity
@@ -103,7 +107,9 @@ def test_turn_not_advanced_when_ability_preserves_turn(setup_world):
     active_after = list(world.get_component(ActiveTurn))[0][1].owner_entity
     assert not events, "Turn should not advance for abilities that preserve the turn"
     assert active_after == active_before, "Active owner should remain unchanged"
-    assert bank.counts.get("shapeshift", 0) == 0, "Ability cost should still be consumed"
+    for type_name, previous_amount in initial_cost.items():
+        expected_remaining = previous_amount - savagery_ability.cost[type_name]
+        assert bank.counts.get(type_name, 0) == expected_remaining, "Ability cost should still be consumed"
 
 
 def _ordered_owner_ids(world):

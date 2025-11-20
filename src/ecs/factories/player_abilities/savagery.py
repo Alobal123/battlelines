@@ -13,8 +13,8 @@ def create_ability_savagery(world: World) -> int:
         Ability(
             name="savagery",
             kind="active",
-            cost={"shapeshift": 3},
-            description="Gain +1 damage to all attacks for three turns.",
+            cost={"shapeshift": 5},
+            description="Gain +1 damage to all attacks for five turns.",
             cooldown=2,
             ends_turn=False,
         ),
@@ -24,7 +24,7 @@ def create_ability_savagery(world: World) -> int:
                 AbilityEffectSpec(
                     slug="damage_bonus",
                     target="pending_target_or_self",
-                    turns=3,
+                    turns=5,
                     metadata={
                         "bonus": 1,
                         "reason": "savagery",

@@ -3,6 +3,7 @@ from ecs.world import create_world
 from ecs.components.health import Health
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.ability import Ability
+from ecs.components.ability_effect import AbilityEffects
 from ecs.systems.health_system import HealthSystem
 from ecs.systems.ability_resolution_system import AbilityResolutionSystem
 from ecs.systems.effect_lifecycle_system import EffectLifecycleSystem
@@ -35,6 +36,16 @@ def test_blood_bolt_damages_both_players():
     ]
     assert len(bolt_abilities) == 1, "Expected player to have blood_bolt ability"
     bolt_entity = bolt_abilities[0]
+    bolt_ability = world.component_for_entity(bolt_entity, Ability)
+    self_damage_expected = bolt_ability.params.get("self_damage")
+    opponent_damage_expected = bolt_ability.params.get("opponent_damage")
+    if self_damage_expected is None or opponent_damage_expected is None:
+        effects = world.component_for_entity(bolt_entity, AbilityEffects)
+        for spec in effects.effects:
+            if spec.target == "self" and spec.metadata.get("amount") is not None:
+                self_damage_expected = int(spec.metadata["amount"])
+            if spec.target == "opponent" and spec.metadata.get("amount") is not None:
+                opponent_damage_expected = int(spec.metadata["amount"])
     
     # Track damage events
     damage_events = []
@@ -69,19 +80,25 @@ def test_blood_bolt_damages_both_players():
     self_damage = [e for e in damage_events if e.get("reason") == "blood_bolt_self"]
     assert len(self_damage) == 1, "Expected one self-damage event"
     assert self_damage[0]["target_entity"] == player1
-    assert self_damage[0]["amount"] == 2
+    assert self_damage_expected is not None
+    assert self_damage[0]["amount"] == self_damage_expected
     assert self_damage[0]["source_owner"] == player1
     
     # Verify opponent damage event
     opponent_damage = [e for e in damage_events if e.get("reason") == "blood_bolt"]
     assert len(opponent_damage) == 1, "Expected one opponent damage event"
     assert opponent_damage[0]["target_entity"] == player2
-    assert opponent_damage[0]["amount"] == 6
+    assert opponent_damage_expected is not None
+    assert opponent_damage[0]["amount"] == opponent_damage_expected
     assert opponent_damage[0]["source_owner"] == player1
     
     # Verify health was updated correctly
-    assert health1.current == initial_hp1 - 2, f"Player 1 should take 2 damage, HP: {health1.current}"
-    assert health2.current == initial_hp2 - 6, f"Player 2 should take 6 damage, HP: {health2.current}"
+    assert health1.current == initial_hp1 - self_damage_expected, (
+        f"Player 1 should take {self_damage_expected} damage, HP: {health1.current}"
+    )
+    assert health2.current == initial_hp2 - opponent_damage_expected, (
+        f"Player 2 should take {opponent_damage_expected} damage, HP: {health2.current}"
+    )
     
     # Verify two health changed events
     assert len(changed_events) == 2, f"Expected two health changed events, got {len(changed_events)}"

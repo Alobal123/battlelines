@@ -38,7 +38,7 @@ class MouseThrottle:
 		self._min_distance_sq = dist * dist
 		self._min_interval = max(0.0, float(self.min_interval))
 		if self.min_interval_anywhere is None:
-			self._global_interval = self._min_interval
+			self._global_interval = 0.0
 		else:
 			self._global_interval = max(0.0, float(self.min_interval_anywhere))
 

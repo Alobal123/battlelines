@@ -15,6 +15,8 @@ from ecs.effects.factory import ensure_default_effects_registered
 from ecs.components.health import Health
 from ecs.factories.abilities import create_default_player_abilities
 from ecs.factories.enemies import create_enemy_undead_gardener
+from ecs.components.skill_list_owner import SkillListOwner
+from ecs.factories.player_skills import create_skill_self_reprimand
 
 
 def create_world(
@@ -41,6 +43,7 @@ def create_world(
     player1_ent = world.create_entity(
         HumanAgent(),
         AbilityListOwner(ability_entities=abilities_p1),
+        SkillListOwner(),
         TileBank(owner_entity=0),
         Health(current=30, max_hp=30),
         Character(
@@ -55,7 +58,7 @@ def create_world(
     from ecs.systems.enemy_pool_system import EnemyPoolSystem
 
     enemy_pool = EnemyPoolSystem(world, event_bus, rng=getattr(world, "random", None))
-    world.enemy_pool = enemy_pool
+    setattr(world, "enemy_pool", enemy_pool)
     player2_ent: int | None
     if randomize_enemy:
         player2_ent = enemy_pool.spawn_random_enemy()
@@ -72,6 +75,8 @@ def create_world(
     enemy_abilities = world.component_for_entity(player2_ent, AbilityListOwner)
     world.remove_component(player2_ent, AbilityListOwner)
     world.add_component(player2_ent, enemy_abilities)
+    if not world.has_component(player2_ent, SkillListOwner):
+        world.add_component(player2_ent, SkillListOwner())
 
 
     # Create single registry entity with canonical types

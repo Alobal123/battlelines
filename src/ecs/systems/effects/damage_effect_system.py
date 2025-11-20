@@ -4,6 +4,7 @@ from esper import World
 
 from ecs.components.effect import Effect
 from ecs.components.effect_list import EffectList
+from ecs.components.health import Health
 from ecs.events.bus import (
     EVENT_EFFECT_APPLIED,
     EVENT_EFFECT_REFRESHED,
@@ -37,6 +38,12 @@ class DamageEffectSystem:
             self._remove_effect(effect_entity, reason="resolved")
             return
         target = effect.owner_entity
+        pre_damage_health = None
+        if target is not None:
+            try:
+                pre_damage_health = self.world.component_for_entity(target, Health).current
+            except KeyError:
+                pre_damage_health = None
         if target is None:
             self._remove_effect(effect_entity, reason="resolved")
             return
@@ -56,6 +63,7 @@ class DamageEffectSystem:
             reason=reason,
             effect_entity=effect_entity,
         )
+        self._record_actual_damage(effect, amount, pre_damage_health)
         self._remove_effect(effect_entity, reason="resolved")
 
     def _remove_effect(self, effect_entity: int, *, reason: str) -> None:
@@ -107,3 +115,20 @@ class DamageEffectSystem:
                 continue
             extra += self._coerce_int(active_effect.metadata.get("bonus", 1))
         return extra
+
+    def _record_actual_damage(
+        self,
+        effect: Effect,
+        intended_amount: int,
+        pre_damage_health: int | None,
+    ) -> None:
+        context_ref = effect.metadata.get("_ability_context")
+        if not isinstance(context_ref, dict):
+            return
+        context_key = effect.metadata.get("context_write")
+        if not isinstance(context_key, str):
+            return
+        actual = intended_amount
+        if pre_damage_health is not None:
+            actual = max(0, min(intended_amount, max(pre_damage_health, 0)))
+        context_ref[context_key] = actual

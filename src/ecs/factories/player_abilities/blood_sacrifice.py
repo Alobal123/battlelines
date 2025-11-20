@@ -8,28 +8,31 @@ from ecs.components.ability_effect import AbilityEffectSpec, AbilityEffects
 from ecs.components.ability_cooldown import AbilityCooldown
 
 
-def create_ability_verdant_touch(world: World) -> int:
+def create_ability_blood_sacrifice(world: World) -> int:
+    """Sacrifice a tile to convert its stored energy into blood mana."""
+
     return world.create_entity(
         Ability(
-            name="verdant_touch",
+            name="blood_sacrifice",
             kind="active",
-            cost={"nature": 6},
-            description="Heal 4 HP.",
-            params={"heal_amount": 4},
+            cost={"blood": 7},
+            description=(
+                "Sacrifice a selected tile, gaining triple its effect while leaving the hole unfilled until a later cascade."
+            ),
             cooldown=1,
         ),
-        AbilityTarget(target_type="self", max_targets=0),
+        AbilityTarget(target_type="tile", max_targets=1),
         AbilityEffects(
             effects=(
                 AbilityEffectSpec(
-                    slug="heal",
-                    target="pending_target_or_self",
+                    slug="tile_sacrifice",
+                    target="board",
                     turns=0,
                     metadata={
-                        "amount": 4,
-                        "reason": "verdant_touch",
+                        "multiplier": 3,
+                        "reason": "blood_sacrifice",
+                        "refill": False,
                     },
-                    param_overrides={"amount": "heal_amount"},
                 ),
             )
         ),

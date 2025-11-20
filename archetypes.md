@@ -7,8 +7,7 @@
 - Damage when healing
 - Overhealing can trigger bonus effects (thorns, regeneration bursts).
 
-### 2. Poison / Thorns
-- Apply poison damage over time.
+### 2.  Thorns
 - Reflect small damage when hit.
 
 ### 3. Board Growth (Board-Focused)
@@ -35,12 +34,12 @@
 ## 🐾 Shapeshift Mana
 
 ### 1. Animal Buffs
-- Temporary forms (wolf, crow, serpent, etc.).
-- Boost attack, defense, speed for a short time.
+- Adopt temporary forms (wolf, crow, serpent, etc.).
+- Boost attack, defense, or mobility for a short duration.
 
 ### 2. Familiar
-- Summon familiar - can make moves sometimes
-- Improving the familiar
+- Summon a companion that occasionally makes automated moves.
+- Invest resources to upgrade familiar behaviors.
 
 ### 3. Tile Transformation (Board-Focused)
  - Transform tiles to other types
@@ -51,34 +50,39 @@
 ## 👻 Spirit Mana
 
 ### 1. Mana Drain
-- Reduce enemy mana.
-- Steal or negate spell resources.
+- Reduce enemy mana reserves.
+- Deny critical spell resources to stall enemy plans.
 
-### 2. Echo 
-- Damage repeats next turn or over several turns.
-- Haunting effects that trigger after delays.
+### 2. Echo
+- Repeat damage on subsequent turns or over time.
+- Layer haunting effects that trigger after short delays.
 
 ### 3. Tile Locking (Board-Focused)
 - Bind tiles so they cannot be moved or matched.
-- **Spirit Chains** restrict or alter board flow.
-- Releasing locked tiles causes additional effects.
+- Deploy **Spirit Chains** to redirect board flow.
+- Release locked tiles for retaliatory bursts.
 
 ---
 
 ## 🪬 Hex Mana
 
 ### 1. Curses
-- Apply status effects like Weakness, Vulnerability, Slow.
-- Reduce enemy offensive or defensive stats.
+- Apply status effects such as Weakness, Vulnerability, or Slow.
+- Undermine enemy offensive and defensive stats simultaneously.
 
 ### 2. DoT Curses
-- Poison - Nature
-- Bleeding - Blood
-- Wither - Spirit
-- Slow but inevitable damage.
+- Poison (Nature), Bleeding (Blood), Wither (Spirit).
+- Deliver slow but inevitable damage that stacks across turns.
 
 ### 3. Cursed Tiles (Board-Focused)
 - Create **Cursed Tiles**.
 - Matching cursed tiles triggers negative effects
 
 ---
+
+## Advanced Archetypes (Unlocked via play)
+
+- **Werewolf:** Ferocious brawler who spikes damage during frenzies.
+- **Vampire:** Gains enhanced life drain but cannot heal through other sources.
+- **Ghost:** Enforces miss chances on enemy actions and sustains without healing.
+- **Evil Paths:** Knowledge, Chaos, and Witchfire variants twist standard rules.

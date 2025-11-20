@@ -50,7 +50,15 @@ def test_pool_request_excludes_owned_abilities():
     offered = captured.get("abilities")
     assert offered is not None
     assert "blood_bolt" not in offered
-    assert set(offered) <= {"savagery", "spirit_leech", "verdant_touch", "curse_of_frailty"}
+    assert set(offered) <= {
+        "blood_sacrifice",
+        "curse_of_frailty",
+        "life_drain",
+        "savagery",
+        "spirit_leech",
+        "thorned_ward",
+        "verdant_touch",
+    }
     # Three basic abilities remain after excluding the owned ability.
     assert len(offered) == 3
 

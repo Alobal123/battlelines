@@ -14,7 +14,7 @@ def create_ability_poisoned_flower(world: World) -> int:
         Ability(
             name="poisoned_flower",
             kind="active",
-            cost={"nature": 3, "hex": 1},
+            cost={"nature": 5, "hex": 3},
             description="Inflict 2 poison for 3 turns on the opponent.",
             cooldown=0,
         ),

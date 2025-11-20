@@ -124,3 +124,64 @@ def ensure_default_effects_registered() -> None:
             },
         )
     )
+    _register(
+        EffectDefinition(
+            slug="thorns",
+            display_name="Thorns",
+            description="Reflects damage back to attackers when struck by abilities or witchfire.",
+            default_metadata={
+                "amount": 1,
+                "reason": "thorns",
+                "turns": 0,
+                "stacks": False,
+                "stack_key": "thorns",
+            },
+        )
+    )
+    _register(
+        EffectDefinition(
+            slug="tile_sacrifice",
+            display_name="Tile Sacrifice",
+            description="Removes a tile without refilling and grants rewards.",
+            default_metadata={
+                "multiplier": 3,
+                "reason": "tile_sacrifice",
+                "refill": False,
+            },
+        )
+    )
+    _register(
+        EffectDefinition(
+            slug="self_reprimand",
+            display_name="Self Reprimand",
+            description="When the owner damages themselves, retaliate and gain blood mana.",
+            default_metadata={
+                "bonus_damage": 1,
+                "mana_amount": 1,
+                "mana_type": "blood",
+                "reason": "self_reprimand",
+            },
+        )
+    )
+    _register(
+        EffectDefinition(
+            slug="void_tithe",
+            display_name="Void Tithe",
+            description="At the end of the owner's turn, deal damage equal to empty board tiles.",
+            default_metadata={
+                "multiplier": 1,
+                "reason": "void_tithe",
+            },
+        )
+    )
+    _register(
+        EffectDefinition(
+            slug="blood_covenant",
+            display_name="Blood Covenant",
+            description="At the start of the owner's turn, both battlers lose health.",
+            default_metadata={
+                "amount": 1,
+                "reason": "blood_covenant",
+            },
+        )
+    )

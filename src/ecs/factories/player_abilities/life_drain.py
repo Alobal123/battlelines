@@ -8,14 +8,16 @@ from ecs.components.ability_effect import AbilityEffectSpec, AbilityEffects
 from ecs.components.ability_cooldown import AbilityCooldown
 
 
-def create_ability_blood_bolt(world: World) -> int:
+def create_ability_life_drain(world: World) -> int:
+    """Deal damage to the opponent and heal equal to the damage actually dealt."""
+
     return world.create_entity(
         Ability(
-            name="blood_bolt",
+            name="life_drain",
             kind="active",
-            cost={"blood": 6},
-            description="Deal 2 damage to yourself and 5 damage to opponent.",
-            params={"self_damage": 2, "opponent_damage": 5},
+            cost={"blood": 7},
+            description="Deal 2 damage to the opponent and heal for the damage actually dealt.",
+            params={"damage_amount": 2},
             cooldown=1,
         ),
         AbilityTarget(target_type="self", max_targets=0),
@@ -23,23 +25,26 @@ def create_ability_blood_bolt(world: World) -> int:
             effects=(
                 AbilityEffectSpec(
                     slug="damage",
-                    target="self",
-                    turns=0,
-                    metadata={
-                        "amount": 2,
-                        "reason": "blood_bolt_self",
-                    },
-                    param_overrides={"amount": "self_damage"},
-                ),
-                AbilityEffectSpec(
-                    slug="damage",
                     target="opponent",
                     turns=0,
                     metadata={
-                        "amount": 5,
-                        "reason": "blood_bolt",
+                        "amount": 2,
+                        "reason": "life_drain",
+                        "context_write": "life_drain_damage",
                     },
-                    param_overrides={"amount": "opponent_damage"},
+                    param_overrides={"amount": "damage_amount"},
+                ),
+                AbilityEffectSpec(
+                    slug="heal",
+                    target="pending_target_or_self",
+                    turns=0,
+                    metadata={
+                        "amount": 0,
+                        "reason": "life_drain",
+                        "context_read": {
+                            "amount": "life_drain_damage",
+                        },
+                    },
                 ),
             )
         ),

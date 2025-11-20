@@ -103,7 +103,8 @@ def test_ai_prefers_extra_turn_swap_over_other_options():
     ability: Ability = world.component_for_entity(ability_entity, Ability)
     ability.ends_turn = True
     bank = world.component_for_entity(ai_owner, TileBank)
-    bank.counts["blood"] = max(bank.counts.get("blood", 0), 5)
+    for type_name, amount in ability.cost.items():
+        bank.counts[type_name] = max(bank.counts.get(type_name, 0), amount)
     opponent = next(ent for ent, _ in world.get_component(Health) if ent != ai_owner)
     opp_health: Health = world.component_for_entity(opponent, Health)
     opp_health.current = 50

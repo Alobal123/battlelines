@@ -23,6 +23,8 @@ from ecs.systems.tile_bank_system import TileBankSystem
 from ecs.systems.effect_lifecycle_system import EffectLifecycleSystem
 from ecs.systems.ability_system import AbilitySystem
 from ecs.systems.ability_targeting_system import AbilityTargetingSystem
+from ecs.systems.skills.skill_pool_system import SkillPoolSystem
+from ecs.systems.skills.skill_choice_system import SkillChoiceSystem
 from ecs.systems.turn_system import TurnSystem
 from ecs.systems.health_system import HealthSystem
 from ecs.systems.effects.damage_effect_system import DamageEffectSystem
@@ -30,8 +32,13 @@ from ecs.systems.effects.deplete_effect_system import DepleteEffectSystem
 from ecs.systems.effects.heal_effect_system import HealEffectSystem
 from ecs.systems.effects.board_clear_effect_system import BoardClearEffectSystem
 from ecs.systems.effects.board_transform_effect_system import BoardTransformEffectSystem
+from ecs.systems.effects.blood_covenant_effect_system import BloodCovenantEffectSystem
 from ecs.systems.effects.mana_drain_effect_system import ManaDrainEffectSystem
 from ecs.systems.effects.poison_effect_system import PoisonEffectSystem
+from ecs.systems.effects.thorns_effect_system import ThornsEffectSystem
+from ecs.systems.effects.tile_sacrifice_effect_system import TileSacrificeEffectSystem
+from ecs.systems.effects.self_reprimand_effect_system import SelfReprimandEffectSystem
+from ecs.systems.effects.void_tithe_effect_system import VoidTitheEffectSystem
 from ecs.systems.tooltip_system import TooltipSystem
 from ecs.systems.rule_based_ai_system import RuleBasedAISystem
 from ecs.systems.defeat_system import DefeatSystem
@@ -41,6 +48,7 @@ from ecs.systems.story_progress_system import StoryProgressSystem
 from ecs.rendering.dialogue_render_system import DialogueRenderSystem
 from ecs.systems.forbidden_knowledge_system import ForbiddenKnowledgeSystem
 from ecs.systems.mouse_throttle_system import MouseThrottleSystem
+from ecs.systems.skills.apply_skill_effects_system import ApplySkillEffectsSystem
 
 class BattlelinesWindow(Window):
     def __init__(self):
@@ -82,8 +90,10 @@ class BattlelinesWindow(Window):
 
         # Ability systems
         self.ability_pool_system = AbilityPoolSystem(self.world, self.event_bus)
+        self.skill_pool_system = SkillPoolSystem(self.world, self.event_bus)
         self.match_setup_system = MatchSetupSystem(self.world, self.event_bus)
         self.ability_system = AbilitySystem(self.world, self.event_bus)
+        self.skill_choice_system = SkillChoiceSystem(self.world, self.event_bus)
         self.ability_targeting_system = AbilityTargetingSystem(self.world, self.event_bus)
 
         # Board and animation systems
@@ -98,9 +108,15 @@ class BattlelinesWindow(Window):
         self.damage_effect_system = DamageEffectSystem(self.world, self.event_bus)
         self.deplete_effect_system = DepleteEffectSystem(self.world, self.event_bus)
         self.effect_lifecycle_system = EffectLifecycleSystem(self.world, self.event_bus)
+        self.apply_skill_effects_system = ApplySkillEffectsSystem(self.world, self.event_bus)
         self.heal_effect_system = HealEffectSystem(self.world, self.event_bus)
         self.mana_drain_effect_system = ManaDrainEffectSystem(self.world, self.event_bus)
         self.poison_effect_system = PoisonEffectSystem(self.world, self.event_bus)
+        self.self_reprimand_effect_system = SelfReprimandEffectSystem(self.world, self.event_bus)
+        self.blood_covenant_effect_system = BloodCovenantEffectSystem(self.world, self.event_bus)
+        self.void_tithe_effect_system = VoidTitheEffectSystem(self.world, self.event_bus)
+        self.tile_sacrifice_effect_system = TileSacrificeEffectSystem(self.world, self.event_bus)
+        self.thorns_effect_system = ThornsEffectSystem(self.world, self.event_bus)
         self.tile_bank_system = TileBankSystem(self.world, self.event_bus)
         self.forbidden_knowledge_system = ForbiddenKnowledgeSystem(self.world, self.event_bus)
 

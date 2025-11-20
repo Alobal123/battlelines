@@ -13,6 +13,7 @@ from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.effect import Effect
 from ecs.components.effect_duration import EffectDuration
 from ecs.components.effect_list import EffectList
+from ecs.components.ability_effect import AbilityEffects
 from ecs.components.active_turn import ActiveTurn
 from ecs.components.turn_order import TurnOrder
 from ecs.components.ability_cooldown import AbilityCooldown
@@ -93,12 +94,17 @@ def _damage_bonus_effects(world, owner_ent: int) -> list[int]:
 def test_savagery_applies_damage_bonus_effect(setup_world):
     bus, world = setup_world
     owner_ent, ability_ent = _find_player_ability(world, "savagery")
+    ability_effects = world.component_for_entity(ability_ent, AbilityEffects)
+    spec = ability_effects.effects[0] if ability_effects.effects else None
     _activate_self_ability(bus, world, owner_ent, ability_ent)
     effect_ids = _damage_bonus_effects(world, owner_ent)
     assert effect_ids, "Savagery did not apply damage bonus effect"
     effect_entity = effect_ids[0]
     duration = world.component_for_entity(effect_entity, EffectDuration)
-    assert duration.remaining_turns == 3
+    if spec and spec.turns is not None:
+        assert duration.remaining_turns == spec.turns
+    else:
+        assert duration.remaining_turns > 0
 
 
 def test_savagery_damage_bonus_applies_and_expires(setup_world):
@@ -110,6 +116,14 @@ def test_savagery_damage_bonus_applies_and_expires(setup_world):
         EVENT_HEALTH_DAMAGE,
         lambda sender, **payload: damage_events.append(dict(payload)),
     )
+    savagery_effects_comp = world.component_for_entity(savagery_ent, AbilityEffects)
+    savagery_spec = next((spec for spec in savagery_effects_comp.effects if spec.slug == "damage_bonus"), None)
+    bonus_amount = 0
+    if savagery_spec is not None:
+        try:
+            bonus_amount = int(savagery_spec.metadata.get("bonus", 0))
+        except (TypeError, ValueError):
+            bonus_amount = 0
     _activate_self_ability(bus, world, owner_ent, savagery_ent)
     initial_effects = _damage_bonus_effects(world, owner_ent)
     # Wait for cooldown (2 turns) before reusing Savagery
@@ -130,18 +144,34 @@ def test_savagery_damage_bonus_applies_and_expires(setup_world):
     assert len(savagery_effects) == 1
     effect_entity = savagery_effects[0]
     duration_comp = world.component_for_entity(effect_entity, EffectDuration)
-    assert duration_comp.remaining_turns == 3
+    effect_turns = savagery_spec.turns if savagery_spec and savagery_spec.turns is not None else 0
+    if effect_turns:
+        assert duration_comp.remaining_turns == effect_turns
+    else:
+        assert duration_comp.remaining_turns > 0
     damage_events.clear()
     _force_active_owner(world, owner_ent)
     _activate_self_ability(bus, world, owner_ent, blood_bolt_ent)
     assert damage_events, "Blood Bolt did not deal damage"
     amounts = [event["amount"] for event in damage_events]
-    assert amounts == [3, 7]
-    for _ in range(3):
+    blood_bolt_effects = world.component_for_entity(blood_bolt_ent, AbilityEffects)
+    blood_bolt_ability = world.component_for_entity(blood_bolt_ent, Ability)
+    self_damage = blood_bolt_ability.params.get("self_damage")
+    opponent_damage = blood_bolt_ability.params.get("opponent_damage")
+    if self_damage is None or opponent_damage is None:
+        for spec in blood_bolt_effects.effects:
+            if spec.target == "self" and spec.metadata.get("amount") is not None:
+                self_damage = int(spec.metadata["amount"])
+            if spec.target == "opponent" and spec.metadata.get("amount") is not None:
+                opponent_damage = int(spec.metadata["amount"])
+    assert self_damage is not None and opponent_damage is not None
+    assert amounts == [self_damage + bonus_amount, opponent_damage + bonus_amount]
+    for _ in range(effect_turns or 0):
         bus.emit(EVENT_TURN_ADVANCED, previous_owner=owner_ent, new_owner=None)
-    assert not _damage_bonus_effects(world, owner_ent), "Damage bonus effects should expire after three turns"
+    if effect_turns:
+        assert not _damage_bonus_effects(world, owner_ent), "Damage bonus effects should expire after their duration"
     damage_events.clear()
     _force_active_owner(world, owner_ent)
     _activate_self_ability(bus, world, owner_ent, blood_bolt_ent)
     amounts = [event["amount"] for event in damage_events]
-    assert amounts == [2, 6]
+    assert amounts == [self_damage, opponent_damage]

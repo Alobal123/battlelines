@@ -14,7 +14,7 @@ def create_ability_spirit_leech(world: World) -> int:
         Ability(
             name="spirit_leech",
             kind="active",
-            cost={"spirit": 4},
+            cost={"spirit": 5},
             description="Drain 2 mana from the opponent and deal 2 damage.",
             cooldown=1,
         ),

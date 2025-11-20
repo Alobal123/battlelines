@@ -14,7 +14,7 @@ def create_ability_shovel_punch(world: World) -> int:
         Ability(
             name="shovel_punch",
             kind="active",
-            cost={"nature": 3, "shapeshift": 2},
+            cost={"nature": 4, "shapeshift": 4},
             description="Deal 5 damage to the opponent.",
             cooldown=0,
         ),

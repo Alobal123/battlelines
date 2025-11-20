@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import random
-from typing import Callable
+from typing import Any, Callable, Dict
 
 from esper import World
 
@@ -13,11 +13,15 @@ from ecs.components.human_agent import HumanAgent
 from ecs.components.rule_based_agent import RuleBasedAgent
 from ecs.events.bus import (
     EVENT_ABILITY_CHOICE_GRANTED,
+    EVENT_SKILL_POOL_REQUEST,
+    EVENT_SKILL_POOL_OFFER,
+    EVENT_SKILL_CHOICE_GRANTED,
     EVENT_DIALOGUE_START,
     EVENT_MATCH_SETUP_REQUEST,
     EventBus,
 )
 from ecs.factories.choice_window import clear_choice_window
+from ecs.factories.skills import spawn_skill_choice_window
 from ecs.utils.game_state import set_game_mode
 
 
@@ -49,7 +53,12 @@ class MatchSetupSystem:
         self._fallback_mode = fallback_mode
         self._clear_window = clear_window
         self._on_setup_complete = on_setup_complete
+        self._skill_request_counter = 0
+        self._pending_skill_request_id: int | None = None
+        self._pending_skill_context: Dict[str, Any] | None = None
         self.event_bus.subscribe(EVENT_ABILITY_CHOICE_GRANTED, self._on_ability_choice_granted)
+        self.event_bus.subscribe(EVENT_SKILL_POOL_OFFER, self._on_skill_pool_offer)
+        self.event_bus.subscribe(EVENT_SKILL_CHOICE_GRANTED, self._on_skill_choice_granted)
         self.event_bus.subscribe(EVENT_MATCH_SETUP_REQUEST, self._on_match_setup_request)
 
     def _on_ability_choice_granted(self, sender, **payload) -> None:
@@ -60,22 +69,91 @@ class MatchSetupSystem:
             return
         window_entity = payload.get("window_entity")
         press_id = payload.get("press_id")
-        enemy_entity = self._pick_existing_enemy(owner_entity)
-        if enemy_entity is None:
-            enemy_entity = self._spawn_enemy()
-        if enemy_entity is not None:
-            self._start_dialogue(owner_entity, enemy_entity, press_id=press_id)
-        else:
-            set_game_mode(
-                self.world,
-                self.event_bus,
-                self._fallback_mode,
-                input_guard_press_id=press_id,
-            )
-        if self._on_setup_complete is not None:
-            self._on_setup_complete()
         if self._clear_window:
             self._close_choice_window(window_entity)
+        if self._request_skill_choice(owner_entity, press_id):
+            return
+        self._complete_setup(owner_entity, press_id)
+
+    def _request_skill_choice(self, owner_entity: int, press_id: int | None) -> bool:
+        if self._pending_skill_request_id is not None:
+            self._pending_skill_context = None
+            self._pending_skill_request_id = None
+        self._skill_request_counter += 1
+        request_id = self._skill_request_counter
+        context: Dict[str, Any] = {
+            "owner_entity": owner_entity,
+            "press_id": press_id,
+            "window_entity": None,
+        }
+        self._pending_skill_request_id = request_id
+        self._pending_skill_context = context
+        self.event_bus.emit(
+            EVENT_SKILL_POOL_REQUEST,
+            owner_entity=owner_entity,
+            count=3,
+            request_id=request_id,
+        )
+        current_context = self._pending_skill_context
+        if current_context is None:
+            self._pending_skill_request_id = None
+            return False
+        if current_context.get("window_entity") is None:
+            self._pending_skill_context = None
+            self._pending_skill_request_id = None
+            return False
+        return True
+
+    def _on_skill_pool_offer(self, sender, **payload) -> None:
+        request_id = payload.get("request_id")
+        if request_id != self._pending_skill_request_id:
+            return
+        context = self._pending_skill_context
+        if context is None:
+            self._pending_skill_request_id = None
+            return
+        owner_entity = payload.get("owner_entity")
+        if owner_entity is None or owner_entity != context.get("owner_entity"):
+            self._pending_skill_context = None
+            self._pending_skill_request_id = None
+            return
+        skills = list(payload.get("skills") or [])
+        if not skills:
+            self._pending_skill_context = None
+            self._pending_skill_request_id = None
+            return
+        window_entity = spawn_skill_choice_window(
+            self.world,
+            owner_entity=owner_entity,
+            skill_names=skills,
+            event_bus=self.event_bus,
+            rng=self._rng,
+            title="Choose a Skill",
+            press_id=context.get("press_id"),
+        )
+        if window_entity is None:
+            self._pending_skill_context = None
+            self._pending_skill_request_id = None
+            return
+        context["window_entity"] = window_entity
+
+    def _on_skill_choice_granted(self, sender, **payload) -> None:
+        owner_entity = payload.get("owner_entity")
+        if owner_entity is None:
+            return
+        context = self._pending_skill_context
+        if context is None or context.get("owner_entity") != owner_entity:
+            if self._clear_window:
+                self._close_choice_window(payload.get("window_entity"))
+            return
+        if self._clear_window:
+            self._close_choice_window(payload.get("window_entity"))
+        press_id = payload.get("press_id")
+        if press_id is None:
+            press_id = context.get("press_id")
+        self._pending_skill_context = None
+        self._pending_skill_request_id = None
+        self._complete_setup(owner_entity, press_id)
 
     def _on_match_setup_request(self, sender, **payload) -> None:
         owner_entity = payload.get("owner_entity")
@@ -97,6 +175,22 @@ class MatchSetupSystem:
             )
             return
         self._start_dialogue(owner_entity, enemy_entity, press_id=payload.get("press_id"))
+        if self._on_setup_complete is not None:
+            self._on_setup_complete()
+
+    def _complete_setup(self, owner_entity: int, press_id: int | None) -> None:
+        enemy_entity = self._pick_existing_enemy(owner_entity)
+        if enemy_entity is None:
+            enemy_entity = self._spawn_enemy()
+        if enemy_entity is not None:
+            self._start_dialogue(owner_entity, enemy_entity, press_id=press_id)
+        else:
+            set_game_mode(
+                self.world,
+                self.event_bus,
+                self._fallback_mode,
+                input_guard_press_id=press_id,
+            )
         if self._on_setup_complete is not None:
             self._on_setup_complete()
 

@@ -28,7 +28,6 @@ def test_mouse_throttle_allows_quick_distinct_points():
     throttle = MouseThrottle(
         min_interval=0.2,
         min_distance=4.0,
-        min_interval_anywhere=0.0,
         clock=clock,
     )
 
@@ -42,7 +41,6 @@ def test_mouse_throttle_tracks_per_button():
     throttle = MouseThrottle(
         min_interval=0.2,
         min_distance=4.0,
-        min_interval_anywhere=0.0,
         clock=clock,
     )
 
@@ -52,9 +50,14 @@ def test_mouse_throttle_tracks_per_button():
     assert not throttle.allow(100.0, 100.0, 1)
 
 
-def test_mouse_throttle_blocks_global_window_by_default():
+def test_mouse_throttle_blocks_global_window_when_enabled():
     clock = _FakeClock()
-    throttle = MouseThrottle(min_interval=0.2, min_distance=4.0, clock=clock)
+    throttle = MouseThrottle(
+        min_interval=0.2,
+        min_distance=4.0,
+        min_interval_anywhere=0.2,
+        clock=clock,
+    )
 
     assert throttle.allow(100.0, 100.0, 1)
     clock.advance(0.05)

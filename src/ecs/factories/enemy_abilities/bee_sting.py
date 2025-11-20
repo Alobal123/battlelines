@@ -14,7 +14,7 @@ def create_ability_bee_sting(world: World) -> int:
         Ability(
             name="bee_sting",
             kind="active",
-            cost={"nature": 3, "spirit": 3, "shapeshift": 3},
+            cost={"nature": 5, "spirit": 3, "shapeshift": 3},
             description="Sting the foe, dealing damage equal to all nature tiles on the board.",
             cooldown=0,
         ),

@@ -22,6 +22,7 @@ class MatchResolutionSystem:
         self.event_bus.subscribe(EVENT_TICK, self.on_tick)
         self.pending_match_positions: List[Tuple[int, int]] = []
         self._pending_refill_checks = 0
+        self._suppress_refill = False
 
     def on_swap_finalize(self, sender, **kwargs):
         # After a logical swap, initiate resolution sequence
@@ -35,6 +36,10 @@ class MatchResolutionSystem:
     def on_board_changed(self, sender, **kwargs):
         # Triggered after ability effects (or other board-altering events). Run same pipeline.
         reason = kwargs.get("reason", "board_changed")
+        allow_refill = kwargs.get("allow_refill", True)
+        gravity_moves = kwargs.get("gravity_moves") or []
+        if not allow_refill and gravity_moves:
+            self._suppress_refill = True
         # Avoid double-start if a cascade already active; allow ability to start fresh when idle.
         state = get_or_create_turn_state(self.world)
         if state.cascade_active:
@@ -101,6 +106,10 @@ class MatchResolutionSystem:
                 self.event_bus.emit(EVENT_ANIMATION_START, kind='refill', items=new_tiles)
 
     def _after_fall(self, items):
+        if self._suppress_refill:
+            self._suppress_refill = False
+            self._after_refill()
+            return
         new_tiles = refill_inactive_tiles(self.world)
         if new_tiles:
             self.event_bus.emit(EVENT_REFILL_COMPLETED, new_tiles=new_tiles)

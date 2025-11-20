@@ -15,7 +15,7 @@ def create_ability_curse_of_frailty(world: World) -> int:
             name="curse_of_frailty",
             kind="active",
             cost={"hex": 3},
-            description="Afflict the enemy with frailty for 3 turns. Each stack adds +1 damage taken.",
+            description="Afflict the enemy with frailty for 5 turns. Each stack adds +1 damage taken.",
             cooldown=0,
             ends_turn=False,
         ),
@@ -25,7 +25,7 @@ def create_ability_curse_of_frailty(world: World) -> int:
                 AbilityEffectSpec(
                     slug="frailty",
                     target="opponent",
-                    turns=3,
+                    turns=5,
                     metadata={
                         "bonus": 1,
                         "reason": "curse_of_frailty",

@@ -14,7 +14,7 @@ def create_ability_touch_of_undead(world: World) -> int:
         Ability(
             name="touch_of_undead",
             kind="active",
-            cost={"spirit": 3},
+            cost={"spirit": 5},
             description="Drain 1 mana of each type from the opponent and deal damage equal to the drain.",
             cooldown=0,
         ),
