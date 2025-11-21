@@ -59,6 +59,7 @@ EVENT_ABILITY_CHOICE_GRANTED = "ability_choice_granted"  # payload: owner_entity
 EVENT_SKILL_POOL_REQUEST = "skill_pool_request"  # payload: owner_entity=int, count=int, request_id=Any
 EVENT_SKILL_POOL_OFFER = "skill_pool_offer"  # payload: owner_entity=int, skills=list[str], request_id=Any
 EVENT_SKILL_CHOICE_GRANTED = "skill_choice_granted"  # payload: owner_entity=int, skill_entity=int, skill_name=str
+EVENT_LOCATION_CHOICE_GRANTED = "location_choice_granted"  # payload: owner_entity=int, location_slug=str
 EVENT_AFFINITY_UPDATED = "affinity_updated"  # payload: owner_entity=int, totals=dict[str,int], contributions=dict, breakdown=list
 EVENT_BOARD_CHANGED = "board_changed"  # payload: reason=str, positions=list[(r,c)]
 EVENT_GAME_MODE_CHANGED = "game_mode_changed"  # payload: previous_mode=GameMode|None, new_mode=GameMode

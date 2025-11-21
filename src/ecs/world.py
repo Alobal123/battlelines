@@ -18,6 +18,7 @@ from ecs.factories.enemies import create_enemy_undead_gardener
 from ecs.components.skill_list_owner import SkillListOwner
 from ecs.factories.player_skills import create_skill_self_reprimand
 from ecs.components.affinity import Affinity
+from ecs.components.combatants import Combatants
 
 
 def create_world(
@@ -90,6 +91,14 @@ def create_world(
         world.add_component(player2_ent, SkillListOwner())
     if not world.has_component(player2_ent, Affinity):
         world.add_component(player2_ent, Affinity(base={}))
+
+    world.add_component(
+        state_entity,
+        Combatants(
+            player_entity=player1_ent,
+            opponent_entity=player2_ent,
+        ),
+    )
 
 
     # Create single registry entity with canonical types

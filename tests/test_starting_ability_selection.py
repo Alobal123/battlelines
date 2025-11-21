@@ -6,13 +6,16 @@ from ecs.components.ability import Ability
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.game_state import GameMode, GameState
 from ecs.components.human_agent import HumanAgent
+from ecs.components.rule_based_agent import RuleBasedAgent
+from ecs.components.turn_order import TurnOrder
 from ecs.components.starting_ability_choice import AbilityChoice
 from ecs.components.starting_skill_choice import SkillChoice
 from ecs.components.skill import Skill
 from ecs.components.skill_list_owner import SkillListOwner
+from ecs.components.location import CurrentLocation, LocationChoice
 from ecs.components.choice_window import ChoiceWindow
 from ecs.components.dialogue_session import DialogueSession
-from ecs.events.bus import EVENT_CHOICE_SELECTED, EventBus
+from ecs.events.bus import EVENT_CHOICE_SELECTED, EVENT_MATCH_SETUP_REQUEST, EventBus
 from ecs.factories.abilities import spawn_player_ability_choice
 from ecs.factories.skills import skill_slugs_for_entity
 from ecs.systems.match_setup_system import MatchSetupSystem
@@ -20,7 +23,9 @@ from ecs.systems.ability_system import AbilitySystem
 from ecs.systems.dialogue_system import DialogueSystem
 from ecs.systems.skills.skill_pool_system import SkillPoolSystem
 from ecs.systems.skills.skill_choice_system import SkillChoiceSystem
+from ecs.systems.location_choice_system import LocationChoiceSystem
 from ecs.systems.skills.apply_skill_effects_system import ApplySkillEffectsSystem
+from ecs.utils.combatants import find_primary_opponent
 from ecs.world import create_world
 
 from tests.helpers import grant_player_skills
@@ -56,6 +61,7 @@ def test_player_ability_selection_adds_chosen_ability():
     MatchSetupSystem(world, bus, rng=random.Random(1))
     SkillPoolSystem(world, bus, rng=random.Random(2))
     SkillChoiceSystem(world, bus)
+    LocationChoiceSystem(world, bus)
     ApplySkillEffectsSystem(world, bus)
     window_entity = spawn_player_ability_choice(
         world,
@@ -106,7 +112,37 @@ def test_player_ability_selection_adds_chosen_ability():
         press_id=888,
     )
 
+    assert state.mode == GameMode.LOCATION_DRAFT
+
+    location_choices = list(world.get_component(LocationChoice))
+    assert location_choices, "Expected location options after selecting a skill"
+    location_choice_entity, location_choice = location_choices[0]
+    location_window_entity = next(
+        (
+            window_ent
+            for window_ent, window in world.get_component(ChoiceWindow)
+            if location_choice_entity in window.option_entities
+        ),
+        None,
+    )
+    assert location_window_entity is not None
+
+    bus.emit(
+        EVENT_CHOICE_SELECTED,
+        window_entity=location_window_entity,
+        choice_entity=location_choice_entity,
+        press_id=999,
+    )
+
     assert state.mode == GameMode.DIALOGUE
+
+    current_location = world.component_for_entity(owner_entity, CurrentLocation)
+    assert current_location.slug == location_choice.location_slug
+    assert set(current_location.enemy_names) == {
+        "undead_beekeeper",
+        "undead_gardener",
+        "undead_florist",
+    }
 
     assert len(skill_owner.skill_entities) == initial_skill_count + 1
     gained_skill_entity = skill_owner.skill_entities[-1]
@@ -117,3 +153,34 @@ def test_player_ability_selection_adds_chosen_ability():
     assert sessions
     _, session = sessions[0]
     assert session.current_index == 0
+
+
+def test_match_setup_uses_chosen_enemy_for_combat():
+    bus = EventBus()
+    world = create_world(bus, grant_default_player_abilities=False, randomize_enemy=False)
+    DialogueSystem(world, bus)
+    MatchSetupSystem(world, bus, rng=random.Random(2))
+
+    player_entity = _human_entity(world)
+    existing_enemies = [ent for ent, _ in world.get_component(RuleBasedAgent)]
+    assert existing_enemies, "Expected a pre-existing enemy"
+
+    enemy_pool = getattr(world, "enemy_pool")
+    replacement_enemy = enemy_pool.create_enemy("undead_beekeeper")
+
+    bus.emit(
+        EVENT_MATCH_SETUP_REQUEST,
+        owner_entity=player_entity,
+        enemy_entity=replacement_enemy,
+        press_id=123,
+    )
+
+    assert find_primary_opponent(world, player_entity) == replacement_enemy
+
+    remaining_enemies = [ent for ent, _ in world.get_component(RuleBasedAgent)]
+    assert remaining_enemies == [replacement_enemy]
+
+    orders = list(world.get_component(TurnOrder))
+    assert orders
+    _, order = orders[0]
+    assert order.owners == [player_entity, replacement_enemy]

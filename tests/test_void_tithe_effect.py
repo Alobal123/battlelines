@@ -9,6 +9,7 @@ from ecs.events.bus import (
 from ecs.world import create_world
 from ecs.components.health import Health
 from ecs.components.human_agent import HumanAgent
+from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.rule_based_agent import RuleBasedAgent
 from ecs.components.board_position import BoardPosition
 from ecs.components.active_switch import ActiveSwitch
@@ -105,3 +106,39 @@ def test_void_tithe_no_damage_without_missing_tiles() -> None:
     # Ensure opponent damage still absent even if event references other owner
     bus.emit(EVENT_TURN_ADVANCED, previous_owner=opponent)
     assert not damage_events
+
+
+def test_void_tithe_targets_opponent_without_ability_list_owner() -> None:
+    bus = EventBus()
+    world = create_world(bus, grant_default_player_abilities=False)
+    _setup_systems(world, bus)
+
+    owner, opponent = _players(world)
+
+    try:
+        world.remove_component(opponent, AbilityListOwner)
+    except KeyError:
+        pass
+
+    _set_inactive_tiles(world, 2)
+
+    bus.emit(
+        EVENT_EFFECT_APPLY,
+        owner_entity=owner,
+        source_entity=None,
+        slug="void_tithe",
+        turns=None,
+    )
+
+    damage_events: list[dict] = []
+    bus.subscribe(EVENT_HEALTH_DAMAGE, lambda s, **k: damage_events.append(k))
+
+    enemy_health: Health = world.component_for_entity(opponent, Health)
+    starting_hp = enemy_health.current
+
+    bus.emit(EVENT_TURN_ADVANCED, previous_owner=owner)
+
+    assert damage_events
+    target_ids = {event.get("target_entity") for event in damage_events}
+    assert opponent in target_ids
+    assert enemy_health.current == starting_hp - next(event["amount"] for event in damage_events if event.get("target_entity") == opponent)

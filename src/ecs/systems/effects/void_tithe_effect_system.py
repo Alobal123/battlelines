@@ -4,7 +4,6 @@ from esper import World
 
 from ecs.components.effect import Effect
 from ecs.components.effect_list import EffectList
-from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.board_position import BoardPosition
 from ecs.components.active_switch import ActiveSwitch
 from ecs.events.bus import (
@@ -12,6 +11,7 @@ from ecs.events.bus import (
     EVENT_TURN_ADVANCED,
     EventBus,
 )
+from ecs.utils.combatants import find_primary_opponent
 
 
 class VoidTitheEffectSystem:
@@ -100,7 +100,4 @@ class VoidTitheEffectSystem:
             return None
 
     def _find_opponent(self, owner: int) -> int | None:
-        for entity, _ in self.world.get_component(AbilityListOwner):
-            if entity != owner:
-                return entity
-        return None
+        return find_primary_opponent(self.world, owner)

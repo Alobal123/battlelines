@@ -40,6 +40,7 @@ from ecs.menu.factory import spawn_main_menu
 from ecs.systems.board_ops import get_tile_registry
 from ecs.systems.turn_state_utils import get_or_create_turn_state
 from ecs.utils.game_state import set_game_mode
+from ecs.utils.combatants import set_combat_opponent
 
 
 class DefeatSystem:
@@ -394,6 +395,7 @@ class DefeatSystem:
         self._ensure_enemy_owner_order(new_enemy)
         self._replace_turn_order_owner(defeated_entity, new_enemy)
         self._replace_active_turn_owner(defeated_entity, new_enemy)
+        set_combat_opponent(self.world, new_enemy)
         return new_enemy
 
     def _ensure_enemy_owner_order(self, enemy_entity: int) -> None:

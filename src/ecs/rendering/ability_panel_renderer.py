@@ -207,7 +207,7 @@ class AbilityPanelRenderer:
                     ability_entity=entry["entity"],
                     start_x=x + 8,
                     start_y=y + 8,
-                    dimmed=not usable,
+                    dimmed=False,
                 )
             base_cd = entry.get("cooldown", 0)
             remaining_cd = entry.get("cooldown_remaining", 0)

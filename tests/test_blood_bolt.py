@@ -4,6 +4,7 @@ from ecs.components.health import Health
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.ability import Ability
 from ecs.components.ability_effect import AbilityEffects
+from ecs.components.rule_based_agent import RuleBasedAgent
 from ecs.systems.health_system import HealthSystem
 from ecs.systems.ability_resolution_system import AbilityResolutionSystem
 from ecs.systems.effect_lifecycle_system import EffectLifecycleSystem
@@ -105,6 +106,55 @@ def test_blood_bolt_damages_both_players():
     
     # Verify two health changed events
     assert len(changed_events) == 2, f"Expected two health changed events, got {len(changed_events)}"
+
+
+def test_blood_bolt_still_targets_opponent_without_enemy_ability_list_owner():
+    """Opponent targeting should fall back when the enemy lacks AbilityListOwner."""
+    bus = EventBus()
+    world = create_world(bus)
+    grant_player_abilities(world, ("blood_bolt",))
+
+    HealthSystem(world, bus)
+    EffectLifecycleSystem(world, bus)
+    DamageEffectSystem(world, bus)
+    AbilityResolutionSystem(world, bus)
+
+    players = sorted([ent for ent in world.get_component(AbilityListOwner)], key=lambda p: p[0])
+    player1 = players[0][0]
+    enemy = next(ent for ent, _ in world.get_component(RuleBasedAgent))
+
+    try:
+        world.remove_component(enemy, AbilityListOwner)
+    except KeyError:
+        pass
+
+    ability_owner = world.component_for_entity(player1, AbilityListOwner)
+    bolt_entity = [
+        ent for ent in ability_owner.ability_entities
+        if world.component_for_entity(ent, Ability).name == "blood_bolt"
+    ][0]
+
+    damage_events: list[dict] = []
+    bus.subscribe(EVENT_HEALTH_DAMAGE, lambda s, **k: damage_events.append(k))
+
+    enemy_health = world.component_for_entity(enemy, Health)
+    starting_hp = enemy_health.current
+
+    pending = PendingAbilityTarget(
+        ability_entity=bolt_entity,
+        owner_entity=player1,
+        row=None,
+        col=None,
+        target_entity=player1,
+    )
+
+    from ecs.events.bus import EVENT_ABILITY_EXECUTE
+
+    bus.emit(EVENT_ABILITY_EXECUTE, ability_entity=bolt_entity, owner_entity=player1, pending=pending)
+
+    opponent_damage = [e for e in damage_events if e.get("target_entity") == enemy]
+    assert opponent_damage, "Expected damage event against the enemy"
+    assert enemy_health.current == starting_hp - opponent_damage[0]["amount"]
 
 
 def test_blood_bolt_reason_distinguishable_from_witchfire():

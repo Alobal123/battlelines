@@ -9,6 +9,7 @@ class GameMode(Enum):
     MENU = auto()
     ABILITY_DRAFT = auto()
     SKILL_DRAFT = auto()
+    LOCATION_DRAFT = auto()
     DIALOGUE = auto()
     COMBAT = auto()
 

@@ -9,6 +9,7 @@ from ecs.components.ability import Ability
 from ecs.components.pending_ability_target import PendingAbilityTarget
 from ecs.components.ability_effect import AbilityEffectSpec, AbilityEffects
 from ecs.events.bus import EventBus, EVENT_EFFECT_APPLY
+from ecs.utils.combatants import find_primary_opponent
 
 
 @dataclass(slots=True)
@@ -115,14 +116,7 @@ class EffectDrivenAbilityResolver:
         return metadata
 
     def _find_opponent_entity(self, ctx: AbilityContext) -> int | None:
-        if ctx.owner_entity is None:
-            return None
-        from ecs.components.ability_list_owner import AbilityListOwner
-
-        for entity, _ in ctx.world.get_component(AbilityListOwner):
-            if entity != ctx.owner_entity:
-                return entity
-        return None
+        return find_primary_opponent(ctx.world, ctx.owner_entity)
 
     def _find_board_entity(self, ctx: AbilityContext) -> int | None:
         from ecs.components.board import Board

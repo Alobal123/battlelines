@@ -26,6 +26,7 @@ from ecs.systems.ability_targeting_system import AbilityTargetingSystem
 from ecs.systems.affinity_system import AffinitySystem
 from ecs.systems.skills.skill_pool_system import SkillPoolSystem
 from ecs.systems.skills.skill_choice_system import SkillChoiceSystem
+from ecs.systems.location_choice_system import LocationChoiceSystem
 from ecs.systems.turn_system import TurnSystem
 from ecs.systems.health_system import HealthSystem
 from ecs.systems.effects.damage_effect_system import DamageEffectSystem
@@ -95,6 +96,7 @@ class BattlelinesWindow(Window):
         self.match_setup_system = MatchSetupSystem(self.world, self.event_bus)
         self.ability_system = AbilitySystem(self.world, self.event_bus)
         self.skill_choice_system = SkillChoiceSystem(self.world, self.event_bus)
+        self.location_choice_system = LocationChoiceSystem(self.world, self.event_bus)
         self.ability_targeting_system = AbilityTargetingSystem(self.world, self.event_bus)
         self.affinity_system = AffinitySystem(self.world, self.event_bus)
 

@@ -80,7 +80,12 @@ class ChoiceInputSystem:
     def _on_game_mode_changed(self, sender, **payload) -> None:
         new_mode = payload.get("new_mode")
         guard = payload.get("input_guard_press_id")
-        if new_mode not in (GameMode.COMBAT, GameMode.ABILITY_DRAFT, GameMode.SKILL_DRAFT):
+        if new_mode not in (
+            GameMode.COMBAT,
+            GameMode.ABILITY_DRAFT,
+            GameMode.SKILL_DRAFT,
+            GameMode.LOCATION_DRAFT,
+        ):
             self._press_guard_id = None
             return
         try:
@@ -117,4 +122,9 @@ class ChoiceInputSystem:
         if not states:
             return True
         mode = states[0][1].mode
-        return mode in (GameMode.COMBAT, GameMode.ABILITY_DRAFT, GameMode.SKILL_DRAFT)
+        return mode in (
+            GameMode.COMBAT,
+            GameMode.ABILITY_DRAFT,
+            GameMode.SKILL_DRAFT,
+            GameMode.LOCATION_DRAFT,
+        )
