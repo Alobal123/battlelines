@@ -7,6 +7,8 @@ from ecs.world import create_world
 from ecs.components.skill_list_owner import SkillListOwner
 from ecs.components.human_agent import HumanAgent
 
+from tests.helpers import grant_player_skills
+
 
 def _human_entity(world: World) -> int:
     return next(ent for ent, _ in world.get_component(HumanAgent))
@@ -19,6 +21,7 @@ def _skill_owner(world: World, entity: int) -> SkillListOwner:
 def test_skill_pool_request_excludes_owned_skills() -> None:
     bus = EventBus()
     world = create_world(bus, grant_default_player_abilities=False)
+    grant_player_skills(world, ("self_reprimand",))
     SkillPoolSystem(world, bus)
     owner = _human_entity(world)
     skill_owner = _skill_owner(world, owner)
@@ -54,6 +57,7 @@ def test_skill_pool_request_excludes_owned_skills() -> None:
 def test_skill_pool_request_limits_total_offers() -> None:
     bus = EventBus()
     world = create_world(bus, grant_default_player_abilities=False)
+    grant_player_skills(world, ("self_reprimand",))
     pool = SkillPoolSystem(world, bus)
     owner = _human_entity(world)
 

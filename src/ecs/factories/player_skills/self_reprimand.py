@@ -14,6 +14,7 @@ def create_skill_self_reprimand(world: World) -> int:
             name="Self Reprimand",
             description="When you damage yourself, deal 1 damage and gain 1 blood.",
             tags=("blood", "retaliation"),
+            affinity_bonus={"blood": 1},
         ),
         SkillEffects(
             effects=(

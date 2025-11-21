@@ -9,10 +9,13 @@ from ecs.components.targeting_state import TargetingState
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.human_agent import HumanAgent
 
+from tests.helpers import grant_player_abilities
+
 @pytest.fixture
 def setup_world():
     bus = EventBus()
     world = create_world(bus)
+    grant_player_abilities(world, ("tactical_shift",))
     class DummyWindow:
         width = 800
         height = 600

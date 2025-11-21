@@ -23,3 +23,4 @@ class Ability:
     params: Dict[str, Any] = field(default_factory=dict)
     cooldown: int = 0
     ends_turn: bool = True
+    affinity_bonus: Dict[str, int] = field(default_factory=dict)

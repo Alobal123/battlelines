@@ -27,6 +27,8 @@ from ecs.components.active_turn import ActiveTurn
 from ecs.menu.components import MenuButton
 from ecs.systems.board_ops import find_all_matches
 
+from tests.helpers import grant_player_abilities
+
 
 def _human_entity(world):
     return next(ent for ent, _ in world.get_component(HumanAgent))
@@ -39,6 +41,7 @@ def _enemy_entity(world):
 def test_player_defeat_opens_game_over_choice():
     bus = EventBus()
     world = create_world(bus)
+    grant_player_abilities(world, ("tactical_shift",))
     DefeatSystem(world, bus)
     human = _human_entity(world)
 
@@ -61,6 +64,7 @@ def test_player_defeat_opens_game_over_choice():
 def test_return_to_menu_resets_state_and_spawns_menu():
     bus = EventBus()
     world = create_world(bus)
+    grant_player_abilities(world, ("tactical_shift",))
     defeat = DefeatSystem(world, bus)
     human = _human_entity(world)
 
@@ -109,6 +113,7 @@ def test_return_to_menu_resets_state_and_spawns_menu():
 def test_enemy_defeat_resets_combat_state():
     bus = EventBus()
     world = create_world(bus)
+    grant_player_abilities(world, ("tactical_shift",))
     DefeatSystem(world, bus)
     human = _human_entity(world)
     enemy = _enemy_entity(world)

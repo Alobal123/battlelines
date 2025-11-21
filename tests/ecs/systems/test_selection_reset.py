@@ -8,6 +8,8 @@ from ecs.systems.turn_system import TurnSystem
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.human_agent import HumanAgent
 
+from tests.helpers import grant_player_abilities
+
 @pytest.fixture
 def setup_world():
     bus = EventBus(); world = create_world(bus)
@@ -15,6 +17,7 @@ def setup_world():
     AbilityTargetingSystem(world, bus)
     ability = AbilitySystem(world, bus)
     turn = TurnSystem(world, bus)
+    grant_player_abilities(world, ("tactical_shift",))
     return bus, world, board
 
 def _first_player(world):

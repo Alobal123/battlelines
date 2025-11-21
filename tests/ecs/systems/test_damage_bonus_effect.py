@@ -25,6 +25,8 @@ from ecs.systems.effects.heal_effect_system import HealEffectSystem
 from ecs.systems.tile_bank_system import TileBankSystem
 from ecs.systems.turn_system import TurnSystem
 
+from tests.helpers import grant_player_abilities
+
 
 @pytest.fixture
 def setup_world():
@@ -37,6 +39,7 @@ def setup_world():
     DamageEffectSystem(world, bus)
     HealEffectSystem(world, bus)
     TurnSystem(world, bus)
+    grant_player_abilities(world, ("savagery", "blood_bolt"))
     return bus, world
 
 

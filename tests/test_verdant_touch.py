@@ -10,11 +10,14 @@ from ecs.systems.effect_lifecycle_system import EffectLifecycleSystem
 from ecs.systems.effects.heal_effect_system import HealEffectSystem
 from ecs.components.pending_ability_target import PendingAbilityTarget
 
+from tests.helpers import grant_player_abilities
+
 
 def test_verdant_touch_heals_caster():
     """Verdant Touch should heal the casting player by 4 HP."""
     bus = EventBus()
     world = create_world(bus)
+    grant_player_abilities(world, ("verdant_touch",))
     
     # Wire up health system to handle healing events
     health_system = HealthSystem(world, bus)
@@ -82,6 +85,7 @@ def test_verdant_touch_caps_at_max_hp():
     """Healing should not exceed max HP."""
     bus = EventBus()
     world = create_world(bus)
+    grant_player_abilities(world, ("verdant_touch",))
     
     health_system = HealthSystem(world, bus)
     effect_system = EffectLifecycleSystem(world, bus)

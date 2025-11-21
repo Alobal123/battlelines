@@ -17,7 +17,8 @@ class Marker:
 
 def test_spawn_choice_window_creates_entities_and_components():
     world = World()
-    choice_a = ChoiceDefinition(label="Alpha", description="First", components=(Marker(1),))
+    meta_ref = {"track": 1}
+    choice_a = ChoiceDefinition(label="Alpha", description="First", components=(Marker(1),), metadata=meta_ref)
     choice_b = ChoiceDefinition(label="Beta", payload_entity=42, width=300.0)
 
     window_entity = spawn_choice_window(
@@ -43,6 +44,9 @@ def test_spawn_choice_window_creates_entities_and_components():
     assert first_option.width == 200.0
     assert second_option.width == 300.0
     assert first_option.height == 120.0
+    assert first_option.metadata.get("track") == 1
+    meta_ref["track"] = 42
+    assert first_option.metadata.get("track") == 1
 
     assert world.component_for_entity(first_entity, Marker).value == 1
     assert world.has_component(first_entity, ChoiceTag)

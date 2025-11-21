@@ -23,6 +23,8 @@ from ecs.systems.skills.skill_choice_system import SkillChoiceSystem
 from ecs.systems.skills.apply_skill_effects_system import ApplySkillEffectsSystem
 from ecs.world import create_world
 
+from tests.helpers import grant_player_skills
+
 
 def _human_entity(world: World) -> int:
     return next(ent for ent, _ in world.get_component(HumanAgent))
@@ -31,6 +33,7 @@ def _human_entity(world: World) -> int:
 def test_spawn_player_ability_choice_creates_options():
     bus = EventBus()
     world = create_world(bus, grant_default_player_abilities=False)
+    grant_player_skills(world, ("self_reprimand",))
     window_entity = spawn_player_ability_choice(
         world,
         rng=random.Random(0),
@@ -47,6 +50,7 @@ def test_spawn_player_ability_choice_creates_options():
 def test_player_ability_selection_adds_chosen_ability():
     bus = EventBus()
     world = create_world(bus, grant_default_player_abilities=False)
+    grant_player_skills(world, ("self_reprimand",))
     DialogueSystem(world, bus)
     AbilitySystem(world, bus)
     MatchSetupSystem(world, bus, rng=random.Random(1))
@@ -65,6 +69,9 @@ def test_player_ability_selection_adds_chosen_ability():
     assert choices, "Expected at least one starting ability option"
     choice_entity, choice_comp = choices[0]
     selected_name = choice_comp.ability_name
+    owner_entity = _human_entity(world)
+    skill_owner: SkillListOwner = world.component_for_entity(owner_entity, SkillListOwner)
+    initial_skill_count = len(skill_owner.skill_entities)
     bus.emit(
         EVENT_CHOICE_SELECTED,
         window_entity=window_entity,
@@ -72,7 +79,6 @@ def test_player_ability_selection_adds_chosen_ability():
         press_id=777,
     )
     assert state.mode == GameMode.SKILL_DRAFT
-    owner_entity = _human_entity(world)
     owner_comp: AbilityListOwner = world.component_for_entity(owner_entity, AbilityListOwner)
     assert len(owner_comp.ability_entities) == 1
     ability_entity = owner_comp.ability_entities[0]
@@ -102,8 +108,7 @@ def test_player_ability_selection_adds_chosen_ability():
 
     assert state.mode == GameMode.DIALOGUE
 
-    skill_owner: SkillListOwner = world.component_for_entity(owner_entity, SkillListOwner)
-    assert len(skill_owner.skill_entities) >= 2
+    assert len(skill_owner.skill_entities) == initial_skill_count + 1
     gained_skill_entity = skill_owner.skill_entities[-1]
     _ = world.component_for_entity(gained_skill_entity, Skill)
     assert skill_choice.skill_name in skill_slugs_for_entity(world, gained_skill_entity)

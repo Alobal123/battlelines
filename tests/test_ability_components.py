@@ -5,10 +5,13 @@ from ecs.components.ability_target import AbilityTarget
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.human_agent import HumanAgent
 
+from tests.helpers import grant_player_abilities
+
 
 def test_ability_entity_created():
     bus = EventBus()
     world = create_world(bus)
+    grant_player_abilities(world, ("tactical_shift",))
     # Find ability entity via Ability component
     ability_entities = list(world.get_component(Ability))
     assert ability_entities, "Ability entity not created"
@@ -29,6 +32,7 @@ def test_ability_entity_created():
 def test_player_has_ability_list_owner():
     bus = EventBus()
     world = create_world(bus)
+    grant_player_abilities(world, ("tactical_shift",))
     human_entities = list(world.get_component(HumanAgent))
     assert human_entities, "Player AbilityListOwner not found"
     player_ent = human_entities[0][0]

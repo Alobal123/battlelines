@@ -20,6 +20,8 @@ from ecs.components.tile_bank import TileBank
 from ecs.components.board_position import BoardPosition
 from ecs.components.tile import TileType
 
+from tests.helpers import grant_player_abilities
+
 @pytest.fixture
 def setup_world():
     bus = EventBus(); world = create_world(bus)
@@ -34,6 +36,7 @@ def setup_world():
     EffectLifecycleSystem(world, bus)
     BoardClearEffectSystem(world, bus)
     BoardTransformEffectSystem(world, bus)
+    grant_player_abilities(world, ("tactical_shift", "savagery"))
     return bus, world
 
 def test_turn_advanced_on_cascade_complete(setup_world):

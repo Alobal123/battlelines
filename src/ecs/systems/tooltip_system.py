@@ -197,9 +197,12 @@ class TooltipSystem:
             except KeyError:
                 continue
             label = self._effect_display_name(effect.slug)
+            description = self._effect_description(effect)
             meta = self._format_effect_metadata(effect)
             duration_text = self._effect_duration_text(effect_entity)
             parts = [label]
+            if description:
+                parts.append(description)
             if meta:
                 parts.append(meta)
             if duration_text:
@@ -256,3 +259,22 @@ class TooltipSystem:
                     bonus_value = int(bonus_value)
                 return f"+{bonus_value} damage"
         return ""
+
+    def _effect_description(self, effect: Effect) -> str:
+        definition = None
+        try:
+            definition = default_effect_registry.get(effect.slug)
+        except KeyError:
+            definition = None
+        description = ""
+        if definition and definition.description:
+            description = definition.description
+        meta_desc = effect.metadata.get("description") if effect.metadata else None
+        if meta_desc:
+            try:
+                meta_text = str(meta_desc)
+            except Exception:
+                meta_text = None
+            if meta_text:
+                return meta_text
+        return description

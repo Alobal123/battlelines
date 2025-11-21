@@ -12,8 +12,9 @@ def create_skill_void_tithe(world: World) -> int:
     return world.create_entity(
         Skill(
             name="Void Tithe",
-            description="At the end of your turn, deal damage equal to your empty board tiles.",
+            description="At the end of your turn, deal damage equal to the number of empty board tiles.",
             tags=("void", "retaliation"),
+            affinity_bonus={"blood": 2},
         ),
         SkillEffects(
             effects=(

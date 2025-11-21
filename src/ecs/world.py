@@ -17,13 +17,15 @@ from ecs.factories.abilities import create_default_player_abilities
 from ecs.factories.enemies import create_enemy_undead_gardener
 from ecs.components.skill_list_owner import SkillListOwner
 from ecs.factories.player_skills import create_skill_self_reprimand
+from ecs.components.affinity import Affinity
 
 
 def create_world(
     event_bus: EventBus,
     initial_mode: GameMode = GameMode.COMBAT,
     *,
-    grant_default_player_abilities: bool = True,
+    grant_default_player_abilities: bool = False,
+    grant_default_player_skills: bool = False,
     randomize_enemy: bool = False,
     rng: random.Random | None = None,
 ) -> World:
@@ -46,6 +48,7 @@ def create_world(
         SkillListOwner(),
         TileBank(owner_entity=0),
         Health(current=30, max_hp=30),
+        Affinity(base={"blood": 1, "spirit": 1}),
         Character(
             slug="fiora",
             name="Fiora",
@@ -55,6 +58,14 @@ def create_world(
     )
     bank1 = world.component_for_entity(player1_ent, TileBank)
     bank1.owner_entity = player1_ent
+    if grant_default_player_skills:
+        try:
+            base_skill = create_skill_self_reprimand(world)
+        except Exception:
+            base_skill = None
+        if base_skill is not None:
+            skill_owner = world.component_for_entity(player1_ent, SkillListOwner)
+            skill_owner.skill_entities.append(base_skill)
     from ecs.systems.enemy_pool_system import EnemyPoolSystem
 
     enemy_pool = EnemyPoolSystem(world, event_bus, rng=getattr(world, "random", None))
@@ -77,6 +88,8 @@ def create_world(
     world.add_component(player2_ent, enemy_abilities)
     if not world.has_component(player2_ent, SkillListOwner):
         world.add_component(player2_ent, SkillListOwner())
+    if not world.has_component(player2_ent, Affinity):
+        world.add_component(player2_ent, Affinity(base={}))
 
 
     # Create single registry entity with canonical types

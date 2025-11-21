@@ -76,7 +76,7 @@ class BankPanelRenderer:
             arcade.draw_polygon_filled(bar_points, (35, 35, 35))
             arcade.draw_polygon_outline(bar_points, border_color, 2)
 
-        circle_radius = 32
+        circle_radius = 28
         ordered_types = ["nature", "blood", "shapeshift", "spirit", "hex"]
         for idx, (bank_ent, bank) in enumerate(banks_sorted):
             bar_left = left_panel_left if idx == 0 else right_panel_left

@@ -90,7 +90,7 @@ def spawn_ability_choice_window(
     rng: random.Random | None = None,
     skippable: bool = False,
     panel_width: float = 260.0,
-    panel_height: float = 180.0,
+    panel_height: float = 260.0,
     panel_gap: float = 28.0,
     require_empty_owner: bool = False,
     prevent_duplicate_window: bool = True,
@@ -131,7 +131,7 @@ def spawn_ability_choice_window(
     definitions: List[ChoiceDefinition] = []
     for ability_name in selection:
         label = _format_ability_label(ability_name)
-        description = _ability_description(world, ability_name)
+        description, preview_cost = _ability_preview(world, ability_name)
         definitions.append(
             ChoiceDefinition(
                 label=label,
@@ -141,6 +141,7 @@ def spawn_ability_choice_window(
                 ),
                 width=panel_width,
                 height=panel_height,
+                metadata={"ability_cost": dict(preview_cost)},
             )
         )
     if not definitions:
@@ -204,25 +205,33 @@ def _format_ability_label(ability_name: str) -> str:
     return ability_name.replace("_", " ").title()
 
 
-_ABILITY_DESCRIPTION_CACHE: Dict[str, str] = {}
+_ABILITY_PREVIEW_CACHE: Dict[str, tuple[str, Tuple[tuple[str, int], ...]]] = {}
 
 
-def _ability_description(world: World, ability_name: str) -> str:
-    cached = _ABILITY_DESCRIPTION_CACHE.get(ability_name)
+def _ability_preview(world: World, ability_name: str) -> tuple[str, Dict[str, int]]:
+    cached = _ABILITY_PREVIEW_CACHE.get(ability_name)
     if cached is not None:
-        return cached
+        description, cost_tuples = cached
+        return description, dict(cost_tuples)
     temp_entity = create_ability_by_name(world, ability_name)
     try:
         ability = world.component_for_entity(temp_entity, Ability)
         description = ability.description or ""
+        cost_items = tuple(sorted((ability.cost or {}).items()))
     except KeyError:
         description = ""
+        cost_items = ()
     finally:
         try:
             world.delete_entity(temp_entity, immediate=True)
         except Exception:
             world.delete_entity(temp_entity)
-    _ABILITY_DESCRIPTION_CACHE[ability_name] = description
+    _ABILITY_PREVIEW_CACHE[ability_name] = (description, cost_items)
+    return description, dict(cost_items)
+
+
+def _ability_description(world: World, ability_name: str) -> str:
+    description, _ = _ability_preview(world, ability_name)
     return description
 
 

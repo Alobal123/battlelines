@@ -9,6 +9,8 @@ from ecs.systems.turn_system import TurnSystem
 from ecs.components.targeting_state import TargetingState
 from ecs.components.human_agent import HumanAgent
 
+from tests.helpers import grant_player_abilities
+
 @pytest.fixture
 def setup_env():
     bus = EventBus(); world = create_world(bus)
@@ -17,6 +19,7 @@ def setup_env():
     AbilitySystem(world, bus)
     TileBankSystem(world, bus)
     TurnSystem(world, bus)
+    grant_player_abilities(world, ("tactical_shift",))
     return bus, world, board
 
 def test_tile_click_ignored_during_cascade(setup_env):

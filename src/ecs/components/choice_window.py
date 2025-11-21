@@ -1,6 +1,6 @@
 """Components describing the generic choice window UI."""
 from dataclasses import dataclass, field
-from typing import Optional, Tuple, List
+from typing import Any, Optional, Tuple, List
 
 
 @dataclass(slots=True)
@@ -24,9 +24,10 @@ class ChoiceOption:
     description: str = ""
     payload_entity: Optional[int] = None
     width: float = 240.0
-    height: float = 160.0
+    height: float = 400.0
     order: int = 0
     bounds: Optional[Tuple[float, float, float, float]] = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(slots=True)

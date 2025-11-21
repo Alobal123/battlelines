@@ -10,11 +10,14 @@ from ecs.systems.effect_lifecycle_system import EffectLifecycleSystem
 from ecs.systems.effects.damage_effect_system import DamageEffectSystem
 from ecs.components.pending_ability_target import PendingAbilityTarget
 
+from tests.helpers import grant_player_abilities
+
 
 def test_blood_bolt_damages_both_players():
     """Blood Bolt should damage both the caster and opponent."""
     bus = EventBus()
     world = create_world(bus)
+    grant_player_abilities(world, ("blood_bolt",))
     
     # Wire up health system to handle damage events
     health_system = HealthSystem(world, bus)
@@ -108,6 +111,7 @@ def test_blood_bolt_reason_distinguishable_from_witchfire():
     """Blood Bolt damage should have distinct reason from witchfire damage."""
     bus = EventBus()
     world = create_world(bus)
+    grant_player_abilities(world, ("blood_bolt",))
     
     health_system = HealthSystem(world, bus)
     effect_system = EffectLifecycleSystem(world, bus)
@@ -168,6 +172,7 @@ def test_blood_bolt_opponent_damage_has_correct_reason():
     """Opponent damage from Blood Bolt should have 'blood_bolt' reason."""
     bus = EventBus()
     world = create_world(bus)
+    grant_player_abilities(world, ("blood_bolt",))
     
     health_system = HealthSystem(world, bus)
     effect_system = EffectLifecycleSystem(world, bus)

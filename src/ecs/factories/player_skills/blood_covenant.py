@@ -12,8 +12,9 @@ def create_skill_blood_covenant(world: World) -> int:
     return world.create_entity(
         Skill(
             name="Blood Covenant",
-            description="At the start of your turn, deal one damage to yourself.",
+            description="At the start of your turn, deal one damage to the enemy as well as to yourself.",
             tags=("blood", "reckless"),
+            affinity_bonus={"blood": 2},
         ),
         SkillEffects(
             effects=(

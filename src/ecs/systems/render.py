@@ -151,7 +151,7 @@ class RenderSystem:
             if not headless:
                 # Draw panel bases; then lifebars; then ability rectangles.
                 self._player_panel_renderer.render(arcade, ctx)
-                self._lifebar_renderer.render(arcade, ctx)
+                self._lifebar_renderer.render(arcade, ctx, getattr(self, "_player_panel_cache", None))
                 self._forbidden_knowledge_renderer.render(arcade, ctx)
                 self._bank_panel_renderer.render(arcade, ctx, registry)
 
@@ -182,6 +182,21 @@ class RenderSystem:
             height = entry.get("height", 0.0)
             if ex <= x <= ex + width and ey <= y <= ey + height:
                 return entry
+            portrait_left = entry.get("portrait_left")
+            portrait_bottom = entry.get("portrait_bottom")
+            portrait_size = entry.get("portrait_size")
+            if (
+                portrait_left is not None
+                and portrait_bottom is not None
+                and portrait_size is not None
+            ):
+                portrait_top = entry.get("portrait_top", portrait_bottom + portrait_size)
+                portrait_right = portrait_left + portrait_size
+                if (
+                    portrait_left <= x <= portrait_right
+                    and portrait_bottom <= y <= portrait_top
+                ):
+                    return entry
         return None
 
     def get_forbidden_knowledge_at_point(self, x: float, y: float):

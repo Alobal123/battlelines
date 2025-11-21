@@ -85,7 +85,7 @@ def spawn_skill_choice_window(
     rng: random.Random | None = None,
     skippable: bool = False,
     panel_width: float = 260.0,
-    panel_height: float = 180.0,
+    panel_height: float = 260.0,
     panel_gap: float = 28.0,
     prevent_duplicate_window: bool = True,
     choice_component_factory: Callable[[int, str], object] | None = None,

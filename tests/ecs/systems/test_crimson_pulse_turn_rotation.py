@@ -18,7 +18,7 @@ from ecs.components.human_agent import HumanAgent
 
 @pytest.fixture
 def setup_world():
-    bus = EventBus(); world = create_world(bus)
+    bus = EventBus(); world = create_world(bus, grant_default_player_abilities=True)
     AbilityTargetingSystem(world, bus)
     AbilitySystem(world, bus)
     TileBankSystem(world, bus)

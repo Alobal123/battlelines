@@ -14,6 +14,10 @@ class SpriteCache:
         self._tile_sprites: Any | None = None
         self._bank_sprite_map: dict[tuple[int, str], Any] = {}
         self._bank_sprites: Any | None = None
+        self._choice_cost_sprite_map: dict[tuple[int, int], Any] = {}
+        self._choice_cost_sprites: Any | None = None
+        self._ability_cost_sprite_map: dict[tuple[int, int], Any] = {}
+        self._ability_cost_sprites: Any | None = None
         self._regiment_sprite_map: dict[int, Any] = {}
         self._regiment_sprites: Any | None = None
         self._portrait_sprite_map: dict[str, Any] = {}
@@ -82,6 +86,102 @@ class SpriteCache:
     def draw_bank_sprites(self) -> None:
         if self._bank_sprites is not None:
             self._bank_sprites.draw()
+
+    # ------------------------------------------------------------------
+    # Ability/choice window cost sprites (per option + slot)
+    # ------------------------------------------------------------------
+    def ensure_choice_cost_sprite(self, arcade_module, option_entity: int, slot_index: int, type_name: str):
+        if not type_name:
+            return None
+        choice_list = self._choice_cost_sprites
+        if choice_list is None:
+            choice_list = arcade_module.SpriteList()
+            self._choice_cost_sprites = choice_list
+        key = (option_entity, slot_index)
+        sprite = self._choice_cost_sprite_map.get(key)
+        current_type = getattr(sprite, "_choice_cost_type", None) if sprite is not None else None
+        if sprite is not None and current_type != type_name:
+            try:
+                sprite.remove_from_sprite_lists()
+            except Exception:
+                pass
+            self._choice_cost_sprite_map.pop(key, None)
+            sprite = None
+        if sprite is None:
+            sprite = self._create_tile_sprite(arcade_module, type_name)
+            if sprite is None:
+                return None
+            sprite._choice_cost_type = type_name  # type: ignore[attr-defined]
+            self._choice_cost_sprite_map[key] = sprite
+            choice_list.append(sprite)
+        return sprite
+
+    def draw_choice_cost_sprites(self) -> None:
+        if self._choice_cost_sprites is not None:
+            self._choice_cost_sprites.draw()
+
+    def cleanup_choice_cost_sprites(self, active_keys: set[tuple[int, int]]) -> None:
+        if not self._choice_cost_sprite_map:
+            return
+        for key, sprite in list(self._choice_cost_sprite_map.items()):
+            if key not in active_keys:
+                removed = self._choice_cost_sprite_map.pop(key, None)
+                if removed is not None:
+                    try:
+                        removed.remove_from_sprite_lists()
+                    except Exception:
+                        pass
+        if not self._choice_cost_sprite_map and self._choice_cost_sprites is not None:
+            if hasattr(self._choice_cost_sprites, "__len__") and len(self._choice_cost_sprites) == 0:
+                self._choice_cost_sprites = None
+
+    # ------------------------------------------------------------------
+    # Ability panel cost sprites (per ability entity + slot)
+    # ------------------------------------------------------------------
+    def ensure_ability_cost_sprite(self, arcade_module, ability_entity: int, slot_index: int, type_name: str):
+        if not type_name:
+            return None
+        ability_list = self._ability_cost_sprites
+        if ability_list is None:
+            ability_list = arcade_module.SpriteList()
+            self._ability_cost_sprites = ability_list
+        key = (ability_entity, slot_index)
+        sprite = self._ability_cost_sprite_map.get(key)
+        current_type = getattr(sprite, "_ability_cost_type", None) if sprite is not None else None
+        if sprite is not None and current_type != type_name:
+            try:
+                sprite.remove_from_sprite_lists()
+            except Exception:
+                pass
+            self._ability_cost_sprite_map.pop(key, None)
+            sprite = None
+        if sprite is None:
+            sprite = self._create_tile_sprite(arcade_module, type_name)
+            if sprite is None:
+                return None
+            sprite._ability_cost_type = type_name  # type: ignore[attr-defined]
+            self._ability_cost_sprite_map[key] = sprite
+            ability_list.append(sprite)
+        return sprite
+
+    def draw_ability_cost_sprites(self) -> None:
+        if self._ability_cost_sprites is not None:
+            self._ability_cost_sprites.draw()
+
+    def cleanup_ability_cost_sprites(self, active_keys: set[tuple[int, int]]) -> None:
+        if not self._ability_cost_sprite_map:
+            return
+        for key, sprite in list(self._ability_cost_sprite_map.items()):
+            if key not in active_keys:
+                removed = self._ability_cost_sprite_map.pop(key, None)
+                if removed is not None:
+                    try:
+                        removed.remove_from_sprite_lists()
+                    except Exception:
+                        pass
+        if not self._ability_cost_sprite_map and self._ability_cost_sprites is not None:
+            if hasattr(self._ability_cost_sprites, "__len__") and len(self._ability_cost_sprites) == 0:
+                self._ability_cost_sprites = None
 
     # ------------------------------------------------------------------
     # Regiment sprites (per regiment entity)
@@ -193,6 +293,18 @@ class SpriteCache:
         if tint_color is not None and hasattr(sprite, "color") and isinstance(tint_color, tuple):
             r, g, b = tint_color[:3]
             sprite.color = (r, g, b)
+
+    def get_tile_texture(self, arcade_module, type_name: str, *, max_dim: int | None = 96):
+        if not type_name:
+            return None
+        preferred_name = type_name
+        texture_path = self._texture_dir / f"{preferred_name}.png"
+        if not texture_path.exists() and type_name == "chaos":
+            preferred_name = "secrets"
+            texture_path = self._texture_dir / f"{preferred_name}.png"
+        if not texture_path.exists():
+            return None
+        return self._load_smoothed_texture(arcade_module, texture_path, max_dim=max_dim)
 
     def _create_tile_sprite(self, arcade_module, type_name: str):
         preferred_name = type_name

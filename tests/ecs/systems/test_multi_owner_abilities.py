@@ -7,6 +7,8 @@ from ecs.systems.render import RenderSystem
 from ecs.systems.input import InputSystem
 from ecs.components.ability_list_owner import AbilityListOwner
 
+from tests.helpers import grant_player_abilities
+
 class DummyWindow:
     width = 800
     height = 600
@@ -15,6 +17,7 @@ class DummyWindow:
 def setup_world():
     bus = EventBus()
     world = create_world(bus)
+    grant_player_abilities(world, ("tactical_shift",))
     window = DummyWindow()
     render = RenderSystem(world, bus, window)
     AbilityTargetingSystem(world, bus)

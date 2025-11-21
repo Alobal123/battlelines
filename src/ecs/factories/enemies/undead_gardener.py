@@ -9,6 +9,7 @@ from ecs.components.character import Character
 from ecs.components.health import Health
 from ecs.components.rule_based_agent import RuleBasedAgent
 from ecs.components.tile_bank import TileBank
+from ecs.components.affinity import Affinity
 from .common import resolve_enemy_abilities
 
 DEFAULT_UNDEAD_GARDENER_LOADOUT: Sequence[str] = (
@@ -32,6 +33,7 @@ def create_enemy_undead_gardener(
         AbilityListOwner(ability_entities=ability_entities),
         TileBank(owner_entity=0),
         Health(current=max_hp, max_hp=max_hp),
+        Affinity(base={"nature": 1, "spirit": 1}),
         Character(
             slug="undead_gardener",
             name="Undead Gardener",

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Iterable, Sequence
+from typing import Iterable, Mapping, Sequence
 
 from esper import World
 
@@ -19,6 +19,7 @@ class ChoiceDefinition:
     payload_entity: int | None = None
     width: float | None = None
     height: float | None = None
+    metadata: Mapping[str, object] | None = None
 
 
 def spawn_choice_window(
@@ -28,7 +29,7 @@ def spawn_choice_window(
     skippable: bool = False,
     title: str | None = None,
     panel_width: float = 240.0,
-    panel_height: float = 160.0,
+        panel_height: float = 240.0,
     panel_gap: float = 24.0,
 ) -> int:
     """Create a choice window entity with the provided options."""
@@ -46,6 +47,7 @@ def spawn_choice_window(
             width=choice.width or panel_width,
             height=choice.height or panel_height,
             order=idx,
+            metadata=dict(choice.metadata or {}),
         )
         world.add_component(option_entity, option)
         world.add_component(option_entity, ChoiceTag())

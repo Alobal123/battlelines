@@ -23,6 +23,8 @@ from ecs.systems.health_system import HealthSystem
 from ecs.systems.tile_bank_system import TileBankSystem
 from ecs.systems.skills.apply_skill_effects_system import ApplySkillEffectsSystem
 
+from tests.helpers import grant_player_abilities, grant_player_skills
+
 
 def _setup_core_systems(world: World, bus: EventBus) -> None:
     HealthSystem(world, bus)
@@ -32,6 +34,11 @@ def _setup_core_systems(world: World, bus: EventBus) -> None:
     TileBankSystem(world, bus)
     SelfReprimandEffectSystem(world, bus)
     AbilityResolutionSystem(world, bus)
+
+
+def _prepare_player(world: World) -> None:
+    grant_player_abilities(world, ("blood_bolt",))
+    grant_player_skills(world, ("self_reprimand",))
 
 
 def _players(world: World) -> tuple[int, int]:
@@ -75,6 +82,7 @@ def _activate_blood_bolt(bus: EventBus, ability_entity: int, owner: int) -> None
 def test_self_reprimand_triggers_extra_damage_and_blood_gain() -> None:
     bus = EventBus()
     world = create_world(bus)
+    _prepare_player(world)
     _setup_core_systems(world, bus)
 
     owner, opponent = _players(world)
@@ -115,6 +123,7 @@ def test_self_reprimand_triggers_extra_damage_and_blood_gain() -> None:
 def test_self_reprimand_absent_does_not_trigger() -> None:
     bus = EventBus()
     world = create_world(bus)
+    _prepare_player(world)
     _setup_core_systems(world, bus)
 
     owner, opponent = _players(world)

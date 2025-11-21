@@ -160,6 +160,8 @@ class PlayerPanelRenderer:
                         "width": col_w,
                         "height": PLAYER_PANEL_HEIGHT,
                         "label": label,
+                        "portrait_left": portrait_left,
+                        "portrait_top": portrait_top,
                         "portrait_bottom": portrait_bottom,
                         "portrait_size": portrait_size,
                         "active": highlight,
