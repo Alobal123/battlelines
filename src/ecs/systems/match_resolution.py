@@ -9,7 +9,14 @@ from ecs.components.tile import TileType
 from ecs.components.board_position import BoardPosition
 # Board color mapping deprecated; use TileTypeRegistry
 from ecs.components.board import Board
-from ecs.systems.board_ops import clear_tiles_with_cascade, refill_inactive_tiles, find_all_matches
+from ecs.systems.board_ops import (
+    clear_tiles_with_cascade,
+    refill_inactive_tiles,
+    find_all_matches,
+    find_valid_swaps,
+    active_tile_type_map,
+    respawn_full_board,
+)
 from ecs.systems.turn_state_utils import get_or_create_turn_state
 
 class MatchResolutionSystem:
@@ -23,6 +30,7 @@ class MatchResolutionSystem:
         self.pending_match_positions: List[Tuple[int, int]] = []
         self._pending_refill_checks = 0
         self._suppress_refill = False
+        self._stalemate_reset_active = False
 
     def on_swap_finalize(self, sender, **kwargs):
         # After a logical swap, initiate resolution sequence
@@ -52,6 +60,7 @@ class MatchResolutionSystem:
         if not matches:
             if state.cascade_active:
                 self.event_bus.emit(EVENT_CASCADE_COMPLETE, depth=state.cascade_depth)
+            self._maybe_trigger_stalemate_reset()
             return
         self._flag_extra_turn(matches)
         flat_positions = sorted({pos for group in matches for pos in group})
@@ -86,7 +95,21 @@ class MatchResolutionSystem:
         # Deterministic ordering for events/tests
         positions = sorted(positions)
         # Delegate clear/gravity/refill handling to shared board ops to keep behaviour consistent.
-        _, typed_before, moves, cascades, new_tiles = clear_tiles_with_cascade(self.world, positions)
+        if self._stalemate_reset_active:
+            _, typed_before, moves, cascades, _ = clear_tiles_with_cascade(
+                self.world,
+                positions,
+                refill=False,
+            )
+            new_tiles = respawn_full_board(
+                self.world,
+                rng=getattr(self.world, "random", None),
+            )
+        else:
+            _, typed_before, moves, cascades, new_tiles = clear_tiles_with_cascade(
+                self.world,
+                positions,
+            )
         types_before = sorted(typed_before)
         owner_entity = self._active_owner()
         # Emit match cleared with type info only; colors are derived in RenderSystem.
@@ -123,6 +146,9 @@ class MatchResolutionSystem:
             # Cascade ends
             if state.cascade_active:
                 self.event_bus.emit(EVENT_CASCADE_COMPLETE, depth=state.cascade_depth)
+            if self._stalemate_reset_active:
+                self._stalemate_reset_active = False
+            self._maybe_trigger_stalemate_reset()
             return
         if state.cascade_active:
             depth = state.cascade_depth + 1
@@ -139,6 +165,46 @@ class MatchResolutionSystem:
         self.event_bus.emit(EVENT_CASCADE_STEP, depth=depth, positions=flat_positions)
         self.event_bus.emit(EVENT_MATCH_FOUND, positions=flat_positions, size=len(flat_positions))
         self.event_bus.emit(EVENT_ANIMATION_START, kind='fade', items=flat_positions)
+
+    def _maybe_trigger_stalemate_reset(self) -> None:
+        if self._stalemate_reset_active:
+            return
+        state = get_or_create_turn_state(self.world)
+        if state.cascade_active:
+            return
+        if find_valid_swaps(self.world):
+            return
+        tiles = active_tile_type_map(self.world)
+        if not tiles:
+            return
+        positions = sorted(tiles.keys())
+        if not positions:
+            return
+        self._stalemate_reset_active = True
+        owner = self._active_owner()
+        self.event_bus.emit(
+            EVENT_TURN_ACTION_STARTED,
+            source="stalemate_reset",
+            owner_entity=owner,
+        )
+        self.pending_match_positions = positions
+        self.event_bus.emit(
+            EVENT_MATCH_FOUND,
+            positions=positions,
+            size=len(positions),
+            reason="stalemate_reset",
+        )
+        self.event_bus.emit(
+            EVENT_ANIMATION_START,
+            kind='fade',
+            items=positions,
+        )
+        self.event_bus.emit(
+            EVENT_CASCADE_STEP,
+            depth=1,
+            positions=positions,
+            reason="stalemate_reset",
+        )
 
     def _active_owner(self):
         from ecs.components.active_turn import ActiveTurn
