@@ -1,6 +1,6 @@
 from ecs.events.bus import (EventBus, EVENT_TILE_SWAP_REQUEST, EVENT_TICK,
                             EVENT_CASCADE_STEP, EVENT_CASCADE_COMPLETE, EVENT_REFILL_COMPLETED, EVENT_ANIMATION_COMPLETE)
-from ecs.world import create_world
+from world import create_world
 from ecs.systems.board import BoardSystem
 from ecs.systems.render import RenderSystem
 from ecs.systems.animation import AnimationSystem

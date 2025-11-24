@@ -1,5 +1,5 @@
 from ecs.events.bus import EventBus
-from ecs.world import create_world
+from world import create_world
 from ecs.utils.combatants import ensure_combatants, find_primary_opponent, set_combat_opponent
 from ecs.components.combatants import Combatants
 from ecs.components.human_agent import HumanAgent

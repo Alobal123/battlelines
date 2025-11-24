@@ -187,7 +187,7 @@ def respawn_full_board(
     rng: random.Random | None = None,
     max_attempts: int = 200,
 ) -> List[Position]:
-    """Fill the entire board with fresh tiles that contain no matches and at least one valid move."""
+    """Fill the entire board with fresh tiles that contain no matches (single-pass like initial board generation)."""
 
     dims = board_dimensions(world)
     if not dims:
@@ -211,53 +211,40 @@ def respawn_full_board(
 
     positions = sorted(position_to_entity.keys())
 
-    def _apply_layout(layout: List[List[str]]) -> None:
-        for row in range(rows):
-            for col in range(cols):
-                entity = position_to_entity.get((row, col))
-                if entity is None:
-                    continue
-                tile_type: TileType = world.component_for_entity(entity, TileType)
-                tile_type.type_name = layout[row][col]
-                tile_switch: ActiveSwitch = world.component_for_entity(entity, ActiveSwitch)
-                tile_switch.active = True
+    # Single-pass generation: same logic as BoardSystem._init_board
+    layout: List[List[str]] = []
+    for row in range(rows):
+        row_values: List[str] = []
+        for col in range(cols):
+            available = list(choices)
+            # Prevent horizontal triple
+            if col >= 2:
+                left1 = row_values[col - 1]
+                left2 = row_values[col - 2]
+                if left1 == left2 and left1 in available:
+                    available = [t for t in available if t != left1]
+            # Prevent vertical triple
+            if row >= 2:
+                up1 = layout[row - 1][col]
+                up2 = layout[row - 2][col]
+                if up1 == up2 and up1 in available:
+                    available = [t for t in available if t != up1]
+            type_name = rng.choice(available) if available else rng.choice(choices)
+            row_values.append(type_name)
+        layout.append(row_values)
 
-    for _ in range(max_attempts):
-        layout: List[List[str]] = []
-        valid_layout = True
-        for row in range(rows):
-            row_values: List[str] = []
-            for col in range(cols):
-                available = list(choices)
-                if col >= 2:
-                    left1 = row_values[col - 1]
-                    left2 = row_values[col - 2]
-                    if left1 == left2 and left1 in available:
-                        available = [t for t in available if t != left1]
-                if row >= 2:
-                    up1 = layout[row - 1][col]
-                    up2 = layout[row - 2][col]
-                    if up1 == up2 and up1 in available:
-                        available = [t for t in available if t != up1]
-                if not available:
-                    valid_layout = False
-                    break
-                row_values.append(rng.choice(available))
-            if not valid_layout:
-                break
-            layout.append(row_values)
-        if not valid_layout or len(layout) != rows:
-            continue
+    # Apply the layout
+    for row in range(rows):
+        for col in range(cols):
+            entity = position_to_entity.get((row, col))
+            if entity is None:
+                continue
+            tile_type: TileType = world.component_for_entity(entity, TileType)
+            tile_type.type_name = layout[row][col]
+            tile_switch: ActiveSwitch = world.component_for_entity(entity, ActiveSwitch)
+            tile_switch.active = True
 
-        _apply_layout(layout)
-
-        if find_all_matches(world):
-            continue
-        if not find_valid_swaps(world):
-            continue
-        return positions
-
-    raise RuntimeError("Unable to respawn board without matches and valid swaps")
+    return positions
 
 
 def active_tile_type_map(world: World) -> Dict[Position, str]:

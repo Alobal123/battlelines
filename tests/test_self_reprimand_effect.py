@@ -7,7 +7,7 @@ from ecs.events.bus import (
     EVENT_HEALTH_DAMAGE,
     EVENT_TILE_BANK_GAINED,
 )
-from ecs.world import create_world
+from world import create_world
 from ecs.components.ability import Ability
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.health import Health

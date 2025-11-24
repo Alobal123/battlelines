@@ -15,6 +15,7 @@ from ecs.rendering.player_panel_renderer import PlayerPanelRenderer
 from ecs.rendering.lifebar_renderer import LifebarRenderer
 from ecs.rendering.forbidden_knowledge_renderer import ForbiddenKnowledgeRenderer
 from ecs.components.tooltip_state import TooltipState
+from ecs.components.tile_status_overlay import TileStatusOverlay
 from ecs.rendering.sprite_cache import SpriteCache
 from ecs.rendering.choice_window_renderer import ChoiceWindowRenderer
 from ecs.components.game_state import GameMode, GameState
@@ -53,7 +54,7 @@ class RenderSystem:
         self._attack_threshold = 0
         self._current_active_owner: int | None = None
         self._render_ctx: RenderContext | None = None
-        self._last_draw_coords: dict[tuple[int, int], tuple[float, float]] = {}
+        self._last_tile_layout: dict[tuple[int, int], dict[str, object]] = {}
         self._board_renderer = BoardRenderer(self, self.sprite_cache, padding=PADDING)
         self._ability_panel_renderer = AbilityPanelRenderer(self)
         self._bank_panel_renderer = BankPanelRenderer(self, self.sprite_cache)
@@ -165,6 +166,46 @@ class RenderSystem:
 
         if combat_active and not headless:
             self._render_tooltip(arcade)
+
+    def get_tile_at_point(self, x: float, y: float):
+        layout = getattr(self, "_last_tile_layout", None)
+        if not layout:
+            return None
+        for (row, col), info in layout.items():
+            center = info.get("center")
+            radius = info.get("radius")
+            entity = info.get("entity")
+            if center is None or radius is None or entity is None:
+                continue
+            cx, cy = center  # type: ignore[assignment]
+            r = float(radius)  # type: ignore[arg-type]
+            if r <= 0:
+                continue
+            dx = x - float(cx)
+            dy = y - float(cy)
+            if dx * dx + dy * dy <= r * r:
+                return {
+                    "row": row,
+                    "col": col,
+                    "entity": int(entity),
+                    "center": (float(cx), float(cy)),
+                    "radius": r,
+                }
+        return None
+
+    def get_tile_overlay_at_point(self, x: float, y: float):
+        hit = self.get_tile_at_point(x, y)
+        if not hit:
+            return None
+        entity = hit.get("entity")
+        if entity is None:
+            return None
+        try:
+            overlay = self.world.component_for_entity(int(entity), TileStatusOverlay)
+        except KeyError:
+            return None
+        hit["overlay"] = overlay
+        return hit
 
 
     def get_ability_at_point(self, x: float, y: float):

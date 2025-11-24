@@ -1,4 +1,4 @@
-from ecs.world import create_world
+from world import create_world
 from ecs.events.bus import EventBus
 from ecs.components.character import Character
 from ecs.components.ability_list_owner import AbilityListOwner

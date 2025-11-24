@@ -8,7 +8,7 @@ from ecs.events.bus import (
     EVENT_TILE_BANK_CHANGED,
 )
 from ecs.systems.forbidden_knowledge_system import ForbiddenKnowledgeSystem
-from ecs.world import create_world
+from world import create_world
 from ecs.components.forbidden_knowledge import ForbiddenKnowledge
 from ecs.systems.board import BoardSystem
 from ecs.systems.board_ops import get_tile_registry, set_spawnable_tile_types

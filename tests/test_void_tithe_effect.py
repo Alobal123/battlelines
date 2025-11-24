@@ -6,7 +6,7 @@ from ecs.events.bus import (
     EVENT_HEALTH_DAMAGE,
     EVENT_TURN_ADVANCED,
 )
-from ecs.world import create_world
+from world import create_world
 from ecs.components.health import Health
 from ecs.components.human_agent import HumanAgent
 from ecs.components.ability_list_owner import AbilityListOwner

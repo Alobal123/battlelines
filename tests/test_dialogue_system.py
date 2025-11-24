@@ -13,7 +13,7 @@ from ecs.events.bus import (
     EventBus,
 )
 from ecs.systems.dialogue_system import DialogueSystem
-from ecs.world import create_world
+from world import create_world
 
 
 def _get_state(world: World) -> GameState:

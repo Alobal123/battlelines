@@ -18,8 +18,12 @@ from ecs.menu.components import MenuAction, MenuButton
 from ecs.menu.factory import spawn_main_menu
 from ecs.menu.input_system import MenuInputSystem
 from ecs.systems.game_flow_system import GameFlowSystem
+from ecs.systems.match_setup_system import MatchSetupSystem
+from ecs.systems.skills.skill_pool_system import SkillPoolSystem
+from ecs.systems.skills.skill_choice_system import SkillChoiceSystem
+from ecs.systems.location_choice_system import LocationChoiceSystem
 from ecs.systems.story_progress_system import StoryProgressSystem
-from ecs.world import create_world
+from world import create_world
 
 
 def _get_tracker(world: World) -> StoryProgressTracker:
@@ -86,6 +90,26 @@ def test_story_progress_system_loads_on_continue(tmp_path) -> None:
     assert system.has_progress is True
 
 
+def test_story_progress_tracks_location_completion(tmp_path) -> None:
+    world = World()
+    bus = EventBus()
+    save_path = Path(tmp_path) / "progress.json"
+    StoryProgressSystem(world, bus, save_path=save_path, load_existing=False)
+
+    tracker = _get_tracker(world)
+    tracker.current_location_slug = "graveyard"
+    tracker.current_location_enemies_defeated = 2
+
+    bus.emit(EVENT_ENEMY_DEFEATED, entity=101)
+
+    tracker = _get_tracker(world)
+    assert tracker.locations_completed == 1
+    assert tracker.current_location_enemies_defeated == 0
+    with save_path.open("r", encoding="utf-8") as handle:
+        payload = json.load(handle)
+    assert payload["locations_completed"] == 1
+
+
 def test_spawn_main_menu_continue_button_state(tmp_path) -> None:
     world = World()
     bus = EventBus()
@@ -143,6 +167,10 @@ def test_menu_new_game_emits_event_and_changes_mode(tmp_path) -> None:
     )
     spawn_main_menu(world, 800, 600, enable_continue=False)
     GameFlowSystem(world, bus, rng=random.Random(0))
+    MatchSetupSystem(world, bus, rng=random.Random(1))
+    SkillPoolSystem(world, bus, rng=random.Random(2))
+    SkillChoiceSystem(world, bus)
+    LocationChoiceSystem(world, bus)
     system = MenuInputSystem(world, bus)
 
     fired = {"new_game": False}

@@ -11,6 +11,7 @@ from ecs.components.ability_cooldown import AbilityCooldown
 from ecs.components.effect_list import EffectList
 from ecs.components.effect import Effect
 from ecs.components.effect_duration import EffectDuration
+from ecs.components.tile_status_overlay import TileStatusOverlay
 from ecs.effects.registry import default_effect_registry
 from ecs.events.bus import (
     EventBus,
@@ -69,14 +70,23 @@ class TooltipSystem:
                     raw_text = self._ability_description(ability_entity)
                 text = raw_text or ""
         else:
-            player_entry = None
-            if self.render_system is not None and hasattr(self.render_system, "get_player_panel_at_point"):
-                player_entry = self.render_system.get_player_panel_at_point(self._mouse_x, self._mouse_y)
-            if player_entry is not None:
-                owner_entity = player_entry.get("owner_entity")
-                if owner_entity is not None:
-                    token = ("player", int(owner_entity))
-                    text = self._player_effect_text(int(owner_entity))
+            tile_hit = None
+            if self.render_system is not None and hasattr(self.render_system, "get_tile_overlay_at_point"):
+                tile_hit = self.render_system.get_tile_overlay_at_point(self._mouse_x, self._mouse_y)
+            if tile_hit is not None:
+                entity = tile_hit.get("entity")
+                if entity is not None:
+                    token = ("tile_overlay", int(entity))
+                    text = self._tile_overlay_text(int(entity))
+            if not token:
+                player_entry = None
+                if self.render_system is not None and hasattr(self.render_system, "get_player_panel_at_point"):
+                    player_entry = self.render_system.get_player_panel_at_point(self._mouse_x, self._mouse_y)
+                if player_entry is not None:
+                    owner_entity = player_entry.get("owner_entity")
+                    if owner_entity is not None:
+                        token = ("player", int(owner_entity))
+                        text = self._player_effect_text(int(owner_entity))
         if token == self._hover_token:
             # Hover target unchanged; just update mouse position
             return
@@ -259,6 +269,54 @@ class TooltipSystem:
                     bonus_value = int(bonus_value)
                 return f"+{bonus_value} damage"
         return ""
+
+    def _tile_overlay_text(self, tile_entity: int) -> str:
+        try:
+            overlay = self.world.component_for_entity(tile_entity, TileStatusOverlay)
+        except KeyError:
+            return ""
+        effect_entity = overlay.effect_entity
+        effect: Effect | None
+        duration_text = ""
+        if effect_entity is not None:
+            try:
+                effect = self.world.component_for_entity(effect_entity, Effect)
+            except KeyError:
+                effect = None
+            else:
+                duration_text = self._effect_duration_text(effect_entity)
+        else:
+            effect = None
+        if effect is None:
+            effect = Effect(
+                slug=overlay.slug,
+                owner_entity=tile_entity,
+                metadata=dict(overlay.metadata),
+            )
+        label = self._effect_display_name(effect.slug)
+        description = self._effect_description(effect)
+        metadata_line = self._format_effect_metadata(effect)
+        explicit_damage = effect.metadata.get("damage") if effect.metadata else None
+        damage_line = ""
+        try:
+            dmg_value = int(explicit_damage) if explicit_damage is not None else None
+        except (TypeError, ValueError):
+            dmg_value = None
+        if dmg_value is not None:
+            suffix = "damage" if dmg_value == 1 else "damage"
+            damage_line = f"Triggers for {dmg_value} {suffix}"
+        lines = [label]
+        if description:
+            lines.append(description)
+        if metadata_line:
+            lines.append(metadata_line)
+        if damage_line and damage_line not in lines:
+            lines.append(damage_line)
+        if duration_text:
+            lines.append(duration_text)
+        if not lines:
+            return ""
+        return "\n".join(line for line in lines if line)
 
     def _effect_description(self, effect: Effect) -> str:
         definition = None

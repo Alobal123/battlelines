@@ -6,7 +6,7 @@ from ecs.systems.render import RenderSystem
 from ecs.systems.match import MatchSystem
 from ecs.systems.animation import AnimationSystem
 from ecs.components.animation_swap import SwapAnimation
-from ecs.world import create_world
+from world import create_world
 from ecs.components.duration import Duration
 
 class DummyWindow:

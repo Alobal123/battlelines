@@ -5,29 +5,18 @@ from ecs.events.bus import (
     EVENT_MOUSE_PRESS,
     EVENT_TILE_CLICK,
     EVENT_TILE_BANK_GAINED,
-    EVENT_GAME_MODE_CHANGED,
 )
-from ecs.systems.input import InputSystem, DEFAULT_TRANSITION_GUARD
+from ecs.systems.input import InputSystem
 from ecs.constants import GRID_ROWS, GRID_COLS, TILE_SIZE, BOTTOM_MARGIN
-from ecs.world import create_world
-from ecs.components.game_state import GameMode
+from world import create_world
+from ecs.components.health import Health
+from ecs.systems.health_system import HealthSystem
 
 class DummyWindow:
     def __init__(self, width=800, height=600):
         self.width = width
         self.height = height
         self.render_system: Any | None = None
-
-
-class _FakeClock:
-    def __init__(self) -> None:
-        self.value = 0.0
-
-    def advance(self, delta: float) -> None:
-        self.value += delta
-
-    def __call__(self) -> float:
-        return self.value
 
 
 def test_mouse_press_translates_to_tile_click():
@@ -65,6 +54,9 @@ class DummyRenderSystem:
             return {"entity": 1}
         return None
 
+    def get_bank_icon_at_point(self, x, y):
+        return None
+
 
 def test_knowledge_bar_click_grants_secret():
     bus = EventBus()
@@ -88,37 +80,72 @@ def test_knowledge_bar_click_grants_secret():
     assert gained[-1]["amount"] == 1
 
 
-def test_mouse_press_ignored_immediately_after_mode_change():
+class PortraitRenderSystem:
+    def __init__(self, owner_entity):
+        self._owner_entity = owner_entity
+
+    def get_player_panel_at_point(self, x, y):
+        return {"owner_entity": self._owner_entity}
+
+    def get_ability_at_point(self, x, y):
+        return None
+
+    def get_forbidden_knowledge_at_point(self, x, y):
+        return None
+
+    def get_bank_icon_at_point(self, x, y):
+        return None
+
+
+def _human_entity(world):
+    from ecs.components.human_agent import HumanAgent
+
+    for entity, _ in world.get_component(HumanAgent):
+        return entity
+    raise AssertionError("Expected a human agent in the world")
+
+
+def _enemy_entity(world):
+    from ecs.components.rule_based_agent import RuleBasedAgent
+
+    for entity, _ in world.get_component(RuleBasedAgent):
+        return entity
+    raise AssertionError("Expected an enemy agent in the world")
+
+
+def test_portrait_click_damages_player():
     bus = EventBus()
-    world = create_world(bus)
+    world = create_world(bus, grant_default_player_abilities=False)
+    HealthSystem(world, bus)
+    player_entity = _human_entity(world)
+
     window = DummyWindow()
-    clock = _FakeClock()
-    input_system = InputSystem(bus, window, world=world, clock=clock)
+    window.render_system = PortraitRenderSystem(player_entity)
 
-    clicks = []
+    InputSystem(bus, window, world=world)
 
-    bus.subscribe(EVENT_TILE_CLICK, lambda sender, **payload: clicks.append(payload))
+    health = world.component_for_entity(player_entity, Health)
+    starting_hp = health.current
 
-    x = (window.width - GRID_COLS * TILE_SIZE)/2 + TILE_SIZE/2 + 1
-    y = BOTTOM_MARGIN + TILE_SIZE/2 + 1
+    bus.emit(EVENT_MOUSE_PRESS, x=50, y=50, button=1)
 
-    # Initial click registers normally
-    bus.emit(EVENT_MOUSE_PRESS, x=x, y=y, button=1, press_id=10)
-    assert len(clicks) == 1
+    assert health.current == starting_hp - 10
 
-    # Rapid mode change after the click triggers guard
-    clock.advance(0.01)
-    bus.emit(
-        EVENT_GAME_MODE_CHANGED,
-        previous_mode=GameMode.DIALOGUE,
-        new_mode=GameMode.COMBAT,
-        input_guard_press_id=10,
-        input_guard_interval=0.0,
-    )
 
-    bus.emit(EVENT_MOUSE_PRESS, x=x, y=y, button=1, press_id=10)
-    assert len(clicks) == 1, "Second click should be ignored during guard interval"
+def test_portrait_click_damages_enemy():
+    bus = EventBus()
+    world = create_world(bus, grant_default_player_abilities=False)
+    HealthSystem(world, bus)
+    enemy_entity = _enemy_entity(world)
 
-    clock.advance(DEFAULT_TRANSITION_GUARD)
-    bus.emit(EVENT_MOUSE_PRESS, x=x, y=y, button=1, press_id=11)
-    assert len(clicks) == 2, "Click after guard expires should register"
+    window = DummyWindow()
+    window.render_system = PortraitRenderSystem(enemy_entity)
+
+    InputSystem(bus, window, world=world)
+
+    health = world.component_for_entity(enemy_entity, Health)
+    starting_hp = health.current
+
+    bus.emit(EVENT_MOUSE_PRESS, x=75, y=40, button=1)
+
+    assert health.current == starting_hp - 10

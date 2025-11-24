@@ -1,5 +1,5 @@
 from ecs.events.bus import EventBus, EVENT_TILE_CLICK, EVENT_TILE_SWAP_REQUEST, EVENT_TICK
-from ecs.world import create_world
+from world import create_world
 from ecs.systems.board import BoardSystem
 from ecs.systems.render import RenderSystem
 from ecs.systems.animation import AnimationSystem

@@ -1,7 +1,7 @@
 import random
 
 from ecs.events.bus import EventBus
-from ecs.world import create_world
+from world import create_world
 from ecs.systems.board import BoardSystem
 from ecs.systems.board_ops import refill_inactive_tiles, set_spawnable_tile_types
 from ecs.components.active_switch import ActiveSwitch

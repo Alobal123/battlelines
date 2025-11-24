@@ -21,7 +21,7 @@ from ecs.events.bus import (
 from ecs.systems.board import BoardSystem
 from ecs.systems.board_ops import find_valid_swaps
 from ecs.systems.random_ai_system import RandomAISystem
-from ecs.world import create_world
+from world import create_world
 
 
 def _build_board(world: World, layout, board_system: BoardSystem | None = None):

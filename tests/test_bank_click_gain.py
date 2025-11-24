@@ -2,7 +2,7 @@ from ecs.events.bus import (
     EventBus,
     EVENT_TILE_BANK_CHANGED,
 )
-from ecs.world import create_world
+from world import create_world
 from ecs.components.tile_bank import TileBank
 from ecs.components.human_agent import HumanAgent
 from ecs.systems.input import InputSystem

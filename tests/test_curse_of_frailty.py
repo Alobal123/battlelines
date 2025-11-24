@@ -1,5 +1,5 @@
 from ecs.events.bus import EventBus, EVENT_ABILITY_EXECUTE, EVENT_EFFECT_APPLY
-from ecs.world import create_world
+from world import create_world
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.effect_list import EffectList
 from ecs.components.effect import Effect

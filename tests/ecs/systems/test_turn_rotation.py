@@ -1,6 +1,6 @@
 import pytest
 from ecs.events.bus import EventBus, EVENT_MATCH_CLEARED, EVENT_CASCADE_COMPLETE
-from ecs.world import create_world
+from world import create_world
 from ecs.systems.turn_system import TurnSystem
 from ecs.components.turn_order import TurnOrder
 from ecs.components.active_turn import ActiveTurn

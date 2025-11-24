@@ -75,6 +75,7 @@ class BaseAISystem(ABC):
         self.delay_remaining: float = 0.0
         self.current_action: Optional[Tuple[str, ActionPayload]] = None
         self.action_phase: Optional[str] = None
+        self._acting_owner: Optional[int] = None
         event_bus.subscribe(EVENT_TURN_ADVANCED, self.on_turn_advanced)
         event_bus.subscribe(EVENT_TURN_ACTION_STARTED, self.on_turn_action_started)
         event_bus.subscribe(EVENT_EXTRA_TURN_GRANTED, self.on_extra_turn_granted)
@@ -90,12 +91,14 @@ class BaseAISystem(ABC):
             self.delay_remaining = self._decision_delay_for(new_owner)
             self.current_action = None
             self.action_phase = None
+            self._acting_owner = None
         else:
             self.pending_owner = None
             self.has_dispatched_action = False
             self.delay_remaining = 0.0
             self.current_action = None
             self.action_phase = None
+            self._acting_owner = None
 
     def on_turn_action_started(self, sender, **payload) -> None:
         owner_entity = payload.get("owner_entity")
@@ -105,6 +108,14 @@ class BaseAISystem(ABC):
             self.delay_remaining = 0.0
             self.current_action = None
             self.action_phase = None
+            self._acting_owner = owner_entity
+        else:
+            self.pending_owner = None
+            self.has_dispatched_action = False
+            self.delay_remaining = 0.0
+            self.current_action = None
+            self.action_phase = None
+            self._acting_owner = None
 
     def on_extra_turn_granted(self, sender, **payload) -> None:
         owner_entity = payload.get("owner_entity")
@@ -115,6 +126,7 @@ class BaseAISystem(ABC):
         self.delay_remaining = self._decision_delay_for(owner_entity)
         self.current_action = None
         self.action_phase = None
+        self._acting_owner = None
 
     def on_tick(self, sender, **payload) -> None:
         if self.pending_owner is None or self.has_dispatched_action:
@@ -282,6 +294,7 @@ class BaseAISystem(ABC):
         if kind == "swap":
             src, dst = cast(Tuple[Position, Position], payload_obj)
             if self.action_phase == "start":
+                self._acting_owner = self.pending_owner
                 self.event_bus.emit(EVENT_TILE_CLICK, row=src[0], col=src[1])
                 self.action_phase = "swap_target"
                 self.delay_remaining = self._selection_delay_for(self.pending_owner)
@@ -290,11 +303,12 @@ class BaseAISystem(ABC):
                 return
             if self.action_phase == "swap_target":
                 self.event_bus.emit(EVENT_TILE_CLICK, row=dst[0], col=dst[1])
-                self._complete_action()
+                self._complete_action(ends_turn=True, owner_entity=self._acting_owner)
                 return
         elif kind == "ability":
             ability_action = cast(AbilityAction, payload_obj)
             if self.action_phase == "start":
+                self._acting_owner = self.pending_owner
                 self.event_bus.emit(
                     EVENT_ABILITY_ACTIVATE_REQUEST,
                     ability_entity=ability_action.ability_entity,
@@ -306,7 +320,10 @@ class BaseAISystem(ABC):
                     if self.delay_remaining <= 0.0:
                         self._progress_action()
                     return
-                self._complete_action()
+                self._complete_action(
+                    ends_turn=self._ability_ends_turn(ability_action.ability_entity),
+                    owner_entity=self._acting_owner,
+                )
                 return
             if (
                 self.action_phase == "ability_target"
@@ -315,13 +332,31 @@ class BaseAISystem(ABC):
             ):
                 row, col = ability_action.target
                 self.event_bus.emit(EVENT_TILE_CLICK, row=row, col=col)
-                self._complete_action()
+                self._complete_action(
+                    ends_turn=self._ability_ends_turn(ability_action.ability_entity),
+                    owner_entity=self._acting_owner,
+                )
 
-    def _complete_action(self) -> None:
+    def _ability_ends_turn(self, ability_entity: int) -> bool:
+        try:
+            ability = self.world.component_for_entity(ability_entity, Ability)
+        except KeyError:
+            return True
+        return ability.ends_turn
+
+    def _complete_action(self, *, ends_turn: bool = True, owner_entity: int | None = None) -> None:
         self.current_action = None
         self.action_phase = None
         self.delay_remaining = 0.0
-        self.has_dispatched_action = True
+        acting_owner = owner_entity
+        self._acting_owner = None
+        if ends_turn:
+            self.has_dispatched_action = True
+            return
+        self.has_dispatched_action = False
+        if acting_owner is not None:
+            self.pending_owner = acting_owner
+            self.delay_remaining = self._decision_delay_for(acting_owner)
 
     # --- Helpers ---------------------------------------------------------
     def _enumerate_ability_actions(self, owner_entity: int) -> List[AbilityAction]:

@@ -3,7 +3,7 @@ from esper import World
 from ecs.events.bus import EventBus, EVENT_SKILL_POOL_OFFER, EVENT_SKILL_POOL_REQUEST
 from ecs.factories.skills import create_skill_by_name
 from ecs.systems.skills.skill_pool_system import SkillPoolSystem
-from ecs.world import create_world
+from world import create_world
 from ecs.components.skill_list_owner import SkillListOwner
 from ecs.components.human_agent import HumanAgent
 

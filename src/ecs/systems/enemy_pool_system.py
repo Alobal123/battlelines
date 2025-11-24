@@ -7,6 +7,8 @@ from typing import Callable, Dict, Iterable, Sequence, cast
 
 from esper import World
 
+from ecs.components.story_progress_tracker import StoryProgressTracker
+from ecs.components.health import Health
 from ecs.events.bus import (
     EventBus,
     EVENT_ENEMY_POOL_OFFER,
@@ -56,31 +58,41 @@ class EnemyPoolSystem:
     def known_enemy_names(self) -> Sequence[str]:
         return self._names
 
+    def _get_available_enemies(self) -> Sequence[str]:
+        """Return enemy names that haven't been encountered yet in this game."""
+        tracker_entries = list(self.world.get_component(StoryProgressTracker))
+        if not tracker_entries:
+            return self._names
+        _, tracker = tracker_entries[0]
+        return tuple(name for name in self._names if name not in tracker.enemies_encountered)
+
     def create_enemy(self, name: str) -> int:
         factory = self._factories.get(name)
         if factory is None:
             raise ValueError(f"Unknown enemy '{name}'")
         enemy = factory(self.world)
         self._last_enemy_name = name
+        self._apply_enemy_scaling(enemy)
         return enemy
 
     def random_enemy_name(self) -> str | None:
-        if not self._names:
+        available = self._get_available_enemies()
+        if not available:
             return None
-        if len(self._names) == 1:
-            choice = self._names[0]
+        if len(available) == 1:
+            choice = available[0]
         else:
-            choice = self._rng.choice(self._names)
+            choice = self._rng.choice(available)
             if choice == self._last_enemy_name:
                 # Try to avoid repeating the same enemy consecutively when alternatives exist.
-                for _ in range(len(self._names) - 1):
-                    new_choice = self._rng.choice(self._names)
+                for _ in range(len(available) - 1):
+                    new_choice = self._rng.choice(available)
                     if new_choice != self._last_enemy_name:
                         choice = new_choice
                         break
                 else:
                     # Deterministic fallback to the next available name.
-                    for candidate in self._names:
+                    for candidate in available:
                         if candidate != self._last_enemy_name:
                             choice = candidate
                             break
@@ -93,6 +105,22 @@ class EnemyPoolSystem:
             return None
         return self.create_enemy(name)
 
+    def _apply_enemy_scaling(self, enemy_entity: int) -> None:
+        tracker_entries = list(self.world.get_component(StoryProgressTracker))
+        if not tracker_entries:
+            return
+        _, tracker = tracker_entries[0]
+        if tracker.locations_completed <= 0:
+            return
+        bonus_hp = tracker.locations_completed * 5
+        try:
+            health = self.world.component_for_entity(enemy_entity, Health)
+        except (KeyError, ValueError):
+            return
+        # Increase both max and current HP to keep new enemies at full strength.
+        health.max_hp += bonus_hp
+        health.current = min(health.max_hp, health.current + bonus_hp)
+
     def _on_request(self, sender, **payload) -> None:
         count = payload.get("count", 1)
         request_id = payload.get("request_id")
@@ -102,7 +130,8 @@ class EnemyPoolSystem:
             return
         if count_int <= 0:
             return
-        choices = list(self._names)
+        available = self._get_available_enemies()
+        choices = list(available)
         self._rng.shuffle(choices)
         offers = choices[:count_int]
         self.event_bus.emit(

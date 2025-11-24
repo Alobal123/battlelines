@@ -23,7 +23,7 @@ from ecs.components.tile_types import TileTypes
 from ecs.components.turn_order import TurnOrder
 from ecs.components.active_turn import ActiveTurn
 from ecs.components.human_agent import HumanAgent
-from ecs.world import create_world
+from world import create_world
 
 
 class DummyWindow:

@@ -5,7 +5,7 @@ from ecs.systems.animation import AnimationSystem
 from ecs.systems.match import MatchSystem
 from ecs.systems.match_resolution import MatchResolutionSystem
 from ecs.systems.turn_system import TurnSystem
-from ecs.world import create_world
+from world import create_world
 from ecs.components.tile import TileType
 from ecs.components.active_switch import ActiveSwitch
 

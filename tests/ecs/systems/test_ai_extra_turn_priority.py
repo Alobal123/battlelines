@@ -2,7 +2,7 @@ import random
 
 from ecs.events.bus import EventBus
 from ecs.systems.rule_based_ai_system import RuleBasedAISystem
-from ecs.world import create_world
+from world import create_world
 from ecs.systems.board import BoardSystem
 from ecs.systems.match import MatchSystem
 from ecs.systems.animation import AnimationSystem

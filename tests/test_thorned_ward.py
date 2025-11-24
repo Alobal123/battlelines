@@ -4,7 +4,7 @@ from ecs.events.bus import (
     EVENT_EFFECT_APPLY,
     EVENT_HEALTH_DAMAGE,
 )
-from ecs.world import create_world
+from world import create_world
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.effect import Effect
 from ecs.components.effect_duration import EffectDuration

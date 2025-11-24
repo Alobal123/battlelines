@@ -1,5 +1,5 @@
 from ecs.events.bus import EventBus, EVENT_ABILITY_EXECUTE, EVENT_HEALTH_DAMAGE, EVENT_TURN_ADVANCED
-from ecs.world import create_world
+from world import create_world
 from ecs.components.ability import Ability
 from ecs.components.ability_effect import AbilityEffects
 from ecs.components.ability_list_owner import AbilityListOwner

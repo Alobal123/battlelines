@@ -1,5 +1,5 @@
 from ecs.events.bus import EventBus, EVENT_HEALTH_HEAL, EVENT_HEALTH_CHANGED, EVENT_ABILITY_EFFECT_APPLIED
-from ecs.world import create_world
+from world import create_world
 from ecs.components.health import Health
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.ability import Ability
@@ -41,7 +41,10 @@ def test_verdant_touch_heals_caster():
     
     # Damage player first so we can see healing
     health = world.component_for_entity(player1, Health)
-    health.current = 20  # Down from 30
+    max_hp = health.max_hp
+    heal_amount = 4
+    start_hp = max(0, max_hp - (heal_amount + 1))
+    health.current = start_hp
     
     # Track events
     heal_events = []
@@ -74,11 +77,12 @@ def test_verdant_touch_heals_caster():
     # Verify health changed event
     assert len(changed_events) == 1, "Expected one health changed event"
     assert changed_events[0]["entity"] == player1
-    assert changed_events[0]["current"] == 24  # 20 + 4
-    assert changed_events[0]["delta"] == 4
+    expected_hp = min(max_hp, start_hp + heal_amount)
+    assert changed_events[0]["current"] == expected_hp
+    assert changed_events[0]["delta"] == expected_hp - start_hp
     
     # Verify health component was updated
-    assert health.current == 24
+    assert health.current == expected_hp
 
 
 def test_verdant_touch_caps_at_max_hp():
@@ -104,9 +108,12 @@ def test_verdant_touch_caps_at_max_hp():
         if world.component_for_entity(ent, Ability).name == "verdant_touch"
     ][0]
     
-    # Player at 28 HP (max 30)
+    # Player just below max to test capping behaviour
     health = world.component_for_entity(player1, Health)
-    health.current = 28
+    max_hp = health.max_hp
+    heal_amount = 4
+    missing = min(2, max_hp)
+    health.current = max_hp - missing
     
     changed_events = []
     bus.subscribe(EVENT_HEALTH_CHANGED, lambda s, **k: changed_events.append(k))
@@ -124,5 +131,6 @@ def test_verdant_touch_caps_at_max_hp():
     bus.emit(EVENT_ABILITY_EXECUTE, ability_entity=verdant_entity, owner_entity=player1, pending=pending)
     
     # Verify healing was capped
-    assert health.current == 30, "HP should be capped at max_hp"
-    assert changed_events[0]["delta"] == 2, "Delta should reflect actual change (2, not 4)"
+    assert health.current == max_hp, "HP should be capped at max_hp"
+    expected_delta = min(heal_amount, missing)
+    assert changed_events[0]["delta"] == expected_delta, "Delta should reflect actual change"

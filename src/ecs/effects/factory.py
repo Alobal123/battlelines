@@ -185,3 +185,28 @@ def ensure_default_effects_registered() -> None:
             },
         )
     )
+    _register(
+        EffectDefinition(
+            slug="locked_scent",
+            display_name="Locked Scent",
+            description="A lingering scent marker with no direct effect.",
+            default_metadata={
+                "stacks": True,
+                "stack_key": "locked_scent",
+            },
+        )
+    )
+    _register(
+        EffectDefinition(
+            slug="tile_guarded",
+            display_name="Guarded Tile",
+            description="Deals damage to opponents who disturb the tile.",
+            default_metadata={
+                "damage": 1,
+                "reason": "guarded_tile",
+                "source_owner": None,
+                "overlay_icon": "tile_guarded",
+                "overlay_tint": (224, 196, 64),
+            },
+        )
+    )

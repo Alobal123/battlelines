@@ -5,7 +5,12 @@ from typing import Any
 from esper import World
 
 from ecs.components.location import CurrentLocation, LocationChoice
-from ecs.events.bus import EVENT_CHOICE_SELECTED, EVENT_LOCATION_CHOICE_GRANTED, EventBus
+from ecs.events.bus import (
+    EVENT_CHOICE_SELECTED,
+    EVENT_LOCATION_CHOICE_GRANTED,
+    EVENT_LOCATION_ENTERED,
+    EventBus,
+)
 from ecs.factories.locations import get_location_spec
 
 
@@ -42,6 +47,10 @@ class LocationChoiceSystem:
             except (KeyError, ValueError):
                 pass
             self.world.add_component(choice.owner_entity, current_location)
+        
+        # Emit location entered for story tracking
+        self.event_bus.emit(EVENT_LOCATION_ENTERED, location_name=spec.slug)
+        
         self.event_bus.emit(
             EVENT_LOCATION_CHOICE_GRANTED,
             owner_entity=choice.owner_entity,

@@ -1,7 +1,7 @@
 from esper import World
 
 from ecs.events.bus import EventBus, EVENT_EFFECT_APPLY, EVENT_HEALTH_DAMAGE, EVENT_TURN_ADVANCED
-from ecs.world import create_world
+from world import create_world
 from ecs.components.health import Health
 from ecs.components.human_agent import HumanAgent
 from ecs.components.rule_based_agent import RuleBasedAgent

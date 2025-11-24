@@ -1,5 +1,5 @@
 from ecs.events.bus import EventBus
-from ecs.world import create_world
+from world import create_world
 from ecs.components.ability import Ability
 from ecs.components.ability_target import AbilityTarget
 from ecs.components.ability_list_owner import AbilityListOwner

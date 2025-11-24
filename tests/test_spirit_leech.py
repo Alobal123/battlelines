@@ -6,7 +6,7 @@ from ecs.events.bus import (
     EVENT_TILE_BANK_CHANGED,
     EVENT_TILE_BANK_GAINED,
 )
-from ecs.world import create_world
+from world import create_world
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.pending_ability_target import PendingAbilityTarget
 from ecs.components.tile_bank import TileBank

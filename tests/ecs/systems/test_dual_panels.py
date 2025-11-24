@@ -1,6 +1,6 @@
 import pytest
 from ecs.events.bus import EventBus
-from ecs.world import create_world
+from world import create_world
 from ecs.systems.render import RenderSystem
 
 from tests.helpers import grant_player_abilities

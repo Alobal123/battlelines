@@ -4,7 +4,7 @@ from ecs.events.bus import (
     EVENT_TILE_BANK_DEPLETED,
     EVENT_HEALTH_DAMAGE,
 )
-from ecs.world import create_world
+from world import create_world
 from ecs.components.ability import Ability
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.pending_ability_target import PendingAbilityTarget

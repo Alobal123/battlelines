@@ -5,6 +5,9 @@ from typing import Dict, Iterable
 
 from ecs.systems.abilities.base import AbilityResolver
 from ecs.systems.abilities.bee_sting_resolver import BeeStingResolver
+from ecs.systems.abilities.go_for_throat_resolver import GoForThroatResolver
+from ecs.systems.abilities.guard_resolver import GuardResolver
+from ecs.systems.abilities.guard_bark_resolver import GuardBarkResolver
 
 _PLUGIN_GROUP = "battlelines.ability_resolvers"
 _plugin_loaded = False
@@ -70,6 +73,9 @@ def _register_from_object(obj):
 def _builtin_resolvers() -> Dict[str, AbilityResolver]:
     return {
         "bee_sting": BeeStingResolver(),
+        "go_for_throat": GoForThroatResolver(),
+        "guard": GuardResolver(),
+        "guard_bark": GuardBarkResolver(),
     }
 
 

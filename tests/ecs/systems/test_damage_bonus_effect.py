@@ -7,7 +7,7 @@ from ecs.events.bus import (
     EVENT_TILE_BANK_SPENT,
     EVENT_TURN_ADVANCED,
 )
-from ecs.world import create_world
+from world import create_world
 from ecs.components.ability import Ability
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.effect import Effect

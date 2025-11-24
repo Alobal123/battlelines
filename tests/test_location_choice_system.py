@@ -3,7 +3,7 @@ from ecs.components.location import CurrentLocation, LocationChoice
 from ecs.events.bus import EVENT_CHOICE_SELECTED, EVENT_LOCATION_CHOICE_GRANTED, EventBus
 from ecs.factories.locations import spawn_location_choice_window
 from ecs.systems.location_choice_system import LocationChoiceSystem
-from ecs.world import create_world
+from world import create_world
 
 
 def _human_entity(world):

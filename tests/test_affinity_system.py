@@ -1,5 +1,5 @@
 from ecs.events.bus import EventBus, EVENT_AFFINITY_UPDATED
-from ecs.world import create_world
+from world import create_world
 from ecs.components.affinity import Affinity
 from ecs.components.ability import Ability
 from ecs.components.ability_list_owner import AbilityListOwner

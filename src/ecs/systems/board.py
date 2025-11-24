@@ -1,7 +1,20 @@
 import random
 from typing import List, Optional, Tuple
 from esper import World
-from ecs.events.bus import EventBus, EVENT_TILE_CLICK, EVENT_TILE_SELECTED, EVENT_TILE_DESELECTED, EVENT_TILE_SWAP_REQUEST, EVENT_TILE_SWAP_FINALIZE, EVENT_TILE_SWAP_DO, EVENT_MOUSE_PRESS, EVENT_ABILITY_TARGET_MODE, EVENT_TURN_ADVANCED
+from ecs.events.bus import (
+    EventBus,
+    EVENT_TILE_CLICK,
+    EVENT_TILE_SELECTED,
+    EVENT_TILE_DESELECTED,
+    EVENT_TILE_SWAP_REQUEST,
+    EVENT_TILE_SWAP_FINALIZE,
+    EVENT_TILE_SWAP_DO,
+    EVENT_MOUSE_PRESS,
+    EVENT_ABILITY_TARGET_MODE,
+    EVENT_ABILITY_TARGET_CANCELLED,
+    EVENT_ABILITY_TARGET_SELECTED,
+    EVENT_TURN_ADVANCED,
+)
 from ecs.components.active_switch import ActiveSwitch
 from ecs.components.tile_type_registry import TileTypeRegistry
 from ecs.components.tile_types import TileTypes
@@ -24,10 +37,13 @@ class BoardSystem:
         self.board_entity = self.world.create_entity()
         self.world.add_component(self.board_entity, Board(rows=rows, cols=cols))
         self.selected: Optional[Tuple[int,int]] = None
+        self._targeting_active = False
         self.event_bus.subscribe(EVENT_TILE_CLICK, self.on_tile_click)
         self.event_bus.subscribe(EVENT_TILE_SWAP_DO, self.on_swap_do)
         self.event_bus.subscribe(EVENT_MOUSE_PRESS, self.on_mouse_press)
         self.event_bus.subscribe(EVENT_ABILITY_TARGET_MODE, self.on_target_mode)
+        self.event_bus.subscribe(EVENT_ABILITY_TARGET_CANCELLED, self.on_target_cancelled)
+        self.event_bus.subscribe(EVENT_ABILITY_TARGET_SELECTED, self.on_target_selected)
         self.event_bus.subscribe(EVENT_TURN_ADVANCED, self.on_turn_advanced)
         self._init_board()
 
@@ -66,6 +82,8 @@ class BoardSystem:
         if self._is_cascade_active():
             return
         # Ignore normal selection/swaps while in targeting mode
+        if self._targeting_active:
+            return
         targeting = list(self.world.get_component(TargetingState))
         if targeting:
             return
@@ -125,10 +143,20 @@ class BoardSystem:
 
     def on_target_mode(self, sender, **kwargs):
         # Entering targeting should clear any existing tile selection highlight.
+        self._targeting_active = True
         self._emit_deselect('target_mode')
+
+    def on_target_cancelled(self, sender, **kwargs):
+        self._targeting_active = False
+        self._emit_deselect(kwargs.get('reason', 'target_cancelled'))
+
+    def on_target_selected(self, sender, **kwargs):
+        self._targeting_active = False
+        # Selection resolution shouldn't retroactively clear other highlights, so no deselect call.
 
     def on_turn_advanced(self, sender, **kwargs):
         # When active player shifts, clear any lingering selection owned by previous context.
+        self._targeting_active = False
         self._emit_deselect('turn_advanced')
 
     def _get_entity_at(self, row: int, col: int):

@@ -1,6 +1,6 @@
 import pytest
 from ecs.events.bus import EventBus, EVENT_MOUSE_PRESS
-from ecs.world import create_world
+from world import create_world
 from ecs.systems.board import BoardSystem
 from ecs.systems.render import RenderSystem
 from ecs.systems.input import InputSystem

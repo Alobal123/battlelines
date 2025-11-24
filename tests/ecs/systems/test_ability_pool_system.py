@@ -7,7 +7,7 @@ from ecs.events.bus import (
 )
 from ecs.factories.abilities import create_ability_by_name
 from ecs.systems.ability_pool_system import AbilityPoolSystem
-from ecs.world import create_world
+from world import create_world
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.ability import Ability
 from ecs.components.human_agent import HumanAgent

@@ -1,3 +1,16 @@
 {
-  "enemies_defeated": 0
+  "enemies_defeated": 1,
+  "locations_visited": [
+    "school_kennels"
+  ],
+  "enemies_encountered": [
+    "bloodhound"
+  ],
+  "dialogues_completed": [
+    "dialogue_2_106",
+    "dialogue_2_101"
+  ],
+  "abilities_unlocked": [],
+  "skills_gained": [],
+  "locations_completed": 0
 }

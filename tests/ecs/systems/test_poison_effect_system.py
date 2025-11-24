@@ -4,7 +4,7 @@ from ecs.events.bus import (
     EVENT_HEALTH_DAMAGE,
     EVENT_TURN_ADVANCED,
 )
-from ecs.world import create_world
+from world import create_world
 from ecs.components.human_agent import HumanAgent
 from ecs.components.rule_based_agent import RuleBasedAgent
 from ecs.components.health import Health

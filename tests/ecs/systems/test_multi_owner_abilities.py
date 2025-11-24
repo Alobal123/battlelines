@@ -1,6 +1,6 @@
 import pytest
 from ecs.events.bus import EventBus, EVENT_ABILITY_ACTIVATE_REQUEST
-from ecs.world import create_world
+from world import create_world
 from ecs.systems.ability_system import AbilitySystem
 from ecs.systems.ability_targeting_system import AbilityTargetingSystem
 from ecs.systems.render import RenderSystem

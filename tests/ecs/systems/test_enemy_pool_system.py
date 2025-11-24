@@ -7,7 +7,7 @@ from ecs.events.bus import (
 )
 from ecs.factories.enemies import create_enemy_undead_gardener
 from ecs.systems.enemy_pool_system import EnemyPoolSystem
-from ecs.world import create_world
+from world import create_world
 
 
 def test_enemy_pool_offers_unique_names():

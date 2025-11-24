@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from ecs.components.active_switch import ActiveSwitch
 from ecs.components.tile import TileType
+from ecs.components.tile_status_overlay import TileStatusOverlay
 
 if TYPE_CHECKING:
     from ecs.components.tile_types import TileTypes
@@ -27,12 +28,19 @@ class BoardRenderer:
         if not headless:
             sprites.cleanup_tile_sprites(active_entities)
 
+        rs._last_tile_layout = {}
+
         for (row, col), (ent, base_x, base_y) in positions.items():
             try:
                 switch = rs.world.component_for_entity(ent, ActiveSwitch)
             except KeyError:
                 continue
             tile_active = switch.active
+            overlay: TileStatusOverlay | None
+            try:
+                overlay = rs.world.component_for_entity(ent, TileStatusOverlay)
+            except KeyError:
+                overlay = None
             tile_type_name = None
             if tile_active:
                 try:
@@ -99,9 +107,11 @@ class BoardRenderer:
 
             draw_size = max(ctx.tile_size - self._padding, 4)
             radius = draw_size / 2
-            if not hasattr(rs, "_last_draw_coords"):
-                rs._last_draw_coords = {}
-            rs._last_draw_coords[(row, col)] = (draw_x, draw_y)
+            rs._last_tile_layout[(row, col)] = {
+                "entity": ent,
+                "center": (draw_x, draw_y),
+                "radius": radius,
+            }
             if headless:
                 continue
 
@@ -118,6 +128,13 @@ class BoardRenderer:
                 icon_alpha = int(255 * alpha_override) if alpha_override is not None else 255
                 icon_size = draw_size * 0.78
                 sprites.update_sprite_visuals(sprite, draw_x, draw_y, icon_size, icon_alpha, tint_color=color)
+
+            if overlay is not None and overlay.tint is not None:
+                or_, og, ob = overlay.tint
+                overlay_fill = (or_, og, ob, 72)
+                overlay_outline = (or_, og, ob, 200)
+                arcade.draw_circle_filled(draw_x, draw_y, radius * 0.92, overlay_fill)
+                arcade.draw_circle_outline(draw_x, draw_y, radius, overlay_outline, 3)
 
             if rs.selected and (row, col) == rs.selected:
                 outline_commands.append((draw_x, draw_y, radius + 3))

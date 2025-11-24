@@ -1,5 +1,5 @@
 from ecs.events.bus import EventBus
-from ecs.world import create_world
+from world import create_world
 from ecs.systems.board import BoardSystem
 from ecs.components.board import Board
 

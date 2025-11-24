@@ -7,7 +7,7 @@ from ecs.events.bus import (
     EVENT_ENTITY_DEFEATED,
     EVENT_PLAYER_DEFEATED,
 )
-from ecs.world import create_world
+from world import create_world
 from ecs.systems.defeat_system import DefeatSystem
 from ecs.components.game_over_choice import GameOverChoice
 from ecs.components.choice_window import ChoiceOption, ChoiceWindow
@@ -152,6 +152,7 @@ def test_enemy_defeat_resets_combat_state():
     enemy_health.current = 0
     human_health: Health = world.component_for_entity(human, Health)
     human_health.current = max(1, human_health.current - 10)
+    preserved_health = human_health.current
 
     reset_payload = {}
     bus.subscribe(EVENT_COMBAT_RESET, lambda sender, **payload: reset_payload.update(payload))
@@ -176,7 +177,7 @@ def test_enemy_defeat_resets_combat_state():
 
     human_health = world.component_for_entity(human, Health)
     enemy_health = world.component_for_entity(new_enemy, Health)
-    assert human_health.current == human_health.max_hp
+    assert human_health.current == preserved_health
     assert enemy_health.current == enemy_health.max_hp
 
     turn_order = world.component_for_entity(turn_order_entity, TurnOrder)

@@ -4,7 +4,9 @@ from typing import cast
 from esper import World
 
 from ecs.components.ability import Ability
+from ecs.components.ability_cooldown import AbilityCooldown
 from ecs.components.ability_list_owner import AbilityListOwner
+from ecs.components.ability_target import AbilityTarget
 from ecs.components.active_switch import ActiveSwitch
 from ecs.components.board import Board
 from ecs.components.board_position import BoardPosition
@@ -12,13 +14,13 @@ from ecs.components.health import Health
 from ecs.components.rule_based_agent import RuleBasedAgent
 from ecs.components.tile import TileType
 from ecs.components.tile_bank import TileBank
-from ecs.events.bus import EventBus
+from ecs.events.bus import EventBus, EVENT_ABILITY_ACTIVATE_REQUEST, EVENT_TURN_ACTION_STARTED
 from ecs.factories.abilities import create_ability_by_name
-from ecs.systems.base_ai_system import AbilityAction
+from ecs.systems.base_ai_system import AbilityAction, BaseAISystem
 from ecs.systems.board_ops import find_valid_swaps
 from ecs.ai.simulation import clone_world_state
 from ecs.systems.rule_based_ai_system import RuleBasedAISystem
-from ecs.world import create_world
+from world import create_world
 
 
 def _build_board(world: World, layout: list[list[str]]) -> None:
@@ -191,3 +193,58 @@ def test_rule_based_ai_detects_mana_gain_from_match():
 
     assert other_gain >= 3
     assert secrets_excess == 0
+
+
+class _TestFreeActionAI(BaseAISystem):
+    def __init__(self, world: World, event_bus: EventBus, ability_entity: int):
+        super().__init__(world, event_bus, RuleBasedAgent, rng=random.Random(0))
+        self._ability_entity = ability_entity
+
+    def _score_clone_world(self, clone_state, owner_entity, snapshot, candidate):
+        return 0.0
+
+    def _choose_action(self, owner_entity: int):  # type: ignore[override]
+        return "ability", AbilityAction(
+            ability_entity=self._ability_entity,
+            target_type="self",
+        )
+
+
+def test_ai_requeues_after_free_ability_action():
+    bus = EventBus()
+    world = World()
+
+    owner = world.create_entity(
+        RuleBasedAgent(decision_delay=0.0, selection_delay=0.0),
+        AbilityListOwner(ability_entities=[]),
+        TileBank(owner_entity=0),
+    )
+    bank: TileBank = world.component_for_entity(owner, TileBank)
+    bank.owner_entity = owner
+
+    ability_entity = world.create_entity(
+        Ability(name="test_scent", kind="active", cost={}, ends_turn=False),
+        AbilityTarget(target_type="self", max_targets=0),
+        AbilityCooldown(),
+    )
+    owner_comp: AbilityListOwner = world.component_for_entity(owner, AbilityListOwner)
+    owner_comp.ability_entities = [ability_entity]
+
+    def _handle_activate(sender, **payload):
+        bus.emit(
+            EVENT_TURN_ACTION_STARTED,
+            source="ability",
+            owner_entity=payload.get("owner_entity"),
+            ability_entity=payload.get("ability_entity"),
+        )
+
+    bus.subscribe(EVENT_ABILITY_ACTIVATE_REQUEST, _handle_activate)
+
+    ai_system = _TestFreeActionAI(world, bus, ability_entity)
+    ai_system.pending_owner = owner
+    ai_system.has_dispatched_action = False
+
+    ai_system.on_tick(None, dt=0.0)
+
+    assert ai_system.pending_owner == owner
+    assert ai_system.has_dispatched_action is False

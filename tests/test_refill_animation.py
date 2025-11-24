@@ -3,7 +3,7 @@ from ecs.systems.board import BoardSystem
 from ecs.systems.render import RenderSystem
 from ecs.systems.animation import AnimationSystem
 from ecs.components.animation_refill import RefillAnimation
-from ecs.world import create_world
+from world import create_world
 from ecs.components.tile import TileType
 
 class DummyWindow:

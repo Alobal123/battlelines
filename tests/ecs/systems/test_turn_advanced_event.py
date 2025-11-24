@@ -1,6 +1,6 @@
 import pytest
 from ecs.events.bus import EventBus, EVENT_MATCH_CLEARED, EVENT_CASCADE_COMPLETE, EVENT_TURN_ADVANCED, EVENT_ABILITY_ACTIVATE_REQUEST, EVENT_TILE_CLICK, EVENT_TILE_BANK_SPENT
-from ecs.world import create_world
+from world import create_world
 from ecs.systems.turn_system import TurnSystem
 from ecs.systems.ability_system import AbilitySystem
 from ecs.systems.ability_targeting_system import AbilityTargetingSystem

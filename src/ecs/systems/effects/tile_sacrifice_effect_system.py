@@ -6,6 +6,7 @@ from esper import World
 
 from ecs.components.active_switch import ActiveSwitch
 from ecs.components.effect import Effect
+from ecs.components.effect_list import EffectList
 from ecs.components.health import Health
 from ecs.components.human_agent import HumanAgent
 from ecs.components.tile import TileType
@@ -61,6 +62,8 @@ class TileSacrificeEffectSystem:
             return
         tile_entity, tile_type = tile_info
 
+        self._resolve_tile_effects(tile_entity, source_owner)
+
         if source_owner is not None and multiplier > 0:
             self._grant_rewards(int(source_owner), tile_type, multiplier)
 
@@ -114,6 +117,53 @@ class TileSacrificeEffectSystem:
                 )
 
         self._remove_effect(effect_entity, reason="resolved")
+
+    def _resolve_tile_effects(self, tile_entity: int, remover_owner: int | None) -> None:
+        try:
+            effect_list: EffectList = self.world.component_for_entity(tile_entity, EffectList)
+        except KeyError:
+            return
+        for effect_entity in list(effect_list.effect_entities):
+            try:
+                effect = self.world.component_for_entity(effect_entity, Effect)
+            except KeyError:
+                continue
+            self._dispatch_tile_effect(effect, remover_owner)
+            self.event_bus.emit(
+                EVENT_EFFECT_REMOVE,
+                effect_entity=effect_entity,
+                reason="tile_sacrificed",
+            )
+
+    def _dispatch_tile_effect(self, effect: Effect, remover_owner: int | None) -> None:
+        if effect.slug == "tile_guarded":
+            self._trigger_guarded_effect(effect, remover_owner)
+
+    def _trigger_guarded_effect(self, effect: Effect, remover_owner: int | None) -> None:
+        if remover_owner is None:
+            return
+        source_owner = effect.metadata.get("source_owner")
+        if source_owner is not None and remover_owner == source_owner:
+            return
+        amount = self._coerce_int(
+            effect.metadata.get("damage", effect.metadata.get("amount")),
+            default=1,
+        )
+        if amount <= 0:
+            amount = 1
+        metadata = {
+            "amount": amount,
+            "reason": str(effect.metadata.get("reason", "guarded_tile")),
+            "source_owner": source_owner,
+        }
+        self.event_bus.emit(
+            EVENT_EFFECT_APPLY,
+            owner_entity=remover_owner,
+            source_entity=effect.source_entity,
+            slug="damage",
+            turns=0,
+            metadata=metadata,
+        )
 
     def _tile_at(self, row: int, col: int) -> Tuple[int, TileType] | None:
         tile_entity = get_entity_at(self.world, int(row), int(col))

@@ -2,7 +2,7 @@ import random
 from typing import cast
 
 from ecs.events.bus import EventBus, EVENT_ENTITY_DEFEATED
-from ecs.world import create_world
+from world import create_world
 from ecs.systems.defeat_system import DefeatSystem
 from ecs.components.active_turn import ActiveTurn
 from ecs.components.character import Character

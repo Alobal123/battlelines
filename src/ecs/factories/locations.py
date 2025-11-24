@@ -8,6 +8,7 @@ from esper import World
 
 from ecs.components.game_state import GameMode, GameState
 from ecs.components.location import LocationChoice
+from ecs.components.story_progress_tracker import StoryProgressTracker
 from ecs.events.bus import EventBus
 from ecs.factories.choice_window import ChoiceDefinition, spawn_choice_window
 from ecs.utils.game_state import set_game_mode
@@ -27,6 +28,18 @@ _LOCATION_SPECS: Mapping[str, LocationSpec] = {
         name="Skeletal Garden",
         description="Twisting bone-white flora tended by restless spirits.",
         enemy_names=("undead_beekeeper", "undead_gardener", "undead_florist"),
+    ),
+    "school_kennels": LocationSpec(
+        slug="school_kennels",
+        name="School Kennels",
+        description="Echoing barks and growls fill this abandoned training ground.",
+        enemy_names=("kennelmaster", "mastiffs", "bloodhound"),
+    ),
+    "arcane_library": LocationSpec(
+        slug="arcane_library",
+        name="Arcane Library",
+        description="Library shelves of sentient tomes hum with barely contained energy.",
+        enemy_names=("grimoire", "codex", "librarian"),
     ),
 }
 
@@ -51,9 +64,22 @@ def spawn_location_choice_window(
     panel_height: float = 240.0,
     panel_gap: float = 32.0,
 ) -> int | None:
-    specs = list(all_location_specs())
+    # Get all location specs
+    all_specs = list(all_location_specs())
+    if not all_specs:
+        return None
+    
+    # Filter out already-visited locations
+    tracker_entries = list(world.get_component(StoryProgressTracker))
+    if tracker_entries:
+        _, tracker = tracker_entries[0]
+        specs = [spec for spec in all_specs if spec.slug not in tracker.locations_visited]
+    else:
+        specs = all_specs
+    
     if not specs:
         return None
+    
     generator = rng or random.SystemRandom()
     generator.shuffle(specs)
     definitions: List[ChoiceDefinition] = []

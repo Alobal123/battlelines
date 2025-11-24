@@ -40,7 +40,6 @@ from ecs.menu.factory import spawn_main_menu
 from ecs.systems.board_ops import get_tile_registry
 from ecs.systems.turn_state_utils import get_or_create_turn_state
 from ecs.utils.game_state import set_game_mode
-from ecs.utils.combatants import set_combat_opponent
 
 
 class DefeatSystem:
@@ -108,14 +107,23 @@ class DefeatSystem:
 
     def _handle_enemy_defeat(self, entity: int) -> None:
         self.event_bus.emit(EVENT_ENEMY_DEFEATED, entity=entity)
-        new_enemy = self._replace_enemy(entity)
+        controller = getattr(self.world, "_game_flow_system", None)
+        if controller is not None:
+            # GameFlowSystem will determine the next encounter; remove the defeated enemy
+            # and avoid spawning a replacement immediately to prevent overlapping dialogues.
+            self._delete_entity(entity)
+            new_enemy = None
+        else:
+            new_enemy = self._replace_enemy(entity)
         owners = self._owner_entities()
         self._reset_full_combat_state(
             owners,
             defeated_entity=entity,
             reason="enemy_defeated",
-            next_enemy=new_enemy,
+            heal_players=False,
         )
+        if new_enemy is not None:
+            self._start_enemy_dialogue(new_enemy)
 
     def _resolve_return_to_menu(self) -> None:
         owners = self._owner_entities()
@@ -138,13 +146,14 @@ class DefeatSystem:
         *,
         defeated_entity: int | None,
         reason: str,
-        next_enemy: int | None = None,
+        heal_players: bool = True,
     ) -> None:
         self._clear_transient_combat_state()
         self._reset_tile_banks(owners)
         self._reset_effects(owners)
         self._reset_ability_cooldowns(owners)
-        self._heal_owners(owners)
+        if heal_players:
+            self._heal_owners(owners)
         self._reset_turn_structures(owners)
         self._reset_board()
         clear_choice_window(self.world)
@@ -154,7 +163,6 @@ class DefeatSystem:
             EVENT_COMBAT_RESET,
             reason=reason,
             defeated_entity=defeated_entity,
-            next_enemy=next_enemy,
         )
 
     def _clear_transient_combat_state(self) -> None:
@@ -345,6 +353,18 @@ class DefeatSystem:
     def _set_game_mode(self, mode: GameMode) -> None:
         set_game_mode(self.world, self.event_bus, mode)
 
+    def _start_enemy_dialogue(self, enemy_entity: int) -> None:
+        player_entities = [ent for ent, _ in self.world.get_component(HumanAgent)]
+        if not player_entities:
+            return
+        player_entity = player_entities[0]
+        self.event_bus.emit(
+            EVENT_DIALOGUE_START,
+            left_entity=player_entity,
+            right_entity=enemy_entity,
+            resume_mode=GameMode.COMBAT,
+        )
+
     def _clear_menu_entities(self) -> None:
         targets = {
             *(ent for ent, _ in self.world.get_component(MenuTag)),
@@ -395,7 +415,6 @@ class DefeatSystem:
         self._ensure_enemy_owner_order(new_enemy)
         self._replace_turn_order_owner(defeated_entity, new_enemy)
         self._replace_active_turn_owner(defeated_entity, new_enemy)
-        set_combat_opponent(self.world, new_enemy)
         return new_enemy
 
     def _ensure_enemy_owner_order(self, enemy_entity: int) -> None:

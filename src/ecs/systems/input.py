@@ -1,13 +1,10 @@
-from time import monotonic
-from typing import Callable
-
 from ecs.events.bus import (
     EventBus,
     EVENT_MOUSE_PRESS,
     EVENT_TILE_CLICK,
     EVENT_ABILITY_ACTIVATE_REQUEST,
     EVENT_TILE_BANK_GAINED,
-    EVENT_GAME_MODE_CHANGED,
+    EVENT_HEALTH_DAMAGE,
 )
 from ecs.constants import GRID_COLS, GRID_ROWS
 from ecs.ui.layout import compute_board_geometry
@@ -16,27 +13,14 @@ from ecs.components.human_agent import HumanAgent
 from ecs.components.choice_window import ChoiceWindow
 from ecs.components.game_state import GameMode, GameState
 from ecs.components.tile_bank import TileBank
-
-DEFAULT_TRANSITION_GUARD = 0.18
-
+from ecs.components.health import Health
 
 class InputSystem:
-    def __init__(
-        self,
-        event_bus: EventBus,
-        window,
-        world=None,
-        clock: Callable[[], float] | None = None,
-    ):
+    def __init__(self, event_bus: EventBus, window, world=None):
         self.event_bus = event_bus
         self.window = window
         self.world = world  # optional world ref for ability activation lookup
-        self._clock = clock or monotonic
-        self._input_guard_until = 0.0
-        self._last_mouse_time: float | None = None
-        self._press_guard_id: int | None = None
         self.event_bus.subscribe(EVENT_MOUSE_PRESS, self.on_mouse_press)
-        self.event_bus.subscribe(EVENT_GAME_MODE_CHANGED, self._on_game_mode_changed)
 
     def on_mouse_press(self, sender, **kwargs):
         x = kwargs.get('x')
@@ -44,20 +28,6 @@ class InputSystem:
         button = kwargs.get('button')
         if x is None or y is None:
             return
-        now = self._clock()
-        if self._input_guard_until > 0.0 and now < self._input_guard_until:
-            return
-        press_id = kwargs.get('press_id')
-        try:
-            press_id_int = int(press_id) if press_id is not None else None
-        except (TypeError, ValueError):
-            press_id_int = None
-        if self._press_guard_id is not None:
-            if press_id_int == self._press_guard_id:
-                self._press_guard_id = None
-                return
-            self._press_guard_id = None
-        self._last_mouse_time = now
         if not self._combat_mode_active():
             return
         if self._choice_window_active():
@@ -70,8 +40,27 @@ class InputSystem:
             if button == 4 and input_locked:
                 return
             return  # Do not emit tile click or ability activation for non-left buttons; Board/Ability systems listen directly to EVENT_MOUSE_PRESS
-        # First, check ability buttons via render system layout cache if available
+        # First, check for portrait hits to support debug damage taps
         render_system = getattr(self.window, 'render_system', None)
+        if render_system and hasattr(render_system, 'get_player_panel_at_point'):
+            panel_entry = render_system.get_player_panel_at_point(x, y)
+            if panel_entry:
+                owner_entity = panel_entry.get('owner_entity')
+                if self.world is not None and owner_entity is not None:
+                    try:
+                        self.world.component_for_entity(owner_entity, Health)
+                    except KeyError:
+                        pass
+                    else:
+                        self.event_bus.emit(
+                            EVENT_HEALTH_DAMAGE,
+                            target_entity=owner_entity,
+                            amount=10,
+                            reason="portrait_click_debug",
+                            source_owner=active_owner,
+                        )
+                return
+        # Next, check ability buttons via render system layout cache if available
         if render_system and hasattr(render_system, 'get_ability_at_point'):
             entry = render_system.get_ability_at_point(x, y)
             if entry and self.world is not None and not input_locked:
@@ -153,38 +142,6 @@ class InputSystem:
         row = int((y - start_y) // tile_size)
         if 0 <= row < GRID_ROWS and 0 <= col < GRID_COLS:
             self.event_bus.emit(EVENT_TILE_CLICK, row=row, col=col)
-
-    def _on_game_mode_changed(self, sender, **payload) -> None:
-        previous_mode = payload.get('previous_mode')
-        if previous_mode is None:
-            return
-        interval = payload.get('input_guard_interval')
-        if interval is None:
-            interval = self._compute_transition_guard()
-        try:
-            duration = float(interval)
-        except (TypeError, ValueError):
-            return
-        if duration <= 0.0:
-            self._input_guard_until = self._clock()
-        else:
-            self._input_guard_until = self._clock() + duration
-        guard_id = payload.get('input_guard_press_id')
-        if payload.get('new_mode') == GameMode.COMBAT:
-            try:
-                self._press_guard_id = int(guard_id) if guard_id is not None else None
-            except (TypeError, ValueError):
-                self._press_guard_id = None
-        else:
-            self._press_guard_id = None
-
-    def _compute_transition_guard(self) -> float:
-        if self._last_mouse_time is None:
-            return 0.0
-        elapsed = self._clock() - self._last_mouse_time
-        if elapsed < DEFAULT_TRANSITION_GUARD:
-            return DEFAULT_TRANSITION_GUARD
-        return 0.0
 
     def _choice_window_active(self) -> bool:
         if self.world is None:

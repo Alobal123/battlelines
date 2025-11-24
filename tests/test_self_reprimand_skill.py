@@ -1,5 +1,5 @@
 from ecs.events.bus import EventBus
-from ecs.world import create_world
+from world import create_world
 from ecs.components.skill import Skill
 from ecs.components.skill_effect import SkillEffects
 from ecs.factories.player_skills import (

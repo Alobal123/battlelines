@@ -18,6 +18,8 @@ from ecs.components.dialogue_session import DialogueSession
 from ecs.events.bus import EVENT_CHOICE_SELECTED, EVENT_MATCH_SETUP_REQUEST, EventBus
 from ecs.factories.abilities import spawn_player_ability_choice
 from ecs.factories.skills import skill_slugs_for_entity
+from ecs.factories.locations import get_location_spec
+from ecs.systems.game_flow_system import GameFlowSystem
 from ecs.systems.match_setup_system import MatchSetupSystem
 from ecs.systems.ability_system import AbilitySystem
 from ecs.systems.dialogue_system import DialogueSystem
@@ -26,7 +28,7 @@ from ecs.systems.skills.skill_choice_system import SkillChoiceSystem
 from ecs.systems.location_choice_system import LocationChoiceSystem
 from ecs.systems.skills.apply_skill_effects_system import ApplySkillEffectsSystem
 from ecs.utils.combatants import find_primary_opponent
-from ecs.world import create_world
+from world import create_world
 
 from tests.helpers import grant_player_skills
 
@@ -58,6 +60,7 @@ def test_player_ability_selection_adds_chosen_ability():
     grant_player_skills(world, ("self_reprimand",))
     DialogueSystem(world, bus)
     AbilitySystem(world, bus)
+    GameFlowSystem(world, bus, rng=random.Random(42))
     MatchSetupSystem(world, bus, rng=random.Random(1))
     SkillPoolSystem(world, bus, rng=random.Random(2))
     SkillChoiceSystem(world, bus)
@@ -138,11 +141,9 @@ def test_player_ability_selection_adds_chosen_ability():
 
     current_location = world.component_for_entity(owner_entity, CurrentLocation)
     assert current_location.slug == location_choice.location_slug
-    assert set(current_location.enemy_names) == {
-        "undead_beekeeper",
-        "undead_gardener",
-        "undead_florist",
-    }
+    spec = get_location_spec(current_location.slug)
+    assert spec is not None
+    assert set(current_location.enemy_names) == set(spec.enemy_names)
 
     assert len(skill_owner.skill_entities) == initial_skill_count + 1
     gained_skill_entity = skill_owner.skill_entities[-1]
@@ -159,6 +160,7 @@ def test_match_setup_uses_chosen_enemy_for_combat():
     bus = EventBus()
     world = create_world(bus, grant_default_player_abilities=False, randomize_enemy=False)
     DialogueSystem(world, bus)
+    GameFlowSystem(world, bus, rng=random.Random(5))
     MatchSetupSystem(world, bus, rng=random.Random(2))
 
     player_entity = _human_entity(world)

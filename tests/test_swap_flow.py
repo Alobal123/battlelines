@@ -3,7 +3,7 @@ from ecs.systems.board import BoardSystem
 from ecs.systems.render import RenderSystem
 from ecs.systems.animation import AnimationSystem
 from ecs.systems.match import MatchSystem
-from ecs.world import create_world
+from world import create_world
 
 class DummyWindow:
     def __init__(self, width=800, height=600):

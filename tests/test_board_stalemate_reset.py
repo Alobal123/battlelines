@@ -15,7 +15,7 @@ from ecs.systems.match_resolution import MatchResolutionSystem
 from ecs.systems.board_ops import find_all_matches, find_valid_swaps
 from ecs.components.tile import TileType
 from ecs.components.active_switch import ActiveSwitch
-from ecs.world import create_world
+from world import create_world
 
 
 def drive_ticks(bus: EventBus, count: int = 240, dt: float = 0.05) -> None:
