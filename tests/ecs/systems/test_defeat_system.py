@@ -25,6 +25,7 @@ from ecs.components.health import Health
 from ecs.components.turn_order import TurnOrder
 from ecs.components.active_turn import ActiveTurn
 from ecs.menu.components import MenuButton
+from ecs.systems.board import BoardSystem
 from ecs.systems.board_ops import find_all_matches
 
 from tests.helpers import grant_player_abilities
@@ -189,3 +190,39 @@ def test_enemy_defeat_resets_combat_state():
 
     assert not list(world.get_component(GameOverChoice))
     assert not find_all_matches(world)
+
+
+def test_combat_reset_clears_tile_effects():
+    bus = EventBus()
+    world = create_world(bus)
+    grant_player_abilities(world, ("tactical_shift",))
+    DefeatSystem(world, bus)
+    board = BoardSystem(world, bus, rows=2, cols=2)
+
+    tile_entity = board._get_entity_at(0, 0)
+    assert tile_entity is not None
+    enemy = _enemy_entity(world)
+
+    try:
+        effect_list = world.component_for_entity(tile_entity, EffectList)
+    except KeyError:
+        effect_list = EffectList()
+        world.add_component(tile_entity, effect_list)
+    guard_effect = Effect(
+        slug="tile_guarded",
+        owner_entity=tile_entity,
+        metadata={"source_owner": enemy},
+    )
+    effect_entity = world.create_entity(guard_effect)
+    effect_list.effect_entities.append(effect_entity)
+
+    bus.emit(EVENT_ENTITY_DEFEATED, entity=enemy)
+
+    with pytest.raises((KeyError, ValueError)):
+        world.component_for_entity(effect_entity, Effect)
+
+    try:
+        updated_list = world.component_for_entity(tile_entity, EffectList)
+    except (KeyError, ValueError):
+        updated_list = None
+    assert updated_list is None or not updated_list.effect_entities

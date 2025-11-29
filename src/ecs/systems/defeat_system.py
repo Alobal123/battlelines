@@ -155,6 +155,7 @@ class DefeatSystem:
         if heal_players:
             self._heal_owners(owners)
         self._reset_turn_structures(owners)
+        self._clear_tile_effects()
         self._reset_board()
         clear_choice_window(self.world)
         self._game_over_active = False
@@ -192,12 +193,22 @@ class DefeatSystem:
             if owner_set and bank.owner_entity not in owner_set:
                 continue
             if bank.counts:
+                previous = bank.counts.copy()
                 bank.counts.clear()
-                self.event_bus.emit(
-                    EVENT_TILE_BANK_CHANGED,
-                    entity=entity,
-                    counts=bank.counts.copy(),
-                )
+                delta = {
+                    type_name: -int(amount)
+                    for type_name, amount in previous.items()
+                    if int(amount) != 0
+                }
+                if delta:
+                    self.event_bus.emit(
+                        EVENT_TILE_BANK_CHANGED,
+                        entity=entity,
+                        owner_entity=bank.owner_entity,
+                        counts=bank.counts.copy(),
+                        delta=delta,
+                        source="combat_reset",
+                    )
 
     def _reset_effects(self, owners: Iterable[int]) -> None:
         for owner in owners:
@@ -309,6 +320,24 @@ class DefeatSystem:
                 except (KeyError, ValueError):
                     continue
                 tile.type_name = choice
+
+    def _clear_tile_effects(self) -> None:
+        tiles_with_position = {entity for entity, _ in self.world.get_component(BoardPosition)}
+        if not tiles_with_position:
+            return
+        for tile_entity in tiles_with_position:
+            try:
+                effect_list = self.world.component_for_entity(tile_entity, EffectList)
+            except (KeyError, ValueError):
+                continue
+            self.event_bus.emit(
+                EVENT_EFFECT_REMOVE,
+                owner_entity=tile_entity,
+                remove_all=True,
+            )
+            for effect_entity in list(effect_list.effect_entities):
+                self._delete_entity(effect_entity)
+            effect_list.effect_entities.clear()
 
     def _clear_targeting_states(self) -> None:
         for entity, _ in list(self.world.get_component(TargetingState)):

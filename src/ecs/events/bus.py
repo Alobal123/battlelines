@@ -44,7 +44,7 @@ EVENT_TILE_SWAP_FINALIZE = "tile_swap_finalize"    # payload: src=(r,c), dst=(r,
 EVENT_TILE_SWAP_VALID = "tile_swap_valid"          # payload: src=(r,c), dst=(r,c)
 EVENT_TILE_SWAP_INVALID = "tile_swap_invalid"      # payload: src=(r,c), dst=(r,c)
 EVENT_MATCH_FOUND = "match_found"                  # payload: positions=[(r,c),...], size=int
-EVENT_MATCH_CLEARED = "match_cleared"              # payload: positions=[(r,c),...]
+EVENT_MATCH_CLEARED = "match_cleared"              # payload: positions=[(r,c),...], types=list[(r,c,type)], owner_entity=int|None, entities=list[(r,c,entity)]|None
 EVENT_GRAVITY_APPLIED = "gravity_applied"          # payload: cascades=int
 EVENT_REFILL_COMPLETED = "refill_completed"        # payload: new_tiles=[(r,c),...]
 EVENT_CASCADE_STEP = "cascade_step"                # payload: depth=int, positions=[(r,c),...]
@@ -62,8 +62,9 @@ EVENT_ANIMATION_COMPLETE = "animation_complete"    # payload: kind=str, items=li
 # ============================================================================
 # RESOURCES & MANA
 # ============================================================================
-EVENT_TILE_BANK_CHANGED = "tile_bank_changed"                # payload: entity=int, counts=dict
-EVENT_TILE_BANK_GAINED = "tile_bank_gained"                  # payload: owner_entity=int, type_name=str, amount=int
+EVENT_TILES_MATCHED = "tiles_matched"                        # payload: owner_entity=int, positions=list[(r,c)], types=list[(r,c,type)]
+EVENT_BANK_MANA = "bank_mana"                                # payload: owner_entity=int, type_name=str, amount=int|float, gains=dict[str,int]|None
+EVENT_TILE_BANK_CHANGED = "tile_bank_changed"                # payload: entity=int, owner_entity=int, counts=dict, delta=dict[str,int], source=str
 EVENT_TILE_BANK_SPEND_REQUEST = "tile_bank_spend_request"    # payload: entity=int, cost=dict[str,int]
 EVENT_TILE_BANK_SPENT = "tile_bank_spent"                    # payload: entity=int, cost=dict[str,int]
 EVENT_TILE_BANK_INSUFFICIENT = "tile_bank_insufficient"      # payload: entity=int, cost=dict[str,int], missing=dict[str,int]

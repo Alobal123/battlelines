@@ -5,7 +5,7 @@ from ecs.events.bus import (
     EVENT_ABILITY_EXECUTE,
     EVENT_EFFECT_REMOVE,
     EVENT_HEALTH_DAMAGE,
-    EVENT_TILE_BANK_GAINED,
+    EVENT_TILE_BANK_CHANGED,
 )
 from world import create_world
 from ecs.components.ability import Ability
@@ -92,7 +92,15 @@ def test_self_reprimand_triggers_extra_damage_and_blood_gain() -> None:
     bank_events: list[dict] = []
 
     bus.subscribe(EVENT_HEALTH_DAMAGE, lambda s, **k: damage_events.append(k))
-    bus.subscribe(EVENT_TILE_BANK_GAINED, lambda s, **k: bank_events.append(k))
+
+    def capture_bank(sender, **payload):
+        if payload.get("owner_entity") != owner:
+            return
+        delta = payload.get("delta") or {}
+        if delta.get("blood", 0) > 0:
+            bank_events.append(payload)
+
+    bus.subscribe(EVENT_TILE_BANK_CHANGED, capture_bank)
 
     enemy_health: Health = world.component_for_entity(opponent, Health)
     starting_enemy = enemy_health.current
@@ -114,7 +122,7 @@ def test_self_reprimand_triggers_extra_damage_and_blood_gain() -> None:
     assert enemy_health.current == starting_enemy - 6
 
     assert any(
-        event.get("owner_entity") == owner and event.get("type_name") == "blood" and event.get("amount") == 1
+        event.get("owner_entity") == owner and (event.get("delta") or {}).get("blood") == 1
         for event in bank_events
     )
     assert bank.counts.get("blood", 0) == starting_blood + 1
@@ -133,7 +141,15 @@ def test_self_reprimand_absent_does_not_trigger() -> None:
     bank_events: list[dict] = []
 
     bus.subscribe(EVENT_HEALTH_DAMAGE, lambda s, **k: damage_events.append(k))
-    bus.subscribe(EVENT_TILE_BANK_GAINED, lambda s, **k: bank_events.append(k))
+
+    def capture_bank(sender, **payload):
+        if payload.get("owner_entity") != owner:
+            return
+        delta = payload.get("delta") or {}
+        if delta.get("blood", 0) > 0:
+            bank_events.append(payload)
+
+    bus.subscribe(EVENT_TILE_BANK_CHANGED, capture_bank)
 
     _activate_blood_bolt(bus, ability_entity, owner)
 

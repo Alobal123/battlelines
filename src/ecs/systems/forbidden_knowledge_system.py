@@ -3,10 +3,9 @@ from esper import World
 from ecs.components.forbidden_knowledge import ForbiddenKnowledge
 from ecs.events.bus import (
     EventBus,
-    EVENT_MATCH_CLEARED,
+    EVENT_TILES_MATCHED,
     EVENT_FORBIDDEN_KNOWLEDGE_CHANGED,
     EVENT_TILE_BANK_CHANGED,
-    EVENT_TILE_BANK_GAINED,
 )
 from ecs.components.tile import TileType
 from ecs.components.tile_bank import TileBank
@@ -19,23 +18,21 @@ class ForbiddenKnowledgeSystem:
     def __init__(self, world: World, event_bus: EventBus):
         self.world = world
         self.event_bus = event_bus
-        self.event_bus.subscribe(EVENT_MATCH_CLEARED, self.on_match_cleared)
-        self.event_bus.subscribe(EVENT_TILE_BANK_GAINED, self.on_tile_bank_gained)
+        self.event_bus.subscribe(EVENT_TILES_MATCHED, self.on_tiles_matched)
+        self.event_bus.subscribe(EVENT_TILE_BANK_CHANGED, self.on_bank_changed)
 
-    def on_match_cleared(self, sender, **kwargs) -> None:
+    def on_tiles_matched(self, sender, **kwargs) -> None:
         types = kwargs.get("types") or []
         secrets_cleared = sum(1 for _, _, tile_type in types if tile_type == "secrets")
         if secrets_cleared <= 0:
             return
         self._increment_meter(secrets_cleared)
 
-    def on_tile_bank_gained(self, sender, **kwargs) -> None:
-        if kwargs.get("type_name") != "secrets":
+    def on_bank_changed(self, sender, **kwargs) -> None:
+        if kwargs.get("source") != "knowledge_bar_click":
             return
-        source = kwargs.get("source")
-        if source != "knowledge_bar_click":
-            return
-        amount = kwargs.get("amount", 0)
+        delta = kwargs.get("delta") or {}
+        amount = delta.get("secrets")
         try:
             amount_int = int(amount)
         except (TypeError, ValueError):
@@ -84,15 +81,22 @@ class ForbiddenKnowledgeSystem:
         for _, tile in self.world.get_component(TileType):
             if tile.type_name == "secrets":
                 tile.type_name = "chaos"
-        changed_banks: list[tuple[int, dict[str, int]]] = []
+        changed_banks: list[tuple[int, int, dict[str, int], dict[str, int]]] = []
         for bank_ent, bank in self.world.get_component(TileBank):
             secrets_stock = bank.counts.pop("secrets", 0)
             if secrets_stock:
                 bank.counts["chaos"] = bank.counts.get("chaos", 0) + secrets_stock
-                changed_banks.append((bank_ent, bank.counts.copy()))
-        for bank_ent, counts in changed_banks:
+                delta = {
+                    "secrets": -secrets_stock,
+                    "chaos": secrets_stock,
+                }
+                changed_banks.append((bank_ent, bank.owner_entity, bank.counts.copy(), delta))
+        for bank_ent, owner_entity, counts, delta in changed_banks:
             self.event_bus.emit(
                 EVENT_TILE_BANK_CHANGED,
                 entity=bank_ent,
+                owner_entity=owner_entity,
                 counts=counts,
+                delta=delta,
+                source="forbidden_knowledge_chaos_release",
             )

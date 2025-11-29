@@ -9,13 +9,13 @@ from ecs.components.ability_cooldown import AbilityCooldown
 
 
 def create_ability_curse_of_frailty(world: World) -> int:
-    """Apply a stacking frailty debuff that amplifies incoming damage."""
+    """Apply a compounding frailty debuff that amplifies incoming damage."""
     return world.create_entity(
         Ability(
             name="curse_of_frailty",
             kind="active",
             cost={"hex": 3},
-            description="Afflict the enemy with frailty for 5 turns. Each stack adds +1 damage taken.",
+            description="Afflict the enemy with frailty for 5 turns. Each application adds +1 damage taken.",
             cooldown=0,
             ends_turn=False,
         ),
@@ -29,7 +29,7 @@ def create_ability_curse_of_frailty(world: World) -> int:
                     metadata={
                         "bonus": 1,
                         "reason": "curse_of_frailty",
-                        "stacks": True,
+                        "allow_multiple": True,
                         "stack_key": "frailty",
                     },
                 ),

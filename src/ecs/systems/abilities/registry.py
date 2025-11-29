@@ -7,7 +7,8 @@ from ecs.systems.abilities.base import AbilityResolver
 from ecs.systems.abilities.bee_sting_resolver import BeeStingResolver
 from ecs.systems.abilities.go_for_throat_resolver import GoForThroatResolver
 from ecs.systems.abilities.guard_resolver import GuardResolver
-from ecs.systems.abilities.guard_bark_resolver import GuardBarkResolver
+from ecs.systems.abilities.cease_witchfire_resolver import CeaseWitchfireResolver
+from ecs.systems.abilities.mighty_bark_resolver import MightyBarkResolver
 
 _PLUGIN_GROUP = "battlelines.ability_resolvers"
 _plugin_loaded = False
@@ -75,7 +76,8 @@ def _builtin_resolvers() -> Dict[str, AbilityResolver]:
         "bee_sting": BeeStingResolver(),
         "go_for_throat": GoForThroatResolver(),
         "guard": GuardResolver(),
-        "guard_bark": GuardBarkResolver(),
+        "cease_witchfire": CeaseWitchfireResolver(),
+        "mighty_bark": MightyBarkResolver(),
     }
 
 

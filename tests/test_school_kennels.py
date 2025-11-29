@@ -55,7 +55,7 @@ def test_mastiffs_enemy_spawns():
     assert char.name == "Guarding Mastiffs"
 
 
-def test_mastiffs_has_guard_bark():
+def test_mastiffs_has_guard_and_mighty_bark():
     bus = EventBus()
     world = create_world(bus)
     enemy_pool = getattr(world, "enemy_pool")
@@ -74,25 +74,17 @@ def test_mastiffs_has_guard_bark():
     }
 
     assert "guard" in ability_entities, "Mastiffs should be configured with guard"
-    assert "guard_bark" in ability_entities, "Mastiffs should be configured with guard_bark"
+    assert "mighty_bark" in ability_entities, "Mastiffs should be configured with mighty_bark"
 
     guard = world.component_for_entity(ability_entities["guard"], Ability)
-    assert guard.cost == {"spirit": 3, "shapeshift": 3}
+    assert guard.cost == {"shapeshift": 3}
     assert guard.ends_turn is True
     assert "guarded tiles" in guard.description.lower()
 
-    guard_bark = world.component_for_entity(ability_entities["guard_bark"], Ability)
-    assert guard_bark.cost == {"shapeshift": 4}
-    assert guard_bark.ends_turn is True
-
-    guard_bark_effects = world.component_for_entity(ability_entities["guard_bark"], AbilityEffects)
-    assert len(guard_bark_effects.effects) == 2, "guard_bark should apply board and heal effects"
-    transform_spec = guard_bark_effects.effects[0]
-    assert transform_spec.slug == "board_transform_type"
-    assert transform_spec.metadata.get("reason") == "guard_bark"
-    heal_spec = guard_bark_effects.effects[1]
-    assert heal_spec.slug == "heal"
-    assert heal_spec.metadata.get("amount") == 3
+    mighty_bark = world.component_for_entity(ability_entities["mighty_bark"], Ability)
+    assert mighty_bark.cost == {"shapeshift": 4}
+    assert mighty_bark.ends_turn is True
+    assert mighty_bark.params.get("heal_per_tile") == 2
 
 
 def test_bloodhound_enemy_spawns():
@@ -122,7 +114,7 @@ def test_school_kennels_in_location_pool():
     assert len(locations) >= 3  # skeletal_garden + school_kennels + arcane_library
 
 
-def test_bloodhound_has_scent_lock_ability():
+def test_bloodhound_scent_lock_inflicts_bleeding():
     bus = EventBus()
     world = create_world(bus)
     enemy_pool = getattr(world, "enemy_pool")
@@ -152,9 +144,10 @@ def test_bloodhound_has_scent_lock_ability():
     scent_effects = world.component_for_entity(ability_by_name["scent_lock"], AbilityEffects)
     assert scent_effects.effects, "scent_lock should apply at least one effect"
     scent_spec = scent_effects.effects[0]
-    assert scent_spec.slug == "locked_scent"
+    assert scent_spec.slug == "bleeding"
     assert scent_spec.target == "opponent"
-    assert scent_spec.turns == 5
+    assert scent_spec.metadata.get("count") == 5
+    assert scent_spec.metadata.get("reason") == "scent_lock"
 
     go_for_throat = world.component_for_entity(ability_by_name["go_for_throat"], Ability)
     assert go_for_throat.cost == {"shapeshift": 7}

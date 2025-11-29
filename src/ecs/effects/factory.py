@@ -115,12 +115,25 @@ def ensure_default_effects_registered() -> None:
             slug="poison",
             display_name="Poison",
             description="Loses health at the start of each of its turns.",
+            tags=("cumulative",),
             default_metadata={
-                "amount": 1,
+                "damage_per_tick": 1,
                 "reason": "poison",
-                "turns": 0,
-                "stacks": True,
                 "stack_key": "poison",
+                "allow_multiple": False,
+            },
+        )
+    )
+    _register(
+        EffectDefinition(
+            slug="bleeding",
+            display_name="Bleeding",
+            description="Lose health whenever blood mana is gained.",
+            tags=("cumulative",),
+            default_metadata={
+                "reason": "bleeding",
+                "stack_key": "bleeding",
+                "allow_multiple": False,
             },
         )
     )
@@ -133,7 +146,6 @@ def ensure_default_effects_registered() -> None:
                 "amount": 1,
                 "reason": "thorns",
                 "turns": 0,
-                "stacks": False,
                 "stack_key": "thorns",
             },
         )
@@ -165,6 +177,17 @@ def ensure_default_effects_registered() -> None:
     )
     _register(
         EffectDefinition(
+            slug="vigour",
+            display_name="Vigour",
+            description="Converts overhealing into damage against opponents.",
+            default_metadata={
+                "multiplier": 1,
+                "reason": "vigour",
+            },
+        )
+    )
+    _register(
+        EffectDefinition(
             slug="void_tithe",
             display_name="Void Tithe",
             description="At the end of the owner's turn, deal damage equal to empty board tiles.",
@@ -182,17 +205,6 @@ def ensure_default_effects_registered() -> None:
             default_metadata={
                 "amount": 1,
                 "reason": "blood_covenant",
-            },
-        )
-    )
-    _register(
-        EffectDefinition(
-            slug="locked_scent",
-            display_name="Locked Scent",
-            description="A lingering scent marker with no direct effect.",
-            default_metadata={
-                "stacks": True,
-                "stack_key": "locked_scent",
             },
         )
     )

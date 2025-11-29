@@ -10,7 +10,7 @@ from ecs.events.bus import (
     EVENT_EFFECT_REFRESHED,
     EVENT_MANA_DRAIN,
     EVENT_TILE_BANK_CHANGED,
-    EVENT_TILE_BANK_GAINED,
+    EVENT_BANK_MANA,
 )
 from ecs.systems.effects.bank_effect_helpers import drain_bank_counts
 
@@ -54,11 +54,20 @@ class ManaDrainEffectSystem:
         drained = drain_bank_counts(bank, amount, effect.metadata)
         total_drained = sum(drained.values())
         if total_drained > 0:
-            self.event_bus.emit(
-                EVENT_TILE_BANK_CHANGED,
-                entity=bank_entity,
-                counts=bank.counts.copy(),
-            )
+            bank_delta = {
+                type_name: -int(amount)
+                for type_name, amount in drained.items()
+                if int(amount) != 0
+            }
+            if bank_delta:
+                self.event_bus.emit(
+                    EVENT_TILE_BANK_CHANGED,
+                    entity=bank_entity,
+                    owner_entity=owner_entity,
+                    counts=bank.counts.copy(),
+                    delta=bank_delta,
+                    source=str(effect.metadata.get("reason", effect.slug)),
+                )
             gained = self._grant_to_source_owner(effect.metadata.get("source_owner"), drained)
             self.event_bus.emit(
                 EVENT_MANA_DRAIN,
@@ -77,33 +86,16 @@ class ManaDrainEffectSystem:
     def _grant_to_source_owner(self, source_owner, drained: dict[str, int]) -> dict[str, int]:
         if not isinstance(source_owner, int) or not drained:
             return {}
-        source_info = self._find_bank(source_owner)
-        if source_info is None:
-            return {}
-        source_entity, source_bank = source_info
-        gained: dict[str, int] = {}
-        for type_name, amount in drained.items():
-            if amount <= 0:
-                continue
-            source_bank.add(type_name, amount)
-            gained[type_name] = gained.get(type_name, 0) + amount
-        if not gained:
+        gains = {type_name: amount for type_name, amount in drained.items() if int(amount) > 0}
+        if not gains:
             return {}
         self.event_bus.emit(
-            EVENT_TILE_BANK_CHANGED,
-            entity=source_entity,
-            counts=source_bank.counts.copy(),
+            EVENT_BANK_MANA,
+            owner_entity=source_owner,
+            gains=gains,
+            source="mana_drain",
         )
-        for type_name, amount in gained.items():
-            self.event_bus.emit(
-                EVENT_TILE_BANK_GAINED,
-                owner_entity=source_owner,
-                bank_entity=source_entity,
-                type_name=type_name,
-                amount=amount,
-                reason="mana_drain",
-            )
-        return gained
+        return gains
 
     def _find_bank(self, owner_entity: int):
         for entity, bank in self.world.get_component(TileBank):

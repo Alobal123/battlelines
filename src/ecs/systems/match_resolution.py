@@ -1,7 +1,7 @@
 from typing import List, Tuple
 from esper import World
 from ecs.events.bus import (EventBus, EVENT_TILE_SWAP_FINALIZE, EVENT_MATCH_FOUND,
-                            EVENT_MATCH_CLEARED, EVENT_GRAVITY_APPLIED, EVENT_REFILL_COMPLETED,
+                            EVENT_MATCH_CLEARED, EVENT_TILES_MATCHED, EVENT_GRAVITY_APPLIED, EVENT_REFILL_COMPLETED,
                             EVENT_CASCADE_STEP, EVENT_CASCADE_COMPLETE, EVENT_ANIMATION_START, EVENT_ANIMATION_COMPLETE,
                             EVENT_BOARD_CHANGED, EVENT_TURN_ACTION_STARTED, EVENT_TICK)
 from ecs.components.active_switch import ActiveSwitch
@@ -16,6 +16,8 @@ from ecs.systems.board_ops import (
     find_valid_swaps,
     active_tile_type_map,
     respawn_full_board,
+    snapshot_tile_entities,
+    apply_gravity_moves,
 )
 from ecs.systems.turn_state_utils import get_or_create_turn_state
 
@@ -94,12 +96,14 @@ class MatchResolutionSystem:
             return
         # Deterministic ordering for events/tests
         positions = sorted(positions)
+        entity_snapshot = snapshot_tile_entities(self.world, positions)
         # Delegate clear/gravity/refill handling to shared board ops to keep behaviour consistent.
         if self._stalemate_reset_active:
             _, typed_before, moves, cascades, _ = clear_tiles_with_cascade(
                 self.world,
                 positions,
                 refill=False,
+                apply_gravity=False,
             )
             new_tiles = respawn_full_board(
                 self.world,
@@ -109,13 +113,28 @@ class MatchResolutionSystem:
             _, typed_before, moves, cascades, new_tiles = clear_tiles_with_cascade(
                 self.world,
                 positions,
+                apply_gravity=False,
             )
         types_before = sorted(typed_before)
         owner_entity = self._active_owner()
         # Emit match cleared with type info only; colors are derived in RenderSystem.
-        self.event_bus.emit(EVENT_MATCH_CLEARED, positions=positions, types=types_before, owner_entity=owner_entity)
+        self.event_bus.emit(
+            EVENT_MATCH_CLEARED,
+            positions=positions,
+            types=types_before,
+            owner_entity=owner_entity,
+            entities=entity_snapshot,
+        )
+        self.event_bus.emit(
+            EVENT_TILES_MATCHED,
+            positions=positions,
+            types=types_before,
+            owner_entity=owner_entity,
+            source="match_resolution",
+        )
         # Gravity
         if moves:
+            apply_gravity_moves(self.world, moves)
             fall_payload = [
                 {'from': move.source, 'to': move.target, 'type_name': move.type_name}
                 for move in moves

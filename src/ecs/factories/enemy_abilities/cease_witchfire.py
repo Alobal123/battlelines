@@ -8,14 +8,14 @@ from ecs.components.ability_effect import AbilityEffectSpec, AbilityEffects
 from ecs.components.ability_target import AbilityTarget
 
 
-def create_ability_guard_bark(world: World) -> int:
-    """Bellow a warding bark that disrupts witchfire and mends wounds."""
+def create_ability_cease_witchfire(world: World) -> int:
+    """Disrupt witchfire veins and mend the caster."""
     return world.create_entity(
         Ability(
-            name="guard_bark",
+            name="cease_witchfire",
             kind="active",
             cost={"shapeshift": 4},
-            description="Convert up to three witchfire tiles into random mana and heal 3.",
+            description="Convert up to three witchfire tiles into random mana, then heal 3.",
             cooldown=0,
         ),
         AbilityTarget(target_type="self", max_targets=0),
@@ -28,11 +28,11 @@ def create_ability_guard_bark(world: World) -> int:
                     metadata={
                         "positions": [],
                         "target_types": [],
-                        "reason": "guard_bark",
+                        "reason": "cease_witchfire",
                         "emit_match_cleared": False,
                         "context_read": {
-                            "positions": "guard_bark_positions",
-                            "target_types": "guard_bark_target_types",
+                            "positions": "cease_witchfire_positions",
+                            "target_types": "cease_witchfire_target_types",
                         },
                     },
                 ),
@@ -42,7 +42,7 @@ def create_ability_guard_bark(world: World) -> int:
                     turns=0,
                     metadata={
                         "amount": 3,
-                        "reason": "guard_bark",
+                        "reason": "cease_witchfire",
                     },
                 ),
             )

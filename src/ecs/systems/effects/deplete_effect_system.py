@@ -60,11 +60,20 @@ class DepleteEffectSystem:
             if isinstance(map_key, str):
                 context_ref[map_key] = dict(deltas)
         if deltas:
-            self.event_bus.emit(
-                EVENT_TILE_BANK_CHANGED,
-                entity=bank_entity,
-                counts=bank.counts.copy(),
-            )
+            bank_delta = {
+                type_name: -int(amount)
+                for type_name, amount in deltas.items()
+                if int(amount) != 0
+            }
+            if bank_delta:
+                self.event_bus.emit(
+                    EVENT_TILE_BANK_CHANGED,
+                    entity=bank_entity,
+                    owner_entity=owner_entity,
+                    counts=bank.counts.copy(),
+                    delta=bank_delta,
+                    source=str(effect.metadata.get("reason", effect.slug)),
+                )
             self.event_bus.emit(
                 EVENT_TILE_BANK_DEPLETED,
                 entity=bank_entity,

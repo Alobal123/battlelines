@@ -30,7 +30,6 @@ class TileStatusSystem:
     def __init__(self, world: World, event_bus: EventBus) -> None:
         self.world = world
         self.event_bus = event_bus
-        self._effect_to_tile: Dict[int, int] = {}
         event_bus.subscribe(EVENT_EFFECT_APPLIED, self.on_effect_applied)
         event_bus.subscribe(EVENT_EFFECT_REFRESHED, self.on_effect_refreshed)
         event_bus.subscribe(EVENT_EFFECT_EXPIRED, self.on_effect_expired)
@@ -55,7 +54,7 @@ class TileStatusSystem:
         effect_entity = payload.get("effect_entity")
         if effect_entity is None:
             return
-        tile_entity = self._effect_to_tile.pop(effect_entity, None)
+        tile_entity = payload.get("owner_entity")
         if tile_entity is None:
             return
         try:
@@ -91,7 +90,6 @@ class TileStatusSystem:
         if existing is not None:
             if existing.effect_entity != effect_entity:
                 previous_effect = existing.effect_entity
-                self._effect_to_tile.pop(previous_effect, None)
                 existing.effect_entity = effect_entity
                 # Remove the superseded effect entity; consumers listening for
                 # EVENT_EFFECT_REMOVE will gracefully expire it.
@@ -105,7 +103,6 @@ class TileStatusSystem:
             existing.tint = tint
             existing.metadata.clear()
             existing.metadata.update(metadata)
-            self._effect_to_tile[effect_entity] = tile_entity
             return
 
         overlay = TileStatusOverlay(
@@ -116,7 +113,6 @@ class TileStatusSystem:
             metadata=metadata,
         )
         self.world.add_component(tile_entity, overlay)
-        self._effect_to_tile[effect_entity] = tile_entity
 
     def _is_tile_entity(self, entity: int) -> bool:
         try:

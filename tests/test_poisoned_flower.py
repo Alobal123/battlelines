@@ -1,3 +1,5 @@
+import pytest
+
 from ecs.events.bus import EventBus, EVENT_ABILITY_EXECUTE, EVENT_HEALTH_DAMAGE, EVENT_TURN_ADVANCED
 from world import create_world
 from ecs.components.ability import Ability
@@ -49,11 +51,10 @@ def test_poisoned_flower_definition():
     assert len(effects.effects) == 1
     spec = effects.effects[0]
     assert spec.slug == "poison"
-    if spec.turns is not None:
-        assert spec.turns > 0
-    amount = spec.metadata.get("amount")
-    if amount is not None:
-        assert amount > 0
+    assert spec.turns is None
+    count = spec.metadata.get("count")
+    if count is not None:
+        assert count > 0
     assert spec.metadata.get("reason") == "poison"
 
 
@@ -90,25 +91,23 @@ def test_poisoned_flower_applies_poison_and_ticks():
     effect_entity = effect_list.effect_entities[0]
     effect = world.component_for_entity(effect_entity, Effect)
     assert effect.slug == "poison"
-    effect_amount = effect.metadata.get("amount")
-    assert effect_amount is not None and effect_amount > 0
+    assert effect.count == 6
     assert effect.metadata.get("reason") == "poison"
     assert effect.metadata.get("source_owner") is None
-    duration = world.component_for_entity(effect_entity, EffectDuration)
-    effect_spec = world.component_for_entity(ability_entity, AbilityEffects).effects[0]
-    if effect_spec.turns is not None:
-        assert duration.remaining_turns == effect_spec.turns
-    else:
-        assert duration.remaining_turns > 0
+    with pytest.raises(KeyError):
+        world.component_for_entity(effect_entity, EffectDuration)
 
     bus.emit(EVENT_TURN_ADVANCED, previous_owner=None, new_owner=human)
 
     assert damage_events, "Poison should have dealt damage at start of afflicted turn"
     payload = damage_events[-1]
     assert payload["target_entity"] == human
-    assert payload["amount"] == effect_amount
+    assert payload["amount"] == 2
     assert payload.get("reason") == "poison"
     assert payload.get("source_owner") is None
 
     health_after = world.component_for_entity(human, Health).current
-    assert health_after == health_before - effect_amount
+    assert health_after == health_before - 2
+
+    effect = world.component_for_entity(effect_entity, Effect)
+    assert effect.count == 5

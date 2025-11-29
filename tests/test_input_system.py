@@ -4,7 +4,7 @@ from ecs.events.bus import (
     EventBus,
     EVENT_MOUSE_PRESS,
     EVENT_TILE_CLICK,
-    EVENT_TILE_BANK_GAINED,
+    EVENT_BANK_MANA,
 )
 from ecs.systems.input import InputSystem
 from ecs.constants import GRID_ROWS, GRID_COLS, TILE_SIZE, BOTTOM_MARGIN
@@ -71,7 +71,7 @@ def test_knowledge_bar_click_grants_secret():
     def on_gain(sender, **payload):
         gained.append(payload)
 
-    bus.subscribe(EVENT_TILE_BANK_GAINED, on_gain)
+    bus.subscribe(EVENT_BANK_MANA, on_gain)
 
     bus.emit(EVENT_MOUSE_PRESS, x=120, y=110, button=1)
 

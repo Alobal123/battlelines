@@ -8,7 +8,7 @@ from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.events.bus import (
     EVENT_EFFECT_APPLY,
     EVENT_HEALTH_DAMAGE,
-    EVENT_TILE_BANK_GAINED,
+    EVENT_BANK_MANA,
     EventBus,
 )
 
@@ -50,10 +50,11 @@ class SelfReprimandEffectSystem:
                 )
         if mana_amount > 0 and mana_type:
             self.event_bus.emit(
-                EVENT_TILE_BANK_GAINED,
+                EVENT_BANK_MANA,
                 owner_entity=owner,
                 type_name=mana_type,
                 amount=mana_amount,
+                source="self_reprimand",
             )
 
     def _aggregate_effects(self, owner: int) -> tuple[int, int, str, str] | None:

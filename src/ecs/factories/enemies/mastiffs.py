@@ -12,7 +12,7 @@ from ecs.components.tile_bank import TileBank
 from ecs.components.affinity import Affinity
 from .common import resolve_enemy_abilities
 
-DEFAULT_MASTIFFS_LOADOUT: Sequence[str] = ("guard", "guard_bark")
+DEFAULT_MASTIFFS_LOADOUT: Sequence[str] = ("guard", "mighty_bark")
 
 
 def create_enemy_mastiffs(

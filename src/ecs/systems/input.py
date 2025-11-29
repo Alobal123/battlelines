@@ -3,7 +3,7 @@ from ecs.events.bus import (
     EVENT_MOUSE_PRESS,
     EVENT_TILE_CLICK,
     EVENT_ABILITY_ACTIVATE_REQUEST,
-    EVENT_TILE_BANK_GAINED,
+    EVENT_BANK_MANA,
     EVENT_HEALTH_DAMAGE,
 )
 from ecs.constants import GRID_COLS, GRID_ROWS
@@ -90,9 +90,8 @@ class InputSystem:
                 if bank_info is not None:
                     bank_ent, owner = bank_info
                     self.event_bus.emit(
-                        EVENT_TILE_BANK_GAINED,
+                        EVENT_BANK_MANA,
                         owner_entity=owner,
-                        bank_entity=bank_ent,
                         type_name='secrets',
                         amount=1,
                         source='knowledge_bar_click',
@@ -112,9 +111,8 @@ class InputSystem:
                     if amount_int <= 0:
                         amount_int = 1
                     self.event_bus.emit(
-                        EVENT_TILE_BANK_GAINED,
+                        EVENT_BANK_MANA,
                         owner_entity=owner_entity,
-                        bank_entity=bank_entry.get('bank_entity'),
                         type_name=type_name,
                         amount=amount_int,
                         source="bank_click",

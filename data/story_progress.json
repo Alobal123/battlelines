@@ -1,14 +1,11 @@
 {
-  "enemies_defeated": 1,
+  "enemies_defeated": 0,
   "locations_visited": [
-    "school_kennels"
+    "skeletal_garden"
   ],
-  "enemies_encountered": [
-    "bloodhound"
-  ],
+  "enemies_encountered": [],
   "dialogues_completed": [
-    "dialogue_2_106",
-    "dialogue_2_101"
+    "dialogue_2_103"
   ],
   "abilities_unlocked": [],
   "skills_gained": [],

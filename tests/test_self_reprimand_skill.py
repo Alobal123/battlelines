@@ -6,6 +6,7 @@ from ecs.factories.player_skills import (
     create_skill_blood_covenant,
     create_skill_self_reprimand,
     create_skill_void_tithe,
+    create_skill_vigour,
 )
 
 
@@ -67,5 +68,24 @@ def test_create_skill_blood_covenant_metadata_and_effect():
     assert len(effects.effects) == 1
     spec = effects.effects[0]
     assert spec.slug == "blood_covenant"
+    assert spec.turns is None
+    assert spec.metadata == {}
+
+
+def test_create_skill_vigour_metadata_and_effect():
+    bus = EventBus()
+    world = create_world(bus, grant_default_player_abilities=False)
+
+    skill_entity = create_skill_vigour(world)
+
+    skill: Skill = world.component_for_entity(skill_entity, Skill)
+    assert skill.name == "Vigour"
+    assert "overflow" in skill.description.lower()
+    assert "nature" in skill.tags
+
+    effects: SkillEffects = world.component_for_entity(skill_entity, SkillEffects)
+    assert len(effects.effects) == 1
+    spec = effects.effects[0]
+    assert spec.slug == "vigour"
     assert spec.turns is None
     assert spec.metadata == {}

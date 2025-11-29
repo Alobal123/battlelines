@@ -13,6 +13,8 @@ class Effect:
     slug: str
     owner_entity: int
     source_entity: int | None = None
-    stacks: bool = False
+    allow_multiple: bool = True
     stack_key: str | None = None
+    cumulative: bool = False
+    count: int = 0
     metadata: dict[str, Any] = field(default_factory=dict)

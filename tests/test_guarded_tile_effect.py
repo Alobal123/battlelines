@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from ecs.events.bus import EVENT_EFFECT_APPLY, EVENT_MATCH_CLEARED, EventBus
+from ecs.components.active_switch import ActiveSwitch
 from ecs.components.effect import Effect
 from ecs.components.effect_list import EffectList
 from ecs.components.health import Health
@@ -17,16 +18,23 @@ from ecs.systems.effects.tile_sacrifice_effect_system import TileSacrificeEffect
 from ecs.systems.effects.tile_status_system import TileStatusSystem
 from ecs.systems.health_system import HealthSystem
 from world import create_world
+from ecs.systems.board_ops import (
+    apply_gravity_moves,
+    clear_tiles_with_cascade,
+    compute_gravity_moves,
+    snapshot_tile_entities,
+)
+from ecs.components.tile import TileType
 
 
-def _setup_world():
+def _setup_world(rows: int = 2, cols: int = 2):
     bus = EventBus()
     world = create_world(bus)
     EffectLifecycleSystem(world, bus)
     DamageEffectSystem(world, bus)
     HealthSystem(world, bus)
     GuardedTileEffectSystem(world, bus)
-    board = BoardSystem(world, bus, rows=2, cols=2)
+    board = BoardSystem(world, bus, rows=rows, cols=cols)
     return bus, world, board
 
 
@@ -153,3 +161,128 @@ def test_guarded_tile_triggers_on_sacrifice_and_overlay_removed():
     assert after == before - 1
     with pytest.raises(KeyError):
         world.component_for_entity(tile_entity, TileStatusOverlay)
+
+
+def test_guarded_tile_effect_follows_gravity():
+    bus, world, board = _setup_world(rows=2, cols=1)
+    TileStatusSystem(world, bus)
+
+    owner = _human_entity(world)
+    lower_entity = _tile_entity(board, 0, 0)
+    upper_entity = _tile_entity(board, 1, 0)
+
+    lower_switch: ActiveSwitch = world.component_for_entity(lower_entity, ActiveSwitch)
+    lower_switch.active = False
+
+    bus.emit(
+        EVENT_EFFECT_APPLY,
+        owner_entity=upper_entity,
+        slug="tile_guarded",
+        metadata={"source_owner": owner},
+    )
+
+    guard_ids_top = _guard_effect_ids(world, upper_entity)
+    assert guard_ids_top, "Effect should attach to the original tile"
+
+    moves, _ = compute_gravity_moves(world)
+    assert moves, "Expected gravity to move the guarded tile"
+
+    apply_gravity_moves(world, moves)
+
+    assert not _guard_effect_ids(world, upper_entity), "Source tile should lose its effect"
+    guard_ids_bottom = _guard_effect_ids(world, lower_entity)
+    assert guard_ids_bottom, "Destination tile should inherit tile effects"
+
+    overlay = world.component_for_entity(lower_entity, TileStatusOverlay)
+    assert overlay.slug == "tile_guarded"
+    assert overlay.effect_entity in guard_ids_bottom
+
+    for effect_id in guard_ids_bottom:
+        effect = world.component_for_entity(effect_id, Effect)
+        assert effect.owner_entity == lower_entity
+
+    with pytest.raises(KeyError):
+        world.component_for_entity(upper_entity, TileStatusOverlay)
+
+
+def test_guarded_tile_persists_when_match_occurs_below():
+    bus, world, board = _setup_world(rows=4, cols=1)
+    TileStatusSystem(world, bus)
+
+    owner = _human_entity(world)
+    guard_entity = _tile_entity(board, 3, 0)
+
+    # Ensure a vertical match directly below the guarded tile.
+    for row in range(3):
+        entity = _tile_entity(board, row, 0)
+        world.component_for_entity(entity, TileType).type_name = "nature"
+    world.component_for_entity(guard_entity, TileType).type_name = "blood"
+
+    bus.emit(
+        EVENT_EFFECT_APPLY,
+        owner_entity=guard_entity,
+        slug="tile_guarded",
+        metadata={"source_owner": owner},
+    )
+
+    match_positions = [(0, 0), (1, 0), (2, 0)]
+    snapshot = snapshot_tile_entities(world, match_positions)
+    _, typed, _, _, _ = clear_tiles_with_cascade(world, match_positions)
+
+    bus.emit(
+        EVENT_MATCH_CLEARED,
+        positions=match_positions,
+        types=typed,
+        owner_entity=_enemy_entity(world),
+        entities=snapshot,
+    )
+
+    remaining = [effect for _, effect in world.get_component(Effect) if effect.slug == "tile_guarded"]
+    assert remaining, "Guarded effect should persist when only adjacent tiles were cleared"
+
+
+def test_guarded_tile_survives_event_before_gravity_transfer():
+    bus, world, board = _setup_world(rows=4, cols=1)
+    TileStatusSystem(world, bus)
+
+    owner = _human_entity(world)
+    opponent = _enemy_entity(world)
+    guard_entity = _tile_entity(board, 3, 0)
+
+    for row in range(3):
+        entity = _tile_entity(board, row, 0)
+        world.component_for_entity(entity, TileType).type_name = "nature"
+    world.component_for_entity(guard_entity, TileType).type_name = "blood"
+
+    bus.emit(
+        EVENT_EFFECT_APPLY,
+        owner_entity=guard_entity,
+        slug="tile_guarded",
+        metadata={"source_owner": owner},
+    )
+
+    match_positions = [(0, 0), (1, 0), (2, 0)]
+    snapshot = snapshot_tile_entities(world, match_positions)
+    _, typed, moves, _, _ = clear_tiles_with_cascade(
+        world,
+        match_positions,
+        apply_gravity=False,
+    )
+
+    assert moves, "Expected gravity moves so guarded tile will fall"
+
+    bus.emit(
+        EVENT_MATCH_CLEARED,
+        positions=match_positions,
+        types=typed,
+        owner_entity=opponent,
+        entities=snapshot,
+    )
+
+    guard_ids = _guard_effect_ids(world, guard_entity)
+    assert guard_ids, "Effect should remain on original tile before gravity"
+
+    apply_gravity_moves(world, moves)
+
+    bottom_entity = _tile_entity(board, 0, 0)
+    assert _guard_effect_ids(world, bottom_entity), "Effect should transfer after gravity"

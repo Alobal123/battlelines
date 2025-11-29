@@ -39,13 +39,12 @@ def _effect_entities(world: World, owner: int) -> list[int]:
     return list(effect_list.effect_entities)
 
 
-def test_effects_stack_when_allowed(lifecycle_world):
+def test_effects_stack_by_default(lifecycle_world):
     bus, world, _system, owner = lifecycle_world
     bus.emit(
         EVENT_EFFECT_APPLY,
         owner_entity=owner,
         slug="test_buff",
-        stacks=True,
         metadata={"value": 1},
     )
     first_entities = _effect_entities(world, owner)
@@ -55,7 +54,6 @@ def test_effects_stack_when_allowed(lifecycle_world):
         EVENT_EFFECT_APPLY,
         owner_entity=owner,
         slug="test_buff",
-        stacks=True,
         metadata={"value": 3},
     )
     second_entities = _effect_entities(world, owner)
@@ -65,6 +63,35 @@ def test_effects_stack_when_allowed(lifecycle_world):
     second_effect = [ent for ent in second_entities if ent != first_effect][0]
     second_comp = world.component_for_entity(second_effect, Effect)
     assert second_comp.metadata["value"] == 3
+
+
+def test_effects_respect_allow_multiple_false(lifecycle_world):
+    bus, world, _system, owner = lifecycle_world
+    bus.emit(
+        EVENT_EFFECT_APPLY,
+        owner_entity=owner,
+        slug="test_buff",
+        allow_multiple=False,
+        metadata={"value": 5},
+    )
+    first_entities = _effect_entities(world, owner)
+    assert len(first_entities) == 1
+    original_entity = first_entities[0]
+
+    bus.emit(
+        EVENT_EFFECT_APPLY,
+        owner_entity=owner,
+        slug="test_buff",
+        allow_multiple=False,
+        metadata={"value": 7},
+    )
+
+    updated_entities = _effect_entities(world, owner)
+    assert len(updated_entities) == 1
+    new_entity = updated_entities[0]
+    assert new_entity != original_entity, "Re-applying without allow_multiple should replace the effect"
+    new_effect = world.component_for_entity(new_entity, Effect)
+    assert new_effect.metadata["value"] == 7
 
 
 def test_refresh_updates_metadata_and_duration(lifecycle_world):

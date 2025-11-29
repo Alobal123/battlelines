@@ -53,7 +53,7 @@ def test_go_for_throat_definition():
     assert spec.metadata.get("reason") == "go_for_throat"
 
 
-def test_go_for_throat_scales_with_locked_scent():
+def test_go_for_throat_scales_with_bleeding():
     bus = EventBus()
     world = create_world(bus)
 
@@ -86,13 +86,12 @@ def test_go_for_throat_scales_with_locked_scent():
     base_damage = _execute()
     assert base_damage == 3
 
-    for _ in range(2):
-        bus.emit(
-            EVENT_EFFECT_APPLY,
-            owner_entity=human,
-            slug="locked_scent",
-            metadata={},
-        )
+    bus.emit(
+        EVENT_EFFECT_APPLY,
+        owner_entity=human,
+        slug="bleeding",
+        metadata={"count": 10},
+    )
 
     stacked_damage = _execute()
     assert stacked_damage == 3 + (2 * 2)

@@ -1,6 +1,6 @@
 from ecs.events.bus import (
     EventBus,
-    EVENT_MATCH_CLEARED,
+    EVENT_TILES_MATCHED,
     EVENT_TILE_BANK_SPEND_REQUEST,
     EVENT_TILE_BANK_SPENT,
     EVENT_TILE_BANK_INSUFFICIENT,
@@ -24,13 +24,18 @@ def test_tile_bank_increments_on_match_clear():
     bank.counts['nature'] = 100
     # Use new faculty names
     types_payload = [(0,0,'hex'), (0,1,'hex'), (0,2,'nature')]
-    changed = {}
-    bus.subscribe(EVENT_TILE_BANK_CHANGED, lambda s, **k: changed.update(k))
-    bus.emit(EVENT_MATCH_CLEARED, positions=[(0,0),(0,1),(0,2)], types=types_payload)
-    assert changed.get('counts'), 'Tile bank not changed'
-    counts = changed['counts']
+    changed = []
+    bus.subscribe(EVENT_TILE_BANK_CHANGED, lambda s, **k: changed.append(k))
+    bus.emit(EVENT_TILES_MATCHED, positions=[(0,0),(0,1),(0,2)], types=types_payload)
+    assert changed, 'Tile bank not changed'
+    payload = changed[-1]
+    counts = payload['counts']
     assert counts.get('hex') == 102  # initial 100 + 2
     assert counts.get('nature') == 101  # initial 100 + 1
+    delta = payload['delta']
+    assert delta.get('hex') == 2
+    assert delta.get('nature') == 1
+    assert payload['owner_entity'] == owner_ent
 
 
 def test_tile_bank_spend_success_and_failure():
@@ -39,7 +44,7 @@ def test_tile_bank_spend_success_and_failure():
     owner_ent = list(world.get_component(AbilityListOwner))[0][0]
     # Pre-load bank via match clear (adds 2 hex, 1 nature)
     types_payload = [(0,0,'hex'), (0,1,'hex'), (0,2,'nature')]
-    bus.emit(EVENT_MATCH_CLEARED, positions=[(0,0),(0,1),(0,2)], types=types_payload)
+    bus.emit(EVENT_TILES_MATCHED, positions=[(0,0),(0,1),(0,2)], types=types_payload)
     spent = {}; insufficient = {}
     bus.subscribe(EVENT_TILE_BANK_SPENT, lambda s, **k: spent.update(k))
     bus.subscribe(EVENT_TILE_BANK_INSUFFICIENT, lambda s, **k: insufficient.update(k))
@@ -59,13 +64,13 @@ def test_no_regiment_readiness_side_effects():
     owner_ent = list(world.get_component(AbilityListOwner))[0][0]
     # Emit a match clear with multiple types; should not raise or try to access removed components.
     types_payload = [(0,0,'hex'), (0,1,'hex'), (0,2,'hex')]
-    bus.emit(EVENT_MATCH_CLEARED, positions=[(0,0),(0,1),(0,2)], types=types_payload, owner_entity=owner_ent)
+    bus.emit(EVENT_TILES_MATCHED, positions=[(0,0),(0,1),(0,2)], types=types_payload, owner_entity=owner_ent)
     # Basic assertion: bank updated
-    counts = None
-    changed = {}
-    bus.subscribe(EVENT_TILE_BANK_CHANGED, lambda s, **k: changed.update(k))
-    bus.emit(EVENT_MATCH_CLEARED, positions=[(1,0),(1,1),(1,2)], types=types_payload, owner_entity=owner_ent)
-    counts = changed.get('counts')
+    changed = []
+    bus.subscribe(EVENT_TILE_BANK_CHANGED, lambda s, **k: changed.append(k))
+    bus.emit(EVENT_TILES_MATCHED, positions=[(1,0),(1,1),(1,2)], types=types_payload, owner_entity=owner_ent)
+    assert changed, "expected tile bank change"
+    counts = changed[-1]['counts']
     # After two match clears of 3 hex each, should have 6 hex total
     assert counts and counts.get('hex') >= 6
 
@@ -83,7 +88,7 @@ def test_chaos_match_always_damages_human():
     bus.subscribe(EVENT_EFFECT_APPLY, lambda sender, **payload: applied.append(payload))
 
     bus.emit(
-        EVENT_MATCH_CLEARED,
+        EVENT_TILES_MATCHED,
         positions=[(0, 0), (0, 1)],
         types=[(0, 0, 'chaos'), (0, 1, 'chaos')],
         owner_entity=clearing_owner,

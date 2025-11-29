@@ -2,9 +2,8 @@ import random
 
 from ecs.events.bus import (
     EventBus,
-    EVENT_MATCH_CLEARED,
+    EVENT_TILES_MATCHED,
     EVENT_FORBIDDEN_KNOWLEDGE_CHANGED,
-    EVENT_TILE_BANK_GAINED,
     EVENT_TILE_BANK_CHANGED,
 )
 from ecs.systems.forbidden_knowledge_system import ForbiddenKnowledgeSystem
@@ -32,7 +31,7 @@ def test_forbidden_knowledge_increments_on_secrets_match():
     bus.subscribe(EVENT_FORBIDDEN_KNOWLEDGE_CHANGED, lambda sender, **payload: captured.append(payload))
 
     bus.emit(
-        EVENT_MATCH_CLEARED,
+        EVENT_TILES_MATCHED,
         positions=[(0, 0), (0, 1), (0, 2)],
         types=[(0, 0, "secrets"), (0, 1, "blood"), (0, 2, "secrets")],
     )
@@ -56,7 +55,7 @@ def test_forbidden_knowledge_caps_at_maximum():
     bus.subscribe(EVENT_FORBIDDEN_KNOWLEDGE_CHANGED, lambda sender, **payload: captured.append(payload))
 
     bus.emit(
-        EVENT_MATCH_CLEARED,
+        EVENT_TILES_MATCHED,
         positions=[(1, 0), (1, 1)],
         types=[(1, 0, "secrets"), (1, 1, "secrets")],
     )
@@ -86,7 +85,7 @@ def test_chaos_release_converts_board_and_banks():
     bus.subscribe(EVENT_TILE_BANK_CHANGED, lambda sender, **payload: bank_updates.append(payload))
 
     bus.emit(
-        EVENT_MATCH_CLEARED,
+        EVENT_TILES_MATCHED,
         positions=[(0, 0)],
         types=[(0, 0, "secrets")],
     )
@@ -117,10 +116,11 @@ def test_knowledge_bar_gain_increments_meter():
     bus.subscribe(EVENT_FORBIDDEN_KNOWLEDGE_CHANGED, lambda sender, **payload: captured.append(payload))
 
     bus.emit(
-        EVENT_TILE_BANK_GAINED,
+        EVENT_TILE_BANK_CHANGED,
+        entity=-1,
         owner_entity=owner,
-        type_name="secrets",
-        amount=2,
+        counts={},
+        delta={"secrets": 2},
         source="knowledge_bar_click",
     )
 

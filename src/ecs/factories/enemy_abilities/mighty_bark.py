@@ -7,15 +7,16 @@ from ecs.components.ability_cooldown import AbilityCooldown
 from ecs.components.ability_target import AbilityTarget
 
 
-def create_ability_guard(world: World) -> int:
-    """Set defensive wards on random tiles, punishing intruders."""
+def create_ability_mighty_bark(world: World) -> int:
+    """Draw strength from each guarded tile to heal the pack."""
     return world.create_entity(
         Ability(
-            name="guard",
+            name="mighty_bark",
             kind="active",
-            cost={"shapeshift": 3},
-            description="Place up to five guarded tiles that retaliate when cleared.",
+            cost={"spirit": 4, "nature": 2},
+            description="Heal 1 for every tile currently guarded by the mastiffs.",
             cooldown=0,
+            params={"heal_per_tile": 1},
         ),
         AbilityTarget(target_type="self", max_targets=0),
         AbilityCooldown(),

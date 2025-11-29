@@ -9,6 +9,9 @@ from esper import World
 from ecs.components.board_position import BoardPosition
 from ecs.components.active_switch import ActiveSwitch
 from ecs.components.tile import TileType
+from ecs.components.effect import Effect
+from ecs.components.effect_list import EffectList
+from ecs.components.tile_status_overlay import TileStatusOverlay
 from ecs.components.tile_type_registry import TileTypeRegistry
 from ecs.components.tile_types import TileTypes
 from ecs.components.board import Board
@@ -23,6 +26,100 @@ class GravityMove:
     source: Position
     target: Position
     type_name: str
+
+
+def _set_effect_owner(world: World, effect_entity: int, owner_entity: int) -> None:
+    try:
+        effect: Effect = world.component_for_entity(effect_entity, Effect)
+    except KeyError:
+        return
+    effect.owner_entity = owner_entity
+
+
+def _remove_effect_list_component(world: World, entity: int) -> None:
+    try:
+        world.remove_component(entity, EffectList)
+    except KeyError:
+        return
+
+
+def _detach_effect_list(world: World, entity: int) -> List[int]:
+    try:
+        effect_list: EffectList = world.component_for_entity(entity, EffectList)
+    except KeyError:
+        return []
+    effect_entities = list(effect_list.effect_entities)
+    _remove_effect_list_component(world, entity)
+    return effect_entities
+
+
+def _attach_effect_list(world: World, entity: int, effect_entities: List[int]) -> None:
+    _remove_effect_list_component(world, entity)
+    if not effect_entities:
+        return
+    for effect_entity in effect_entities:
+        _set_effect_owner(world, effect_entity, entity)
+    world.add_component(entity, EffectList(effect_entities=list(effect_entities)))
+
+
+def _swap_effect_lists(world: World, entity_a: int, entity_b: int) -> None:
+    if entity_a == entity_b:
+        return
+    effects_a = _detach_effect_list(world, entity_a)
+    effects_b = _detach_effect_list(world, entity_b)
+    _attach_effect_list(world, entity_a, effects_b)
+    _attach_effect_list(world, entity_b, effects_a)
+
+
+def _transfer_effect_list(world: World, src_entity: int, dst_entity: int) -> None:
+    if src_entity == dst_entity:
+        return
+    effects = _detach_effect_list(world, src_entity)
+    _detach_effect_list(world, dst_entity)
+    _attach_effect_list(world, dst_entity, effects)
+
+
+def _pop_overlay(world: World, entity: int) -> TileStatusOverlay | None:
+    try:
+        overlay: TileStatusOverlay = world.component_for_entity(entity, TileStatusOverlay)
+    except KeyError:
+        return None
+    world.remove_component(entity, TileStatusOverlay)
+    return overlay
+
+
+def _assign_overlay(world: World, entity: int, overlay: TileStatusOverlay | None) -> None:
+    _pop_overlay(world, entity)
+    if overlay is not None:
+        world.add_component(entity, overlay)
+
+
+def _swap_tile_overlays(world: World, entity_a: int, entity_b: int) -> None:
+    if entity_a == entity_b:
+        return
+    overlay_a = _pop_overlay(world, entity_a)
+    overlay_b = _pop_overlay(world, entity_b)
+    if overlay_a is not None:
+        world.add_component(entity_b, overlay_a)
+    if overlay_b is not None:
+        world.add_component(entity_a, overlay_b)
+
+
+def _transfer_tile_overlay(world: World, src_entity: int, dst_entity: int) -> None:
+    if src_entity == dst_entity:
+        return
+    overlay = _pop_overlay(world, src_entity)
+    _assign_overlay(world, dst_entity, overlay)
+
+
+def _swap_tile_effect_payload(world: World, entity_a: int, entity_b: int) -> None:
+    _swap_effect_lists(world, entity_a, entity_b)
+    _swap_tile_overlays(world, entity_a, entity_b)
+
+
+def _transfer_tile_effect_payload(world: World, src_entity: int, dst_entity: int) -> None:
+    _transfer_effect_list(world, src_entity, dst_entity)
+    _transfer_tile_overlay(world, src_entity, dst_entity)
 
 
 def get_tile_registry(world: World) -> TileTypes:
@@ -42,6 +139,15 @@ def get_entity_at(world: World, row: int, col: int) -> int | None:
         if position.row == row and position.col == col:
             return entity
     return None
+
+
+def snapshot_tile_entities(world: World, positions: Iterable[Position]) -> List[Tuple[int, int, int | None]]:
+    """Capture the entity ids occupying each board position at this moment."""
+
+    snapshots: List[Tuple[int, int, int | None]] = []
+    for row, col in positions:
+        snapshots.append((row, col, get_entity_at(world, row, col)))
+    return snapshots
 
 
 def transform_tiles_to_type(world: World, row: int, col: int, target_type: str) -> List[Position]:
@@ -83,10 +189,17 @@ def swap_tile_types(world: World, src: Position, dst: Position) -> bool:
     except KeyError:
         return False
     src_tile.type_name, dst_tile.type_name = dst_tile.type_name, src_tile.type_name
+    _swap_tile_effect_payload(world, src_entity, dst_entity)
     return True
 
 
-def clear_tiles_with_cascade(world: World, positions: List[Position], *, refill: bool = True):
+def clear_tiles_with_cascade(
+    world: World,
+    positions: List[Position],
+    *,
+    refill: bool = True,
+    apply_gravity: bool = True,
+):
     """Clear tiles at positions, apply gravity/refill, and return board change metadata."""
     if not positions:
         return [], [], [], 0, []
@@ -106,9 +219,9 @@ def clear_tiles_with_cascade(world: World, positions: List[Position], *, refill:
         tile_switch.active = False
     moves, cascades = compute_gravity_moves(world)
     new_tiles: List[Position] = []
-    if moves:
+    if moves and apply_gravity:
         apply_gravity_moves(world, moves)
-    elif refill:
+    elif not moves and refill:
         new_tiles = refill_inactive_tiles(world)
     return colored, typed, moves, cascades, new_tiles
 
@@ -162,6 +275,7 @@ def apply_gravity_moves(world: World, moves: List[GravityMove]) -> None:
         src_tile: TileType = world.component_for_entity(src_entity, TileType)
         dst_tile: TileType = world.component_for_entity(dst_entity, TileType)
         dst_tile.type_name = src_tile.type_name
+        _transfer_tile_effect_payload(world, src_entity, dst_entity)
         dst_switch.active = True
         src_switch.active = False
 

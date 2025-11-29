@@ -55,6 +55,7 @@ class RenderSystem:
         self._current_active_owner: int | None = None
         self._render_ctx: RenderContext | None = None
         self._last_tile_layout: dict[tuple[int, int], dict[str, object]] = {}
+        self._last_draw_coords: dict[tuple[int, int], tuple[float, float]] = {}
         self._board_renderer = BoardRenderer(self, self.sprite_cache, padding=PADDING)
         self._ability_panel_renderer = AbilityPanelRenderer(self)
         self._bank_panel_renderer = BankPanelRenderer(self, self.sprite_cache)

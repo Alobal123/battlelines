@@ -34,7 +34,7 @@ def create_enemy_librarian(
         Character(
             slug="librarian",
             name="Arcane Librarian",
-            description="Guardian of the stacks, enforcing silence with razor-sharp bookmarks.",
+            description="Guardian of the arcane archives, enforcing silence with razor-sharp bookmarks.",
             portrait_path="librarian.png",
         ),
     )

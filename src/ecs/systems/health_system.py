@@ -78,6 +78,7 @@ class HealthSystem:
         
         old_hp = health.current
         health.current += amount
+        overheal = max(0, health.current - health.max_hp)
         health.clamp()
         delta = health.current - old_hp
         
@@ -89,4 +90,5 @@ class HealthSystem:
             delta=delta,
             reason=reason,
             source_owner=source_owner,
+            overheal=overheal,
         )

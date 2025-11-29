@@ -4,11 +4,11 @@ from esper import World
 
 from ecs.components.effect import Effect
 from ecs.components.effect_list import EffectList
-from ecs.events.bus import EVENT_TURN_ADVANCED, EVENT_HEALTH_DAMAGE, EventBus
+from ecs.events.bus import EVENT_TURN_ADVANCED, EVENT_HEALTH_DAMAGE, EVENT_EFFECT_REMOVE, EventBus
 
 
 class PoisonEffectSystem:
-    """Applies poison damage at the start of the affected entity's turn."""
+    """Applies poison damage at the start of the affected entity's turn, consuming one stack."""
 
     def __init__(self, world: World, event_bus: EventBus) -> None:
         self.world = world
@@ -26,19 +26,24 @@ class PoisonEffectSystem:
             effect = self._effect(effect_entity)
             if effect is None or effect.slug != "poison":
                 continue
-            amount = self._coerce_amount(effect.metadata.get("amount"))
-            if amount <= 0:
+            count = max(0, int(getattr(effect, "count", 0)))
+            if count <= 0:
+                self._remove_effect(effect_entity)
                 continue
+            damage = self._calculate_damage(effect, count)
             reason = str(effect.metadata.get("reason", "poison"))
             self.event_bus.emit(
                 EVENT_HEALTH_DAMAGE,
                 source_owner=None,
                 target_entity=owner,
-                amount=amount,
+                amount=damage,
                 reason=reason,
                 effect_entity=effect_entity,
                 effect_slug="poison",
             )
+            effect.count = max(0, count - 1)
+            if effect.count <= 0:
+                self._remove_effect(effect_entity)
 
     def _effect_list(self, owner: int) -> EffectList | None:
         try:
@@ -58,3 +63,17 @@ class PoisonEffectSystem:
             return max(0, int(value))
         except (TypeError, ValueError):
             return 0
+
+    def _calculate_damage(self, effect: Effect, count: int) -> int:
+        base = self._coerce_amount(effect.metadata.get("damage_per_tick", 1))
+        if base <= 0:
+            base = 1
+        bonus = count // 5
+        return base + bonus
+
+    def _remove_effect(self, effect_entity: int) -> None:
+        self.event_bus.emit(
+            EVENT_EFFECT_REMOVE,
+            effect_entity=effect_entity,
+            reason="poison_depleted",
+        )

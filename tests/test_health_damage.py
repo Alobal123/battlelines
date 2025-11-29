@@ -1,4 +1,11 @@
-from ecs.events.bus import EventBus, EVENT_HEALTH_DAMAGE, EVENT_HEALTH_CHANGED, EVENT_MATCH_CLEARED, EVENT_EFFECT_APPLY
+from ecs.events.bus import (
+    EventBus,
+    EVENT_HEALTH_DAMAGE,
+    EVENT_HEALTH_CHANGED,
+    EVENT_MATCH_CLEARED,
+    EVENT_TILES_MATCHED,
+    EVENT_EFFECT_APPLY,
+)
 from world import create_world
 from ecs.components.health import Health
 from ecs.components.human_agent import HumanAgent
@@ -41,6 +48,13 @@ def test_witchfire_damage_event_flow():
         positions=[(0, 0), (0, 1), (0, 2)],
         types=[(0, 0, 'witchfire'), (0, 1, 'witchfire'), (0, 2, 'witchfire')],
         owner_entity=player1_ent,
+    )
+    bus.emit(
+        EVENT_TILES_MATCHED,
+        positions=[(0, 0), (0, 1), (0, 2)],
+        types=[(0, 0, 'witchfire'), (0, 1, 'witchfire'), (0, 2, 'witchfire')],
+        owner_entity=player1_ent,
+        source="test_witchfire",
     )
     
     # Player 2 should have taken 3 damage while the caster remains unchanged

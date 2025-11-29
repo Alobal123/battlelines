@@ -31,7 +31,9 @@ from ecs.systems.effects.board_clear_effect_system import BoardClearEffectSystem
 from ecs.systems.effects.board_transform_effect_system import BoardTransformEffectSystem
 from ecs.systems.effects.mana_drain_effect_system import ManaDrainEffectSystem
 from ecs.systems.effects.poison_effect_system import PoisonEffectSystem
+from ecs.systems.effects.bleeding_effect_system import BleedingEffectSystem
 from ecs.systems.effects.tile_sacrifice_effect_system import TileSacrificeEffectSystem
+from ecs.systems.effects.vigour_effect_system import VigourEffectSystem
 from ecs.systems.tooltip_system import TooltipSystem
 from ecs.systems.rule_based_ai_system import RuleBasedAISystem
 from ecs.systems.defeat_system import DefeatSystem
@@ -113,6 +115,8 @@ class BattlelinesWindow(Window):
         self.mana_drain_effect_system = ManaDrainEffectSystem(self.world, self.event_bus)
         self.tile_sacrifice_effect_system = TileSacrificeEffectSystem(self.world, self.event_bus)
         self.poison_effect_system = PoisonEffectSystem(self.world, self.event_bus)
+        self.bleeding_effect_system = BleedingEffectSystem(self.world, self.event_bus)
+        self.vigour_effect_system = VigourEffectSystem(self.world, self.event_bus)
         self.tile_bank_system = TileBankSystem(self.world, self.event_bus)
         self.forbidden_knowledge_system = ForbiddenKnowledgeSystem(self.world, self.event_bus)
 

@@ -144,14 +144,14 @@ def test_savagery_damage_bonus_applies_and_expires(setup_world):
     _activate_self_ability(bus, world, owner_ent, savagery_ent)
     assert cooldown_state.remaining_turns == 2
     savagery_effects = _damage_bonus_effects(world, owner_ent)
-    assert len(savagery_effects) == 1
-    effect_entity = savagery_effects[0]
-    duration_comp = world.component_for_entity(effect_entity, EffectDuration)
+    assert len(savagery_effects) >= 2, "Repeated Savagery casts should stack separate damage bonus effects"
+    existing_effects = set(initial_effects)
     effect_turns = savagery_spec.turns if savagery_spec and savagery_spec.turns is not None else 0
-    if effect_turns:
-        assert duration_comp.remaining_turns == effect_turns
-    else:
+    for effect_entity in savagery_effects:
+        duration_comp = world.component_for_entity(effect_entity, EffectDuration)
         assert duration_comp.remaining_turns > 0
+        if effect_turns and effect_entity not in existing_effects:
+            assert duration_comp.remaining_turns == effect_turns
     damage_events.clear()
     _force_active_owner(world, owner_ent)
     _activate_self_ability(bus, world, owner_ent, blood_bolt_ent)
@@ -168,7 +168,8 @@ def test_savagery_damage_bonus_applies_and_expires(setup_world):
             if spec.target == "opponent" and spec.metadata.get("amount") is not None:
                 opponent_damage = int(spec.metadata["amount"])
     assert self_damage is not None and opponent_damage is not None
-    assert amounts == [self_damage + bonus_amount, opponent_damage + bonus_amount]
+    total_bonus = bonus_amount * len(savagery_effects)
+    assert amounts == [self_damage + total_bonus, opponent_damage + total_bonus]
     for _ in range(effect_turns or 0):
         bus.emit(EVENT_TURN_ADVANCED, previous_owner=owner_ent, new_owner=None)
     if effect_turns:

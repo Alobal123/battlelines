@@ -45,9 +45,28 @@ class EffectLifecycleSystem:
         turns = kwargs.get("turns")
         if turns is None:
             turns = metadata.get("turns")
-        stacks = kwargs.get("stacks")
-        if stacks is None:
-            stacks = bool(metadata.pop("stacks", False))
+        allow_multiple = kwargs.get("allow_multiple")
+        metadata_allow_multiple = metadata.pop("allow_multiple", None)
+        if allow_multiple is None:
+            if metadata_allow_multiple is not None:
+                allow_multiple = metadata_allow_multiple
+            else:
+                allow_multiple = True
+        allow_multiple = bool(allow_multiple)
+        cumulative = bool(kwargs.get("cumulative", metadata.pop("cumulative", False)))
+        if definition is not None and "cumulative" in definition.tags:
+            cumulative = True
+        count_delta = kwargs.get("count")
+        if count_delta is None:
+            count_delta = metadata.pop("count", None)
+        if count_delta is None:
+            count_delta = 0
+        try:
+            count_delta = int(count_delta)
+        except (TypeError, ValueError):
+            count_delta = 0
+        if count_delta < 0:
+            count_delta = 0
         stack_key = kwargs.get("stack_key", metadata.pop("stack_key", None))
         refresh_existing = bool(kwargs.get("refresh", False))
         expire_on_events = kwargs.get("expire_on_events")
@@ -61,13 +80,24 @@ class EffectLifecycleSystem:
         )
         effect_list = self._ensure_effect_list(owner_entity)
         duplicates = self._find_effects(effect_list, slug, stack_key)
+        if duplicates and cumulative:
+            target_entity = duplicates[0]
+            self._accumulate_effect(
+                target_entity,
+                count_delta,
+                metadata,
+                source_entity,
+            )
+            return
         if duplicates and refresh_existing:
             for effect_entity in duplicates:
                 self._refresh_effect(
                     effect_entity,
                     metadata,
                     turns,
-                    stacks,
+                    allow_multiple,
+                    cumulative,
+                    count_delta,
                     stack_key,
                     source_entity,
                     expire_on_events,
@@ -75,7 +105,7 @@ class EffectLifecycleSystem:
                     payload_owner_key,
                 )
             return
-        if duplicates and not stacks:
+        if duplicates and not allow_multiple:
             for effect_entity in list(duplicates):
                 self._expire_effect(effect_entity, reason="replaced")
         components: list[Any] = [
@@ -83,8 +113,10 @@ class EffectLifecycleSystem:
                 slug=slug,
                 owner_entity=owner_entity,
                 source_entity=source_entity,
-                stacks=bool(stacks),
+                allow_multiple=allow_multiple,
                 stack_key=stack_key,
+                cumulative=cumulative,
+                count=max(0, count_delta),
                 metadata=metadata,
             )
         ]
@@ -198,7 +230,9 @@ class EffectLifecycleSystem:
         effect_entity: int,
         metadata: Dict[str, Any],
         turns: Any,
-        stacks: bool,
+        allow_multiple: bool,
+        cumulative: bool,
+        count_delta: int,
         stack_key: str | None,
         source_entity: int | None,
         expire_on_events: Iterable[str],
@@ -211,8 +245,11 @@ class EffectLifecycleSystem:
             return
         effect.metadata.clear()
         effect.metadata.update(metadata)
-        effect.stacks = bool(stacks)
+        effect.allow_multiple = bool(allow_multiple)
         effect.stack_key = stack_key
+        effect.cumulative = bool(cumulative)
+        if count_delta:
+            effect.count = max(0, int(count_delta))
         if source_entity is not None:
             effect.source_entity = source_entity
         if turns is not None:
@@ -254,6 +291,31 @@ class EffectLifecycleSystem:
             )
         else:
             self._remove_component(effect_entity, EffectExpireOnEvents)
+        self.event_bus.emit(
+            EVENT_EFFECT_REFRESHED,
+            effect_entity=effect_entity,
+            owner_entity=effect.owner_entity,
+            slug=effect.slug,
+        )
+
+    def _accumulate_effect(
+        self,
+        effect_entity: int,
+        count_delta: int,
+        metadata: Dict[str, Any],
+        source_entity: int | None,
+    ) -> None:
+        try:
+            effect = self.world.component_for_entity(effect_entity, Effect)
+        except KeyError:
+            return
+        if count_delta:
+            effect.count = max(0, effect.count + count_delta)
+        effect.cumulative = True
+        if metadata:
+            effect.metadata.update(metadata)
+        if source_entity is not None:
+            effect.source_entity = source_entity
         self.event_bus.emit(
             EVENT_EFFECT_REFRESHED,
             effect_entity=effect_entity,

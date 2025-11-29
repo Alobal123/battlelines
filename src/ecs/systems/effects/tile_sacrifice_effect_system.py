@@ -19,7 +19,7 @@ from ecs.events.bus import (
     EVENT_EFFECT_REFRESHED,
     EVENT_EFFECT_REMOVE,
     EVENT_EFFECT_APPLY,
-    EVENT_TILE_BANK_GAINED,
+    EVENT_BANK_MANA,
     EventBus,
 )
 from ecs.systems.board_ops import GravityMove, clear_tiles_with_cascade, get_entity_at
@@ -184,10 +184,11 @@ class TileSacrificeEffectSystem:
             return
         tile_type = tile.type_name
         self.event_bus.emit(
-            EVENT_TILE_BANK_GAINED,
+            EVENT_BANK_MANA,
             owner_entity=owner,
             type_name=tile_type,
             amount=amount,
+            source="tile_sacrifice",
         )
         if tile_type == "witchfire":
             self._emit_witchfire_damage(owner, amount)

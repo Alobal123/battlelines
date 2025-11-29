@@ -29,6 +29,7 @@ class BoardRenderer:
             sprites.cleanup_tile_sprites(active_entities)
 
         rs._last_tile_layout = {}
+        rs._last_draw_coords = {}
 
         for (row, col), (ent, base_x, base_y) in positions.items():
             try:
@@ -112,6 +113,7 @@ class BoardRenderer:
                 "center": (draw_x, draw_y),
                 "radius": radius,
             }
+            rs._last_draw_coords[(row, col)] = (draw_x, draw_y)
             if headless:
                 continue
 

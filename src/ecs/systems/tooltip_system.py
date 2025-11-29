@@ -207,6 +207,9 @@ class TooltipSystem:
             except KeyError:
                 continue
             label = self._effect_display_name(effect.slug)
+            count = getattr(effect, "count", 0)
+            if count:
+                label = f"{label}({count})"
             description = self._effect_description(effect)
             meta = self._format_effect_metadata(effect)
             duration_text = self._effect_duration_text(effect_entity)

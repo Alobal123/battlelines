@@ -1,13 +1,14 @@
-from esper import World
 from typing import Dict
+
+from esper import World
 from ecs.events.bus import (
     EventBus,
-    EVENT_MATCH_CLEARED,
+    EVENT_TILES_MATCHED,
+    EVENT_BANK_MANA,
     EVENT_TILE_BANK_CHANGED,
     EVENT_TILE_BANK_SPEND_REQUEST,
     EVENT_TILE_BANK_SPENT,
     EVENT_TILE_BANK_INSUFFICIENT,
-    EVENT_TILE_BANK_GAINED,
     EVENT_EFFECT_APPLY,
 )
 from ecs.components.tile_bank import TileBank
@@ -19,7 +20,8 @@ class TileBankSystem:
     """Tracks cleared tiles and manages spending for abilities.
 
     Logic:
-      - On EVENT_MATCH_CLEARED: increment counts for the owner's bank (assumes single player for now).
+      - On EVENT_TILES_MATCHED: increment counts for the owner's bank (assumes single player for now).
+      - On EVENT_BANK_MANA: process external mana grants (knowledge bar, effects, etc.).
       - On EVENT_TILE_BANK_SPEND_REQUEST: validate and spend or emit insufficient.
         Assumptions:
             - Single player entity with AbilityListOwner; extend later for multiple players.
@@ -28,9 +30,9 @@ class TileBankSystem:
     def __init__(self, world: World, event_bus: EventBus):
         self.world = world
         self.event_bus = event_bus
-        self.event_bus.subscribe(EVENT_MATCH_CLEARED, self.on_match_cleared)
+        self.event_bus.subscribe(EVENT_TILES_MATCHED, self.on_tiles_matched)
         self.event_bus.subscribe(EVENT_TILE_BANK_SPEND_REQUEST, self.on_spend_request)
-        self.event_bus.subscribe(EVENT_TILE_BANK_GAINED, self.on_gain_request)
+        self.event_bus.subscribe(EVENT_BANK_MANA, self.on_bank_mana)
 
     def _get_or_create_bank(self, owner_entity: int) -> int:
         # Find existing bank for owner or create one.
@@ -40,11 +42,10 @@ class TileBankSystem:
         bank_ent = self.world.create_entity(TileBank(owner_entity=owner_entity))
         return bank_ent
 
-    from typing import Optional
     def _list_owners(self) -> list:
         return [ent for ent, comp in self.world.get_component(AbilityListOwner)]
 
-    def on_match_cleared(self, sender, **kwargs):
+    def on_tiles_matched(self, sender, **kwargs):
         positions = kwargs.get('positions', [])  # retained for possible future metrics
         types = kwargs.get('types', [])    # list of (r,c,type_name)
         owner_entity = kwargs.get('owner_entity')
@@ -57,11 +58,19 @@ class TileBankSystem:
         bank: TileBank = self.world.component_for_entity(bank_ent, TileBank)
         readiness_gains: Dict[str, int] = {}
         for (_, _, type_name) in types:
+            if not isinstance(type_name, str) or not type_name:
+                continue
             bank.add(type_name, 1)
             readiness_gains[type_name] = readiness_gains.get(type_name, 0) + 1
         if readiness_gains:
             self._apply_readiness_from_tiles(owner_entity, readiness_gains)
-        self.event_bus.emit(EVENT_TILE_BANK_CHANGED, entity=bank_ent, counts=bank.counts.copy())
+            self._emit_bank_changed(
+                bank_entity=bank_ent,
+                owner_entity=owner_entity,
+                counts=bank.counts.copy(),
+                delta=readiness_gains,
+                source=kwargs.get('source', 'tiles_matched'),
+            )
 
         witchfire_cleared = readiness_gains.get('witchfire', 0)
         if witchfire_cleared:
@@ -94,27 +103,50 @@ class TileBankSystem:
             self.event_bus.emit(EVENT_TILE_BANK_INSUFFICIENT, entity=bank_ent, cost=cost, missing=missing, ability_entity=ability_entity)
         else:
             self.event_bus.emit(EVENT_TILE_BANK_SPENT, entity=bank_ent, cost=cost, ability_entity=ability_entity)
-            self.event_bus.emit(EVENT_TILE_BANK_CHANGED, entity=bank_ent, counts=bank_obj.counts.copy())
+            spent_delta = {k: -int(v) for k, v in cost.items() if int(v)}
+            if spent_delta:
+                self._emit_bank_changed(
+                    bank_entity=bank_ent,
+                    owner_entity=owner_entity,
+                    counts=bank_obj.counts.copy(),
+                    delta=spent_delta,
+                    source='tile_bank_spend',
+                    ability_entity=ability_entity,
+                )
 
-    def on_gain_request(self, sender, **kwargs):
+    def on_bank_mana(self, sender, **kwargs):
         owner_entity = kwargs.get('owner_entity')
-        type_name = kwargs.get('type_name')
-        amount = kwargs.get('amount', 1)
-        if owner_entity is None or not isinstance(type_name, str) or not type_name:
+        if owner_entity is None:
             return
-        try:
-            amount_int = int(amount)
-        except (TypeError, ValueError):
-            amount_int = 1
-        if amount_int <= 0:
+        gains_payload = kwargs.get('gains')
+        gains: Dict[str, int] = {}
+        if isinstance(gains_payload, dict):
+            for key, value in gains_payload.items():
+                amount_int = self._coerce_positive(value)
+                if amount_int > 0 and isinstance(key, str) and key:
+                    gains[key] = gains.get(key, 0) + amount_int
+        else:
+            type_name = kwargs.get('type_name')
+            amount_int = self._coerce_positive(kwargs.get('amount', 1), default=1)
+            if isinstance(type_name, str) and type_name and amount_int > 0:
+                gains[type_name] = amount_int
+        if not gains:
             return
         bank_ent = self._get_or_create_bank(owner_entity)
         bank: TileBank = self.world.component_for_entity(bank_ent, TileBank)
-        bank.add(type_name, amount_int)
-        self.event_bus.emit(
-            EVENT_TILE_BANK_CHANGED,
-            entity=bank_ent,
+        for type_name, amount in gains.items():
+            bank.add(type_name, amount)
+        delta = {
+            type_name: int(amount)
+            for type_name, amount in gains.items()
+            if amount
+        }
+        self._emit_bank_changed(
+            bank_entity=bank_ent,
+            owner_entity=owner_entity,
             counts=bank.counts.copy(),
+            delta=delta,
+            source=kwargs.get('source', 'bank_mana'),
         )
 
     def process(self):
@@ -173,3 +205,39 @@ class TileBankSystem:
                 "source_owner": clearing_owner,
             },
         )
+
+    def _emit_bank_changed(
+        self,
+        *,
+        bank_entity: int,
+        owner_entity: int,
+        counts: Dict[str, int],
+        delta: Dict[str, int],
+        source: str,
+        ability_entity: int | None = None,
+    ) -> None:
+        normalized_delta = {
+            type_name: int(amount)
+            for type_name, amount in (delta or {}).items()
+            if int(amount) != 0
+        }
+        if not normalized_delta:
+            return
+        payload = {
+            'entity': bank_entity,
+            'owner_entity': owner_entity,
+            'counts': counts,
+            'delta': normalized_delta,
+            'source': source,
+        }
+        if ability_entity is not None:
+            payload['ability_entity'] = ability_entity
+        self.event_bus.emit(EVENT_TILE_BANK_CHANGED, **payload)
+
+    @staticmethod
+    def _coerce_positive(value, *, default: int = 0) -> int:
+        try:
+            amount = int(value)
+        except (TypeError, ValueError):
+            return default
+        return amount if amount > 0 else default

@@ -34,7 +34,7 @@ def create_enemy_codex(
         Character(
             slug="codex",
             name="Living Codex",
-            description="Pages flutter endlessly, cataloguing every duel fought within the stacks.",
+            description="Pages flutter endlessly, cataloguing every duel fought within the archives.",
             portrait_path="codex.png",
         ),
     )

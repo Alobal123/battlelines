@@ -64,7 +64,7 @@ def _total_frailty_bonus(world, owner_entity: int) -> int:
     return total
 
 
-def test_curse_of_frailty_applies_and_stacks():
+def test_curse_of_frailty_applies_and_accumulates():
     bus = EventBus()
     world = create_world(bus, grant_default_player_abilities=False)
 

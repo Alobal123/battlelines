@@ -9,13 +9,13 @@ from ecs.components.ability_target import AbilityTarget
 
 
 def create_ability_scent_lock(world: World) -> int:
-    """Mark the opponent with a lingering scent."""
+    """Mark the opponent with a vicious bite that causes bleeding."""
     return world.create_entity(
         Ability(
             name="scent_lock",
             kind="active",
             cost={"blood": 2, "shapeshift": 2},
-            description="Mark the foe with a lingering scent for several turns.",
+            description="Inflict heavy bleeding on the foe to set up the kill.",
             cooldown=1,
             ends_turn=False,
         ),
@@ -23,9 +23,12 @@ def create_ability_scent_lock(world: World) -> int:
         AbilityEffects(
             effects=(
                 AbilityEffectSpec(
-                    slug="locked_scent",
+                    slug="bleeding",
                     target="opponent",
-                    turns=5,
+                    metadata={
+                        "count": 5,
+                        "reason": "scent_lock",
+                    },
                 ),
             )
         ),

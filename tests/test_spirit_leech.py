@@ -4,12 +4,12 @@ from ecs.events.bus import (
     EVENT_HEALTH_DAMAGE,
     EVENT_MANA_DRAIN,
     EVENT_TILE_BANK_CHANGED,
-    EVENT_TILE_BANK_GAINED,
 )
 from world import create_world
 from ecs.components.ability_list_owner import AbilityListOwner
 from ecs.components.pending_ability_target import PendingAbilityTarget
 from ecs.components.tile_bank import TileBank
+from ecs.systems.tile_bank_system import TileBankSystem
 from ecs.components.health import Health
 from ecs.components.human_agent import HumanAgent
 from ecs.components.rule_based_agent import RuleBasedAgent
@@ -36,6 +36,7 @@ def test_spirit_leech_drains_mana_and_deals_damage():
     bus = EventBus()
     world = create_world(bus, grant_default_player_abilities=False)
 
+    TileBankSystem(world, bus)
     HealthSystem(world, bus)
     EffectLifecycleSystem(world, bus)
     DamageEffectSystem(world, bus)
@@ -62,12 +63,10 @@ def test_spirit_leech_drains_mana_and_deals_damage():
     drain_events = []
     damage_events = []
     bank_change_events = []
-    gain_events = []
 
     bus.subscribe(EVENT_MANA_DRAIN, lambda sender, **payload: drain_events.append(payload))
     bus.subscribe(EVENT_HEALTH_DAMAGE, lambda sender, **payload: damage_events.append(payload))
     bus.subscribe(EVENT_TILE_BANK_CHANGED, lambda sender, **payload: bank_change_events.append(payload))
-    bus.subscribe(EVENT_TILE_BANK_GAINED, lambda sender, **payload: gain_events.append(payload))
 
     pending = PendingAbilityTarget(
         ability_entity=spirit_leech_entity,
@@ -100,15 +99,13 @@ def test_spirit_leech_drains_mana_and_deals_damage():
     assert bank_change_events, "Spirit Leech should notify tile bank changes"
     enemy_change = next(payload for payload in bank_change_events if payload["entity"] == bank_entity)
     assert enemy_change["counts"]["spirit"] == 2
-    owner_change = next(payload for payload in bank_change_events if payload["entity"] == owner_bank_entity)
+    owner_change = next(
+        payload
+        for payload in bank_change_events
+        if payload["entity"] == owner_bank_entity and (payload.get("delta") or {}).get("spirit", 0) > 0
+    )
     assert owner_change["counts"]["spirit"] == owner_bank.counts["spirit"]
-
-    assert gain_events, "Expected tile bank gain event for mana drain"
-    gain_payload = gain_events[-1]
-    assert gain_payload["owner_entity"] == human_ent
-    assert gain_payload["bank_entity"] == owner_bank_entity
-    assert gain_payload["type_name"] == "spirit"
-    assert gain_payload["amount"] == 2
+    assert owner_change["delta"]["spirit"] == 2
 
     assert damage_events, "Spirit Leech should deal damage"
     damage_payload = damage_events[-1]

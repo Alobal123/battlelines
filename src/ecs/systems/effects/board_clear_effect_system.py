@@ -16,7 +16,12 @@ from ecs.events.bus import (
     EVENT_MATCH_CLEARED,
     EventBus,
 )
-from ecs.systems.board_ops import clear_tiles_with_cascade, GravityMove
+from ecs.systems.board_ops import (
+    clear_tiles_with_cascade,
+    GravityMove,
+    snapshot_tile_entities,
+    apply_gravity_moves,
+)
 from ecs.systems.turn_state_utils import get_or_create_turn_state
 
 Position = Tuple[int, int]
@@ -49,8 +54,13 @@ class BoardClearEffectSystem:
             self._remove_effect(effect_entity, reason="resolved")
             return
 
+        entity_snapshot = snapshot_tile_entities(self.world, positions)
+
         colored, typed, gravity_moves, cascades, new_tiles = clear_tiles_with_cascade(
-            self.world, positions, refill=self._refill_cascades
+            self.world,
+            positions,
+            refill=self._refill_cascades,
+            apply_gravity=False,
         )
 
         affected_positions = [(row, col) for row, col, _ in colored]
@@ -66,6 +76,8 @@ class BoardClearEffectSystem:
         reason = metadata.get("reason", effect.slug)
         if affected_positions:
             animated_moves = self._serialize_gravity_moves(gravity_moves)
+            if gravity_moves:
+                apply_gravity_moves(self.world, gravity_moves)
             self.event_bus.emit(
                 EVENT_BOARD_CHANGED,
                 reason="ability_effect",
@@ -96,6 +108,7 @@ class BoardClearEffectSystem:
                 types=typed,
                 owner_entity=owner_entity,
                 reason=reason,
+                entities=entity_snapshot,
             )
 
         state = get_or_create_turn_state(self.world)
